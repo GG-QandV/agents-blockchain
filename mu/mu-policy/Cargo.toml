@@ -1,0 +1,8 @@
+[package]
+name = "mu-policy"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+mu-common = { path = "../mu-common" }
+sha2 = "=0.10.8"

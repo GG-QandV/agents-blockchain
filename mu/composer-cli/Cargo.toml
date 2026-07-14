@@ -1,0 +1,13 @@
+[package]
+name = "composer-cli"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+mu-common = { path = "../mu-common" }
+mu-policy = { path = "../mu-policy" }
+composer-core = { path = "../composer-core" }
+
+[[bin]]
+name = "mu-compose"
+path = "src/main.rs"

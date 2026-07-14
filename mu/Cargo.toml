@@ -1,0 +1,7 @@
+[workspace]
+members = ["mu-common", "mu-vault", "mu-connect", "mu-gate", "mu-log", "mu-runtime", "mu-human", "mu-policy", "composer-core", "composer-cli", "mu-core", "mu-daemon", "mu-fixtures", "sui-smoke"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"

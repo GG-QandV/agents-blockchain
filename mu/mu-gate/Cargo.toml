@@ -1,0 +1,9 @@
+[package]
+name = "mu-gate"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+mu-common = { path = "../mu-common" }
+ed25519-dalek = "=2.1.1"
+sha2 = "=0.10.8"

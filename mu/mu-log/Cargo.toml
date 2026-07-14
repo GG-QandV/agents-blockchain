@@ -1,0 +1,14 @@
+[package]
+name = "mu-log"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+mu-common = { path = "../mu-common" }
+mu-vault = { path = "../mu-vault" }
+mu-connect = { path = "../mu-connect" }
+sha2 = "=0.10.8"
+
+[dev-dependencies]
+mu-vault = { path = "../mu-vault", features = ["softvault"] }
+tempfile = "=3.10.1"

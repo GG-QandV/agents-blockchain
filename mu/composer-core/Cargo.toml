@@ -1,0 +1,12 @@
+[package]
+name = "composer-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+mu-common = { path = "../mu-common" }
+mu-policy = { path = "../mu-policy" }
+sha2 = "=0.10.8"
+
+[dev-dependencies]
+tempfile = "=3.10.1"

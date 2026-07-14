@@ -1,0 +1,17 @@
+[package]
+name = "mu-runtime"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+mu-common = { path = "../mu-common" }
+mu-vault = { path = "../mu-vault" }
+mu-connect = { path = "../mu-connect" }
+mu-log = { path = "../mu-log" }
+mu-human = { path = "../mu-human" }
+sha2 = "=0.10.8"
+
+[dev-dependencies]
+p256 = { version = "=0.13.2", features = ["ecdsa"] }
+mu-vault = { path = "../mu-vault", features = ["softvault"] }
+tempfile = "=3.10.1"

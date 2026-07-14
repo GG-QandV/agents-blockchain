@@ -1,0 +1,10 @@
+[package]
+name = "sui-smoke"
+version.workspace = true
+edition.workspace = true
+
+# Живой прогон M7a-sui против testnet. HTTP — через системный curl (ноль TLS-зависимостей).
+[dependencies]
+mu-common = { path = "../mu-common" }
+mu-connect = { path = "../mu-connect" }
+mu-vault = { path = "../mu-vault", features = ["softvault"] }

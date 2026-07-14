@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Δ-Composer</title>
+<style>
+  :root { --bg:#111418; --fg:#e6e6e6; --mut:#8a919c; --err:#ff6b6b; --warn:#e8b93c; --ok:#5dd39e; --card:#1a1f26; }
+  * { box-sizing:border-box; font-family:system-ui,sans-serif }
+  body { margin:0; background:var(--bg); color:var(--fg) }
+  main { max-width:720px; margin:0 auto; padding:20px }
+  .card { background:var(--card); border-radius:10px; padding:16px; margin-bottom:14px }
+  h1 { font-size:18px; margin:0 0 12px } h2 { font-size:14px; color:var(--mut); margin:0 0 10px }
+  label { display:block; font-size:12px; color:var(--mut); margin-bottom:4px }
+  input { width:100%; padding:8px; border-radius:6px; border:1px solid #2c333d; background:#0d1013; color:var(--fg) }
+  input.bad { border-color:var(--err) }
+  button { padding:8px 14px; border-radius:6px; border:0; background:#2e6fdb; color:#fff; cursor:pointer }
+  button:disabled { background:#2c333d; color:var(--mut); cursor:not-allowed }
+  button.ghost { background:transparent; border:1px solid #2c333d }
+  table { width:100%; border-collapse:collapse; font-size:13px }
+  td,th { padding:6px 8px; border-bottom:1px solid #232a33; text-align:left }
+  .mono { font-family:ui-monospace,monospace }
+  .msg-err { color:var(--err); font-size:12px } .msg-warn { color:var(--warn); font-size:12px }
+  .badge { font-size:11px; padding:2px 6px; border-radius:4px; background:#232a33; color:var(--mut) }
+  .badge.on { background:#12351f; color:var(--ok) }
+  canvas.icn { image-rendering:pixelated; border-radius:4px; vertical-align:middle }
+  #screen-wait { text-align:center; padding:40px }
+  .row { display:flex; gap:10px; align-items:end } .row > div { flex:1 }
+  dialog { background:var(--card); color:var(--fg); border:1px solid #2c333d; border-radius:10px; max-width:520px }
+  dialog::backdrop { background:#000a }
+</style>
+</head>
+<body>
+<main>
+  <div class="card" id="s1-header">
+    <h1>Δ-Composer <span class="badge" id="daemon-badge">демон: offline</span></h1>
+    <div style="font-size:12px;color:var(--mut)">delta_hash: <span class="mono" id="dhash">—</span></div>
+  </div>
+
+  <div class="card"><!-- S2: редактор -->
+    <h2>Правила Δ</h2>
+    <div class="row">
+      <div><label>Дневной лимит (USDC)</label><input id="limit" inputmode="decimal"></div>
+      <div><label>Порог подтверждения (USDC)</label><input id="threshold" inputmode="decimal"></div>
+    </div>
+    <div id="rules-msgs"></div>
+  </div>
+
+  <div class="card"><!-- S2/S3: whitelist -->
+    <h2>Whitelist получателей</h2>
+    <table id="wl"><thead><tr><th></th><th>Адрес</th><th>Label</th><th></th></tr></thead><tbody></tbody></table>
+    <div class="row" style="margin-top:10px">
+      <div style="flex:2"><label>Адрес (0x…)</label><input id="new-addr" class="mono" spellcheck="false"></div>
+      <div><label>Label</label><input id="new-label" maxlength="64"></div>
+      <div style="flex:0"><button id="btn-add">Добавить</button></div>
+    </div>
+    <div id="addr-preview" style="margin-top:8px;font-size:13px"></div>
+  </div>
+
+  <div class="card"><!-- S4: diff + отправка -->
+    <h2>Отправка в μ</h2>
+    <div id="warns"></div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button id="btn-save" class="ghost">Сохранить черновик</button>
+      <button id="btn-propose">Отправить в μ</button>
+    </div>
+    <div id="result" style="margin-top:10px;font-size:13px"></div>
+  </div>
+</main>
+
+<dialog id="dlg-confirm"><!-- S3-подтверждение вставки адреса -->
+  <h2 style="color:var(--fg)">Проверьте адрес</h2>
+  <p><canvas class="icn" id="dlg-icn" width="8" height="8" style="width:48px;height:48px"></canvas>
+     <span class="mono" id="dlg-addr" style="font-size:16px;margin-left:10px"></span></p>
+  <p class="msg-warn" id="dlg-warn"></p>
+  <div style="display:flex;gap:10px;justify-content:end">
+    <button class="ghost" id="dlg-no">Отмена</button><button id="dlg-yes">Верно, добавить</button>
+  </div>
+</dialog>
+
+<script src="app.js"></script>
+</body>
+</html>
