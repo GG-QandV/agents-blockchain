@@ -179,6 +179,10 @@ impl<R: RpcClient> Connector for CryptoConnector<R> {
                     reason: crate::FailReason::Simulated,
                 });
             }
+            TxRef::Authorization { .. } => {
+                // CryptoConnector не працює з x402 авторизаціями
+                return Err(ConnErr::Config("EVM connector got Authorization txref".into()));
+            }
         };
         // RISK-M7-3: Settled только при согласии обоих RPC
         let rc1 = self.rpc1.receipt(tx_hash);

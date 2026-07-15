@@ -31,6 +31,7 @@ impl Connector for StubConnector {
         match r {
             TxRef::Simulated { .. } => Ok(TxStatus::Failed { reason: FailReason::Simulated }),
             TxRef::Real { .. } => Err(ConnErr::Config("stub got Real txref".into())),
+            TxRef::Authorization { .. } => Err(ConnErr::Config("stub got Authorization txref".into())),
         }
     }
 }

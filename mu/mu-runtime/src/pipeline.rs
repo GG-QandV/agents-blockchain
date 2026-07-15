@@ -202,6 +202,12 @@ impl<'a> Runtime<'a> {
                 );
                 IntentStatus::Failed
             }
+            Ok(TxRef::Authorization { nonce, valid_before }) => {
+                // x402: авторизація підписана, фасилітатор проведе платіж.
+                // Статус визначається пізніше через connector.status().
+                // nonce — ключ для authorizationState.
+                IntentStatus::ReconcilePending
+            }
             Err(ConnErr::Rejected(_)) => {
                 // достоверный неуход → закрываем Pending (rollback резерва)
                 let _ = self.log.append(Kind::Failed { intent_hash: ih2 }, self.clock.now_unix(), self.vault);

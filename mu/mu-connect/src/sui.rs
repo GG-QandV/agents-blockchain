@@ -154,7 +154,13 @@ impl<R: SuiRpc> SuiConnector<R> {
         let digest = match r {
             TxRef::Real { tx_hash, .. } => tx_hash,
             TxRef::Simulated { .. } => {
-                return Ok(TxStatus::Failed { reason: crate::FailReason::Simulated })
+                return Ok(TxStatus::Failed {
+                    reason: crate::FailReason::Simulated,
+                });
+            }
+            TxRef::Authorization { .. } => {
+                // SuiConnector не працює з EVM x402 авторизаціями
+                return Err(ConnErr::Config("Sui connector got Authorization txref".into()));
             }
         };
         let l1 = self.rpc1.lookup(digest);

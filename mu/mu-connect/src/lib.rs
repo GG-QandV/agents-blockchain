@@ -10,6 +10,7 @@ pub mod crypto;
 pub mod stub;
 pub mod sui;
 pub mod sui_jsonrpc;
+pub mod x402;
 
 use mu_common::{Amount, CanonAddress};
 use mu_vault::TxSigner;
@@ -24,10 +25,14 @@ pub struct Intent {
 
 /// Ссылка на транзакцию. Real и Simulated — РАЗНЫЕ варианты (RISK-M7S-1):
 /// Simulated никогда не спутается с настоящим tx_hash.
+/// Authorization — EIP-3009 TransferWithAuthorization (x402, gasless).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TxRef {
     Real { tx_hash: [u8; 32], chain_nonce: u64 },
     Simulated { id: [u8; 16] },
+    /// x402: EIP-3009 авторизація, nonce — випадковий 32B (RISK-M7-5).
+    /// valid_before — unix ts, після якого authorizationState→false = остаточний Failed.
+    Authorization { nonce: [u8; 32], valid_before: u64 },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

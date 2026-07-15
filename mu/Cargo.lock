@@ -337,6 +337,7 @@ dependencies = [
  "mu-vault",
  "p256",
  "sha2",
+ "sha3",
 ]
 
 [[package]]
