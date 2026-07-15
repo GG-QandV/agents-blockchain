@@ -64,7 +64,7 @@ pub fn validate(new: &Delta, omega: &OmegaView) -> ValidationReport {
     if new.whitelist.is_empty() {
         r.warnings.push(VWarn::WWl01EmptyWhitelist);
     }
-    let mut seen: HashSet<([u8; 32], u64)> = HashSet::new();
+    let mut seen: HashSet<([u8; 20], u64)> = HashSet::new();
     for e in &new.whitelist {
         if !omega.supported_chain_ids.contains(&e.address.chain_id()) {
             r.errors.push(VErr::EAdr03ChainUnsupported { chain_id: e.address.chain_id() });
@@ -94,7 +94,7 @@ mod tests {
     fn base() -> Delta {
         Delta {
             daily_limit: Amount::from_minor(500),
-            whitelist: vec![wl("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 8453, "A")],
+            whitelist: vec![wl("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 8453, "A")],
             confirm_threshold: Amount::from_minor(100),
         }
     }
@@ -120,10 +120,10 @@ mod tests {
     #[test]
     fn e_adr_03_04() {
         let mut d = base();
-        d.whitelist.push(wl("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", 1, "Eth")); // chain 1 не поддержан
+        d.whitelist.push(wl("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", 1, "Eth")); // chain 1 не поддержан
         assert!(matches!(validate(&d, &omega()).errors[0], VErr::EAdr03ChainUnsupported { chain_id: 1 }));
         let mut d = base();
-        d.whitelist.push(wl("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 8453, "Dup"));
+        d.whitelist.push(wl("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 8453, "Dup"));
         assert!(validate(&d, &omega()).errors.contains(&VErr::EAdr04Duplicate));
     }
     #[test]

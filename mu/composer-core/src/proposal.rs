@@ -60,8 +60,8 @@ pub fn decode_proposal(buf: &[u8]) -> Result<DeltaProposal, ProposalErr> {
     let mut wl = Vec::with_capacity(n);
     for _ in 0..n {
         let chain = c.u64()?;
-        let addr_bytes = c.take(32)?;
-        let mut hex = String::with_capacity(64);
+        let addr_bytes = c.take(20)?;
+        let mut hex = String::with_capacity(40);
         for by in addr_bytes { hex.push_str(&format!("{:02x}", by)); }
         let address = CanonAddress::canon(&hex, chain).map_err(|_| ProposalErr::Malformed)?;
         let ll = c.u8()? as usize;
@@ -113,7 +113,7 @@ mod tests {
             new_delta: Delta {
                 daily_limit: Amount::from_minor(500),
                 whitelist: vec![WlEntry {
-                    address: CanonAddress::canon("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 8453).unwrap(),
+                    address: CanonAddress::canon("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 8453).unwrap(),
                     label: "API".into(),
                 }],
                 confirm_threshold: Amount::from_minor(100),

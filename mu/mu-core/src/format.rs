@@ -4,7 +4,7 @@ use crate::object::{CoreErr, Mu, Omega};
 use mu_common::{Amount, CanonAddress, Hash32};
 use mu_policy::{Delta, WlEntry};
 
-pub const FORMAT_VERSION: u16 = 2;
+pub const FORMAT_VERSION: u16 = 1;
 
 /// Ссылочный вид payload для encode (без владения).
 pub struct MuPayload<'a> {
@@ -125,8 +125,8 @@ fn decode_delta(b: &[u8]) -> Result<Delta, CoreErr> {
     let mut wl = Vec::with_capacity(n);
     for _ in 0..n {
         let chain = c.u64()?;
-        let ab = c.take(32)?;
-        let mut hex = String::with_capacity(64);
+        let ab = c.take(20)?;
+        let mut hex = String::with_capacity(40);
         for by in ab { hex.push_str(&format!("{:02x}", by)); }
         let address = CanonAddress::canon(&hex, chain).map_err(|_| CoreErr::CborMalformed)?;
         let ll = c.u8()? as usize;

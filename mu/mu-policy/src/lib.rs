@@ -5,10 +5,10 @@
 
 pub mod types;
 pub mod validate;
-pub mod sui_addr;
+pub mod eip55;
 pub mod hash;
 
 pub use types::{Delta, OmegaView, WlEntry};
 pub use validate::{validate, VErr, VWarn, ValidationReport};
 pub use hash::delta_hash;
-pub use sui_addr::canon_address_checked;
+pub use eip55::canon_address_checked;

@@ -18,12 +18,12 @@ use std::time::{Duration, Instant};
 
 /// Данные диалога платежа. Собираются в M6 из intent'а, прошедшего Ω/Δ (RISK-M9-1).
 /// purpose агента здесь ОТСУТСТВУЕТ by design — вместо него wl_label из Δ.
-/// Sui gasless: gas_est видалено, total = amount.
 #[derive(Clone, Debug)]
 pub struct PayConfirm {
     pub recipient: CanonAddress,
     pub wl_label: Option<String>,
     pub amount: Amount,
+    pub gas_est: Amount,
     pub agent_id: String,
     pub remaining_window: Amount,
     pub intent_hash: Hash32,
@@ -124,9 +124,10 @@ mod tests {
 
     fn req() -> PayConfirm {
         PayConfirm {
-            recipient: CanonAddress::canon("0xabcdef0123456789abcdef0123456789abcdef01000000000000000000000000", 8453).unwrap(),
+            recipient: CanonAddress::canon("0xabcdef0123456789abcdef0123456789abcdef01", 8453).unwrap(),
             wl_label: Some("API Service".into()),
             amount: Amount::from_minor(5_000_000),
+            gas_est: Amount::from_minor(1000),
             agent_id: "agent-1".into(),
             remaining_window: Amount::from_minor(10_000_000),
             intent_hash: Hash32([0xCC; 32]),

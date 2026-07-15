@@ -16,19 +16,21 @@ pub enum OmegaDeny {
     CeilingExceeded,
 }
 
-/// Sui gasless: total = amount (без gas_estimate).
+/// RISK-M2-1: checked-арифметика; переполнение = Deny, не паника.
 pub fn omega_check(
     amount: Amount,
+    gas_estimate: Amount,
     connector: ConnectorId,
     o: &Omega,
 ) -> Result<Amount, OmegaDeny> {
     if !o.connectors.contains(&connector) {
         return Err(OmegaDeny::ConnectorUnknown);
     }
-    if amount > o.max_ceiling {
+    let total = amount.checked_add(gas_estimate).ok_or(OmegaDeny::CeilingExceeded)?;
+    if total > o.max_ceiling {
         return Err(OmegaDeny::CeilingExceeded);
     }
-    Ok(amount)
+    Ok(total)
 }
 
 // ── Δ (M3): политики момента ──────────────────────────────────────────────

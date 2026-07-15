@@ -35,8 +35,8 @@ mod tests {
     }
     #[test]
     fn order_independent() {
-        let a = wl("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "A");
-        let b = wl("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "B");
+        let a = wl("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "A");
+        let b = wl("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "B");
         let d1 = Delta { daily_limit: Amount::from_minor(1), whitelist: vec![a.clone(), b.clone()], confirm_threshold: Amount::ZERO };
         let d2 = Delta { daily_limit: Amount::from_minor(1), whitelist: vec![b, a], confirm_threshold: Amount::ZERO };
         assert_eq!(delta_hash(&d1), delta_hash(&d2));

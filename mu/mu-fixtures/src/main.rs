@@ -37,7 +37,7 @@ fn sample_delta() -> Delta {
     Delta {
         daily_limit: Amount::from_minor(500_000_000),      // 500 USDC
         whitelist: vec![WlEntry {
-            address: CanonAddress::canon("0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed000000000000000000000000", 8453).unwrap(),
+            address: CanonAddress::canon("0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed", 8453).unwrap(),
             label: "Test API Service".into(),
         }],
         confirm_threshold: Amount::from_minor(100_000_000), // 100 USDC

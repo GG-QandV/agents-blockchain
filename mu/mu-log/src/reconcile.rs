@@ -1,9 +1,5 @@
-//! RISK-M5-3: таблична résolution для Pending при рекавери.
-//! default = Keep. Вітки «else → Failed» в коді НЕТУ.
-//! Sui semantics for NonceState:
-//! - ConsumedByOther: coin-об'єкт витрачено іншою tx (версія зросла), digest не знайдено
-//! - NotReached: версія об'єкта не змінилась (tx не могла виконатись)
-//! - Unknown: не вдалось визначити
+//! RISK-M5-3: табличная résolution для Pending при рекавери.
+//! default = Keep. Ветки «else → Failed» в коде НЕТ.
 use mu_connect::crypto::RpcReceipt;
 
 /// Ответы обеих нод по tx_hash + состояние nonce аккаунта относительно chain_nonce записи.

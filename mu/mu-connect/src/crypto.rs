@@ -78,13 +78,10 @@ impl<R: RpcClient> CryptoConnector<R> {
     /// RISK-M7-5: единственная функция сборки calldata ERC20.transfer(to, amount)
     /// + self-check обратным декодом.
     fn build_transfer(&self, to: &CanonAddress, amount: Amount) -> Result<Vec<u8>, ConnErr> {
-        // RISK-M7-5: calldata = selector + 20B адреса (EVM pad справа) + amount
-        // NB: CanonAddress тепер 32B (Sui), EVM використовує перші 20B
         let mut cd = Vec::with_capacity(68);
         cd.extend_from_slice(&[0xa9, 0x05, 0x9c, 0xbb]); // selector transfer(address,uint256)
-        let eth_addr = &to.bytes()[..20];
         cd.extend_from_slice(&[0u8; 12]);
-        cd.extend_from_slice(eth_addr);
+        cd.extend_from_slice(to.bytes());
         let amt = amount.minor().to_be_bytes(); // u128 → 16 байт
         cd.extend_from_slice(&[0u8; 16]);
         cd.extend_from_slice(&amt);
@@ -93,7 +90,7 @@ impl<R: RpcClient> CryptoConnector<R> {
         let dec_amt = u128::from_be_bytes(cd[52..68].try_into().map_err(|_| {
             ConnErr::Config("calldata self-check length".into())
         })?);
-        if dec_to != eth_addr || dec_amt != amount.minor() {
+        if dec_to != to.bytes() || dec_amt != amount.minor() {
             return Err(ConnErr::Config("calldata self-check mismatch".into()));
         }
         Ok(cd)
@@ -257,7 +254,7 @@ mod tests {
 
     fn intent() -> Intent {
         Intent {
-            recipient: CanonAddress::canon("0x833589fcd6edb6e08f4c7c32d4f71b54bda02913000000000000000000000000", 8453).unwrap(),
+            recipient: CanonAddress::canon("0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", 8453).unwrap(),
             amount: Amount::from_minor(5_000_000),
             chain_id: 8453,
         }

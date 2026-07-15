@@ -66,10 +66,12 @@ mod tests {
         let sh = Hash32([5u8; 32]);
         let sa = a.sign(&sh).unwrap();
         let sb = b.sign(&sh).unwrap();
-        assert_eq!(sa.r, sb.r);
+        assert_eq!(sa.r, sb.r); // RFC 6979: детерминированная подпись
         assert_eq!(sa.s, sb.s);
     }
 }
+
+
 
 /// P-256 (Secp256r1) хэндл кошелька для Sui: flag 0x02 принят Sui нативно,
 /// а P-256 — родная кривая enclave → оговорка «подпись в RAM» снимается (RISK-M4-1 усилен).

@@ -75,12 +75,12 @@ fn run(args: &[String]) -> i32 {
             let (Some(addr), Some(label)) = (args.get(1), args.get(2)) else {
                 eprintln!("usage: wl-add <address> <label>"); return 1;
             };
-            // Sui: канонизация без чексуммы (довжина/hex)
+            // E-ADR-01/02: канонизация с EIP-55 (S3-логика: показать усечённо)
             let (canon, warn) = match canon_address_checked(addr, CHAIN) {
                 Ok(x) => x,
                 Err(e) => { eprintln!("address rejected: {e:?}"); return 1; }
             };
-            if warn { println!("warn: адрес без чексуммы (W-ADR-01) — звірте identicon: {}", canon.redacted()); }
+            if warn { println!("warn: адрес без EIP-55 чексуммы (W-ADR-01) — сверьте: {}", canon.redacted()); }
             println!("adding: {}", canon.redacted());
             let mut p = load_or_default();
             p.new_delta.whitelist.push(WlEntry { address: canon, label: label.clone() });

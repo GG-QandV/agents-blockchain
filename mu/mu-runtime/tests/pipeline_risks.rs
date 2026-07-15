@@ -39,7 +39,7 @@ impl Presenter for FixedPresenter {
 }
 
 fn recipient() -> CanonAddress {
-    CanonAddress::canon("0xabcdef0123456789abcdef0123456789abcdef01000000000000000000000000", 8453).unwrap()
+    CanonAddress::canon("0xabcdef0123456789abcdef0123456789abcdef01", 8453).unwrap()
 }
 fn owner_pubkey() -> Vec<u8> {
     use p256_helper::*;
@@ -185,9 +185,9 @@ fn human_threshold_and_denial() {
     let pres = FixedPresenter(PresenterChoice::Deny);
     let clk = FixedClock(10_000);
     let setup = Setup { dir: tempfile::tempdir().unwrap() };
-    // threshold 100: amount 101 > 100 → human → Deny (gasless)
+    // threshold 100: amount 95 + gas 10 = 105 > 100 → human → Deny
     let mut rt = make_runtime(&v, &conn, &pres, &clk, &setup, 1_000_000, 100);
-    assert_eq!(rt.process(&intent(101)), IntentStatus::DeniedHuman);
+    assert_eq!(rt.process(&intent(95)), IntentStatus::DeniedHuman);
     assert_eq!(conn.exec_calls.get(), 0);
 }
 

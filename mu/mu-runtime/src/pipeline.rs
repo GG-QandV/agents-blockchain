@@ -98,12 +98,18 @@ impl<'a> Runtime<'a> {
         let now = self.clock.now_unix();
         let ih = i.hash();
 
-        // 1. Sui gasless: quote не потрібен (total = amount)
-        // Ω-check робить тільки amount (без gas)
+        // 1. quote (для Ω-суммы)
         let conn_intent = ConnIntent { recipient: i.recipient, amount: i.amount, chain_id: i.chain_id };
+        let gas = match self.connector.quote(&conn_intent) {
+            Ok(f) => f.gas_estimate,
+            Err(_) => {
+                let _ = self.log.append(Kind::DeniedOmega { intent_hash: ih }, now, self.vault);
+                return IntentStatus::DeniedOmega;
+            }
+        };
 
         // 2. Ω-check
-        let total = match omega_check(i.amount, i.connector, &self.omega) {
+        let total = match omega_check(i.amount, gas, i.connector, &self.omega) {
             Ok(t) => t,
             Err(_) => {
                 let _ = self.log.append(Kind::DeniedOmega { intent_hash: ih }, now, self.vault);
@@ -123,6 +129,7 @@ impl<'a> Runtime<'a> {
                 recipient: i.recipient,
                 wl_label: None,
                 amount: i.amount,
+                gas_est: gas,
                 agent_id: i.agent_id.clone(),
                 remaining_window: self
                     .delta

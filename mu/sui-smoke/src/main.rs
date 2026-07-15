@@ -66,7 +66,7 @@ fn main() {
         rpc2: client(env("SUI_RPC2"), env("SUI_BUILD_METHOD")),
     };
     let intent = Intent {
-        recipient: CanonAddress::canon("0xabcdef0123456789abcdef0123456789abcdef01000000000000000000000000", 1).unwrap(), // 20B-поле unused в sui-пути
+        recipient: CanonAddress::canon("0xabcdef0123456789abcdef0123456789abcdef01", 1).unwrap(), // 20B-поле unused в sui-пути
         amount: Amount::from_minor(1_000_000), // 1 единица 6-decimals
         chain_id: 1,
     };
