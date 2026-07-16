@@ -9,7 +9,7 @@
 //! RISK-M7-5: self-check звіряє to/value перед поверненням підпису.
 
 use crate::{ConnErr, Connector, Fee, Intent, RejectReason, TxRef, TxStatus};
-use mu_common::{Amount, CanonAddress, Hash32};
+use mu_common::{Amount, Hash32};
 use mu_vault::TxSigner;
 use sha3::Digest;
 use std::time::{SystemTime, UNIX_EPOCH};
