@@ -24,6 +24,7 @@ use mu_connect::Connector;
 use mu_core::{CoreErr, Mu, MU_MAX_SIZE};
 use mu_gate::{AllowList, DenyCode, Gate};
 use mu_human::Presenter;
+use mu_license::License;
 use mu_log::Kind;
 use mu_log::{Log, LogErr};
 use mu_runtime::{IntentStatus, Runtime};
@@ -87,6 +88,23 @@ fn boot(
     log_path: &Path,
     mu_pubkey: &[u8],
 ) -> Result<(Mu, Log, Gate, SoftVault, StubConnector, CliPresenter, SysClock), BootErr> {
+    // ── Крок 0: License check ──────────────────────────────────────────
+    let license_path = Path::new("license.key");
+    match License::load(license_path) {
+        Ok(l) => match l.mode {
+            mu_license::LicenseMode::Personal => {
+                println!("License: PERSONAL (full functionality, embed license available at $299)");
+            }
+            mu_license::LicenseMode::Commercial => {
+                println!("License: COMMERCIAL EMBED");
+            }
+        },
+        Err(e) => {
+            eprintln!("License error: {e:?} — aborting");
+            std::process::exit(2);
+        }
+    };
+
     // ── Крок 1: M1 — load + verify + verify_against_log (RISK-M1-2) ──
     let mu = Mu::load(mu_path)?;
     mu.verify(mu_pubkey).map_err(BootErr::Mu)?;

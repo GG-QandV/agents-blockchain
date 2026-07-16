@@ -1,0 +1,8 @@
+[package]
+name = "mu-license"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ed25519-dalek = "=2.1.1"
+sha2 = "=0.10.8"

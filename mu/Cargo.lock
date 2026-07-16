@@ -362,6 +362,7 @@ dependencies = [
  "mu-core",
  "mu-gate",
  "mu-human",
+ "mu-license",
  "mu-log",
  "mu-policy",
  "mu-runtime",
@@ -402,6 +403,14 @@ dependencies = [
  "p256",
  "sha2",
  "tempfile",
+]
+
+[[package]]
+name = "mu-license"
+version = "0.1.0"
+dependencies = [
+ "ed25519-dalek",
+ "sha2",
 ]
 
 [[package]]
