@@ -1,0 +1,10 @@
+# policy.toml — approval-above-threshold
+# Високий денний ліміт, але кожен платіж вище threshold вимагає біометрії власника.
+# Корисно для тестування чи початкового налаштування.
+
+daily_limit_minor = 1_000_000_000_000    # дуже високо
+confirm_threshold_minor = 1_000_000       # >$1 → власник
+
+[[whitelist]]
+address = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+label = "USDC Base"

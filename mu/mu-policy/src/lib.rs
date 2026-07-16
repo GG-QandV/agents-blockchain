@@ -3,6 +3,7 @@
 //! Спека: SPEC_Delta-Composer_v1 §4.2, §7.
 #![forbid(unsafe_code)]
 
+pub mod config;
 pub mod types;
 pub mod validate;
 pub mod eip55;

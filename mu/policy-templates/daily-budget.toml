@@ -1,0 +1,14 @@
+# policy.toml — daily-budget
+# Денний ліміт + список дозволених одержувачів.
+# Суми вище threshold вимагають підтвердження власника.
+
+daily_limit_minor = 5_000_000_000        # 5000 USDC/день
+confirm_threshold_minor = 100_000_000     # >100 USDC → власник
+
+[[whitelist]]
+address = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+label = "USDC Base"
+
+[[whitelist]]
+address = "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"
+label = "CoinGecko x402"
