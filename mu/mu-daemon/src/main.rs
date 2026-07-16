@@ -257,6 +257,7 @@ fn main() {
             ).unwrap(),
         ],
         confirm_threshold: mu_common::Amount::from_minor(1_000_000_000),
+        resource_allowlist: vec![],
     };
 
     let mut runtime = Runtime {

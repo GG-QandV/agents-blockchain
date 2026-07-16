@@ -1,5 +1,5 @@
 //! Конвейер: Ω → Δ → [human] → WAL → execute → Settled/Failed/ReconcilePending.
-use crate::policy::{delta_check, needs_human, omega_check, Delta, Omega};
+use crate::policy::{delta_check, needs_human, omega_check, resource_check, Delta, Omega};
 use mu_common::{Amount, CanonAddress, Clock, ConnectorId, Hash32};
 use mu_connect::{ConnErr, Connector, Intent as ConnIntent, TxRef, TxStatus};
 use mu_human::{confirm_payment, verify_auth_proof, HumanDecision, PayConfirm, Presenter};
@@ -16,6 +16,8 @@ pub struct RtIntent {
     pub chain_id: u64,
     pub agent_id: String,
     pub connector: ConnectorId,
+    /// URL ресурсу для x402 (хост+шлях). None = перевірка пропускається.
+    pub resource: Option<String>,
 }
 
 impl RtIntent {
@@ -121,6 +123,18 @@ impl<'a> Runtime<'a> {
         if delta_check(&i.recipient, total, &self.delta, &self.log, now).is_err() {
             let _ = self.log.append(Kind::DeniedDelta { intent_hash: ih }, now, self.vault);
             return IntentStatus::DeniedDelta;
+        }
+
+        // 3b. Resource-check для x402
+        if let Some(ref resource) = i.resource {
+            let (host, path) = match resource.split_once('/') {
+                Some((h, p)) => (h, p),
+                None => (resource.as_str(), ""),
+            };
+            if resource_check(host, path, total, &self.delta).is_err() {
+                let _ = self.log.append(Kind::DeniedDelta { intent_hash: ih }, now, self.vault);
+                return IntentStatus::DeniedDelta;
+            }
         }
 
         // 4. human при total > threshold (RISK-M3-3: та же величина total)

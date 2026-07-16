@@ -432,6 +432,7 @@ dependencies = [
  "mu-connect",
  "mu-human",
  "mu-log",
+ "mu-policy",
  "mu-vault",
  "p256",
  "sha2",

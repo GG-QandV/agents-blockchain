@@ -38,12 +38,14 @@ pub struct Delta {
     pub daily_limit: Amount,
     pub whitelist: Vec<CanonAddress>,
     pub confirm_threshold: Amount,
+    pub resource_allowlist: Vec<mu_policy::ResourceRule>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum DeltaDeny {
     NotWhitelisted,
     WindowExceeded,
+    ResourceDenied,
 }
 
 /// RISK-M3-2: membership только над CanonAddress (строк здесь нет по типам).
@@ -64,6 +66,30 @@ pub fn delta_check(
         return Err(DeltaDeny::WindowExceeded);
     }
     Ok(())
+}
+
+/// Перевірка resource_allowlist для x402 (хост+шлях).
+/// Повертає Ok, якщо ресурс дозволений і ціна ≤ max_price_per_call.
+pub fn resource_check(
+    host: &str,
+    path: &str,
+    price: Amount,
+    d: &Delta,
+) -> Result<(), DeltaDeny> {
+    if d.resource_allowlist.is_empty() {
+        // Пустий список = всі ресурси дозволені (зворотна сумісність)
+        return Ok(());
+    }
+    for rule in &d.resource_allowlist {
+        if host == rule.host && path.starts_with(&rule.path_prefix) {
+            if price <= rule.max_price_per_call {
+                return Ok(());
+            } else {
+                return Err(DeltaDeny::ResourceDenied);
+            }
+        }
+    }
+    Err(DeltaDeny::ResourceDenied)
 }
 
 /// RISK-M3-3: порог сравнивается с той же величиной total, что и резерв.

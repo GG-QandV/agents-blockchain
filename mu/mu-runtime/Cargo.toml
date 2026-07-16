@@ -9,6 +9,7 @@ mu-vault = { path = "../mu-vault" }
 mu-connect = { path = "../mu-connect" }
 mu-log = { path = "../mu-log" }
 mu-human = { path = "../mu-human" }
+mu-policy = { path = "../mu-policy" }
 sha2 = "=0.10.8"
 
 [dev-dependencies]

@@ -96,6 +96,7 @@ mod tests {
             daily_limit: Amount::from_minor(500),
             whitelist: vec![wl("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 8453, "A")],
             confirm_threshold: Amount::from_minor(100),
+            resource_allowlist: vec![],
         }
     }
 

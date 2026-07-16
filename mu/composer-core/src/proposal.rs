@@ -75,7 +75,7 @@ pub fn decode_proposal(buf: &[u8]) -> Result<DeltaProposal, ProposalErr> {
     let ts = c.u64()?;
     if c.remaining() != 0 { return Err(ProposalErr::Malformed); } // строгая схема
     Ok(DeltaProposal {
-        new_delta: Delta { daily_limit: daily, whitelist: wl, confirm_threshold: thr },
+        new_delta: Delta { daily_limit: daily, whitelist: wl, confirm_threshold: thr, resource_allowlist: vec![] },
         base_delta_hash: Hash32(base),
         ts,
     })
@@ -114,9 +114,10 @@ mod tests {
                 daily_limit: Amount::from_minor(500),
                 whitelist: vec![WlEntry {
                     address: CanonAddress::canon("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 8453).unwrap(),
-                    label: "API".into(),
+                    label: "test-wl".into(),
                 }],
                 confirm_threshold: Amount::from_minor(100),
+                resource_allowlist: vec![],
             },
             base_delta_hash: Hash32([5; 32]),
             ts: 1234,

@@ -33,7 +33,7 @@ fn omega_stub() -> OmegaView {
 
 fn load_or_default() -> DeltaProposal {
     load_draft(&draft_path()).ok().flatten().unwrap_or(DeltaProposal {
-        new_delta: Delta { daily_limit: Amount::ZERO, whitelist: vec![], confirm_threshold: Amount::ZERO },
+        new_delta: Delta { daily_limit: Amount::ZERO, whitelist: vec![], confirm_threshold: Amount::ZERO, resource_allowlist: vec![] },
         base_delta_hash: mu_common::Hash32([0; 32]),
         ts: 0,
     })

@@ -37,15 +37,32 @@ mod tests {
     fn order_independent() {
         let a = wl("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "A");
         let b = wl("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "B");
-        let d1 = Delta { daily_limit: Amount::from_minor(1), whitelist: vec![a.clone(), b.clone()], confirm_threshold: Amount::ZERO };
-        let d2 = Delta { daily_limit: Amount::from_minor(1), whitelist: vec![b, a], confirm_threshold: Amount::ZERO };
+        let d1 = Delta {
+            daily_limit: Amount::from_minor(1),
+            whitelist: vec![a.clone(), b.clone()],
+            confirm_threshold: Amount::ZERO,
+            resource_allowlist: vec![],
+        };
+        let d2 = Delta {
+            daily_limit: Amount::from_minor(1),
+            whitelist: vec![b, a],
+            confirm_threshold: Amount::ZERO,
+            resource_allowlist: vec![],
+        };
         assert_eq!(delta_hash(&d1), delta_hash(&d2));
     }
     #[test]
     fn any_field_changes_hash() {
-        let base = Delta { daily_limit: Amount::from_minor(1), whitelist: vec![], confirm_threshold: Amount::ZERO };
-        let mut c1 = base.clone(); c1.daily_limit = Amount::from_minor(2);
-        let mut c2 = base.clone(); c2.confirm_threshold = Amount::from_minor(1);
+        let base = Delta {
+            daily_limit: Amount::from_minor(1),
+            whitelist: vec![],
+            confirm_threshold: Amount::ZERO,
+            resource_allowlist: vec![],
+        };
+        let mut c1 = base.clone();
+        c1.daily_limit = Amount::from_minor(2);
+        let mut c2 = base.clone();
+        c2.confirm_threshold = Amount::from_minor(1);
         assert_ne!(delta_hash(&base), delta_hash(&c1));
         assert_ne!(delta_hash(&base), delta_hash(&c2));
     }

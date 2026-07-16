@@ -29,6 +29,7 @@ fn delta(limit: u128) -> Delta {
             label: "API".into(),
         }],
         confirm_threshold: Amount::from_minor(limit / 5),
+        resource_allowlist: vec![],
     }
 }
 fn sign_delta(v: &SoftVault, d: &Delta) -> [u8; 64] {

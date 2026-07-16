@@ -10,6 +10,7 @@ fn base_delta() -> Delta {
         daily_limit: Amount::from_minor(500),
         whitelist: vec![WlEntry { address: addr("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), label: "API".into() }],
         confirm_threshold: Amount::from_minor(100),
+        resource_allowlist: vec![],
     }
 }
 fn daemon() -> DaemonPolicy {

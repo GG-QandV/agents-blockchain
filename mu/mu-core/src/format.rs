@@ -134,7 +134,7 @@ fn decode_delta(b: &[u8]) -> Result<Delta, CoreErr> {
         wl.push(WlEntry { address, label });
     }
     if c.remaining() != 0 { return Err(CoreErr::CborMalformed); }
-    Ok(Delta { daily_limit: daily, whitelist: wl, confirm_threshold: thr })
+    Ok(Delta { daily_limit: daily, whitelist: wl, confirm_threshold: thr, resource_allowlist: vec![] })
 }
 
 struct Cur<'a> { b: &'a [u8], i: usize }

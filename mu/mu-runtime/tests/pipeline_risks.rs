@@ -72,6 +72,7 @@ fn make_runtime<'a>(
             daily_limit: Amount::from_minor(daily_limit),
             whitelist: vec![recipient()],
             confirm_threshold: Amount::from_minor(threshold),
+            resource_allowlist: vec![],
         },
         log,
         vault,
@@ -89,6 +90,7 @@ fn intent(amount: u128) -> RtIntent {
         chain_id: 8453,
         agent_id: "agent-1".into(),
         connector: ConnectorId::Crypto,
+        resource: None,
     }
 }
 

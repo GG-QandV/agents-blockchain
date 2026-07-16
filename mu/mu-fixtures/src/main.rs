@@ -41,6 +41,7 @@ fn sample_delta() -> Delta {
             label: "Test API Service".into(),
         }],
         confirm_threshold: Amount::from_minor(100_000_000), // 100 USDC
+        resource_allowlist: vec![],
     }
 }
 
