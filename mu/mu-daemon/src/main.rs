@@ -20,6 +20,7 @@ use std::path::Path;
 
 use mu_common::{Clock, ConnectorId, SysClock};
 use mu_connect::stub::StubConnector;
+use mu_connect::x402::X402Connector;
 use mu_connect::Connector;
 use mu_core::{CoreErr, Mu, MU_MAX_SIZE};
 use mu_gate::{AllowList, DenyCode, Gate};
@@ -47,6 +48,15 @@ fn hex_decode(s: &str) -> Vec<u8> {
         .step_by(2)
         .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
         .collect()
+}
+
+fn hex20(s: &str) -> [u8; 20] {
+    let s = s.strip_prefix("0x").unwrap_or(s);
+    let mut a = [0u8; 20];
+    for i in 0..20 {
+        a[i] = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).unwrap_or(0);
+    }
+    a
 }
 
 // ── Presenter-заглушка (M9) ─────────────────────────────────────────────
@@ -182,6 +192,7 @@ fn handle_client(
                 chain_id: vi.chain_id,
                 agent_id: vi.agent_id,
                 connector: ConnectorId::BankStub,
+                resource: None,
             };
 
             let status = runtime.process(&intent);
@@ -260,8 +271,22 @@ fn main() {
 
     // Leak об'єкти, яким потрібен статичний час життя для Runtime
     let vault: &'static SoftVault = Box::leak(Box::new(vault));
-    let stub: &'static StubConnector = Box::leak(Box::new(stub));
     let presenter: &'static CliPresenter = Box::leak(Box::new(presenter));
+
+    // Вибір коннектора: MU_CONNECTOR=x402 або за замовчуванням stub
+    let connector: &'static dyn Connector = match std::env::var("MU_CONNECTOR").as_deref() {
+        Ok("x402") => {
+            let wallet_hex = std::env::var("MU_WALLET_ADDR")
+                .expect("MU_WALLET_ADDR required for x402 connector");
+            let wallet = hex20(&wallet_hex);
+            eprintln!("Connector: X402 (wallet: {wallet_hex})");
+            Box::leak(Box::new(X402Connector::new(wallet)))
+        }
+        _ => {
+            eprintln!("Connector: Stub (set MU_CONNECTOR=x402 for real payments)");
+            Box::leak(Box::new(stub))
+        }
+    };
 
     let omega = mu_runtime::policy::Omega {
         connectors: vec![ConnectorId::BankStub, ConnectorId::CardStub],
@@ -283,7 +308,7 @@ fn main() {
         delta,
         log,
         vault,
-        connector: stub,
+        connector,
         presenter,
         clock: &clock,
         owner_pubkey: mu.owner_pubkey().to_vec(),
