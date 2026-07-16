@@ -1,62 +1,159 @@
-# μ-Agentic Blockchain MVP
+# μ Gate — Don't give your AI agent your wallet. Put a rule between them.
 
-**μ-daemon + Δ-Composer** — gasless USDC-платежи на Sui (post-EVM migration).
+**μ Gate** is a local daemon that controls AI-agent payments. The agent never sees the wallet key. The owner sets rules (daily budget, whitelist, per-resource price caps). Every decision and payment is logged in an append-only hash chain.
 
-## Directory structure
+**Zero gas fees** for the owner — payments use [x402](https://github.com/coinbase/x402) (EIP-3009 `TransferWithAuthorization`) over USDC on Base.
 
-```
-├── mu/                        # Rust workspace (Cargo workspace)
-│   ├── mu-common/             #   X — Amount, Clock, идентификаторы
-│   ├── mu-core/               #   M1 — μ-объект (формат, сериализация)
-│   ├── mu-vault/              #   M4 — ключи, подпись, бэкенды
-│   ├── mu-log/                #   M5 — WAL + hash-chain, reconcile
-│   ├── mu-runtime/            #   M6 — конвейер Ω→Δ→WAL→execute
-│   ├── mu-connect/            #   M7 — Sui-коннектор (gasless) + стабы
-│   ├── mu-gate/               #   M8 — вход: unix socket, подпись, allowlist
-│   ├── mu-human/              #   M9 — диалог владельца
-│   ├── mu-policy/             #   Политики Δ, валидация (Composer)
-│   ├── mu-daemon/             #   Бинарь демона (boot-протокол + socket)
-│   ├── mu-fixtures/           #   Генератор dev-фикстур (softvault)
-│   ├── composer-core/         #   Логика Composer (proposal, drafts)
-│   ├── composer-cli/          #   CLI: mu-compose (set-limit, wl-add, ...)
-│   ├── composer-tauri/        #   GUI: Tauri 2 (vanilla JS UI)
-│   └── sui-smoke/             #   Live-harness testnet
-├── docs/
-│   ├── agent/                 # AGENT-* build manifests
-│   ├── architecture/          # Архитектура, спеки модулей
-│   ├── design/                # Заметки, оценки объёмов
-│   ├── specs/                 # SPEC_* — полные риски
-│   └── smoke/                 # Smoke-тесты + инструкции
-├── README.md
-└── .gitignore
-```
+---
 
-## Build & Test
+## Quickstart (30 min)
+
+### Prerequisites
+
+- **Rust** ≥ 1.75 (`rustup install 1.75`)
+- **Linux** or **macOS** (Unix socket transport; Windows via WSL2)
+- **Python 3** for the CP1 test harness (optional)
+
+### 1. Build & test
 
 ```bash
-# Требования: Rust ≥ 1.75
 cd mu
-cargo test --workspace --features mu-vault/softvault   # 104 tests, all green
-
-# Сборка демона (debug)
+cargo test --workspace --features mu-vault/softvault
 cargo build -p mu-daemon --features softvault
-
-# Сборка CLI
-cargo build -p composer-cli
-
-# Сборка GUI (требует libwebkit2gtk-4.1-dev + Rust 1.77+)
-cd composer-tauri && cargo tauri build --bundles deb,rpm
 ```
 
-## Smoke-test (dev-фикстуры)
+### 2. Generate fixtures
 
 ```bash
-export MU_HOME=/tmp/mu-smoke && rm -rf $MU_HOME
+export MU_HOME=/tmp/mu-gate
+rm -rf $MU_HOME
 cargo run -p mu-fixtures
-./target/debug/mu-daemon    # boot → socket listen
 ```
 
-## Networks
+### 3. Run the daemon (stub mode — no real payments)
 
-- **Base (EVM)**: оригинальный коннектор (crypto.rs) — сохранён для совместимости
-- **Sui (gasless)**: основной коннектор (sui.rs + sui_jsonrpc.rs) — P-256, Blake2b, Address-Balances
+```bash
+./target/debug/mu-daemon
+```
+
+In another terminal:
+
+```bash
+python3 mu/clients/mu-client.py /tmp/mu-daemon.sock \
+  0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 1000000 cp1-agent
+```
+
+### 4. Run CP1 (real payment proof — needs funded wallet)
+
+```bash
+# Fund wallet with $20 USDC on Base mainnet
+MU_CONNECTOR=x402 MU_WALLET_ADDR=0x<your_address> ./target/debug/mu-daemon
+
+# In another terminal:
+python3 mu/clients/cp1-harness.py
+```
+
+See `cp1-harness.py` for the 4 test cases (allowed call, wrong address denial, threshold test, log review).
+
+---
+
+## Architecture
+
+```
+Agent                    μ Gate (localhost)           Base Network
+  │                           │                           │
+  │ ① intent (unix socket)   │                           │
+  │ ──────────────────────►  │                           │
+  │                          │ ② Ω-check (connector,     │
+  │                          │    ceiling)               │
+  │                          │ ③ Δ-check (whitelist,     │
+  │                          │    daily budget, resource) │
+  │                          │ ④ [owner biometric if     │
+  │                          │    over threshold]         │
+  │                          │ ⑤ WAL (fsync before money)│
+  │                          │ ⑥ sign EIP-3009 auth      │
+  │                          │ ⑦ retry request with      │
+  │                          │    X-PAYMENT header ────► │
+  │                          │ ⑧ status (read-only       │
+  │                          │    eth_call) ◄────────── │
+  │ ⑨ response ◄─────────── │                           │
+```
+
+### Modules
+
+| Crate | Role |
+|-------|------|
+| `mu-gate` | M8 — unix socket, ed25519 auth, rate-limit, allowlist |
+| `mu-runtime` | M6 — pipeline: Ω → Δ → [human] → WAL → execute |
+| `mu-connect` / `x402` | M7x — x402 client (EIP-712, EIP-3009, self-check) |
+| `mu-connect` / `crypto` | M7a — EVM USDC connector (Base, legacy) |
+| `mu-policy` | M2/M3 — Ω (ceiling) + Δ (whitelist, budget, resources) |
+| `mu-log` | M5 — append-only hash chain WAL, reconcile |
+| `mu-vault` | M4 — k256/P-256 keys, soft vault (dev) / enclave (TBD) |
+| `mu-human` | M9 — owner biometric confirmation dialog |
+| `mu-core` | M1 — μ-object format, CBOR-like serialization |
+| `mu-daemon` | Binary — boot protocol, socket server, Runtime |
+| `mu-license` | Ed25519-signed license check |
+| `composer-core` | C2 — Delta proposal encode/decode (offline policy change) |
+| `composer-cli` | C2 — CLI tool for whitelist/daily-limit management |
+
+---
+
+## Configuration
+
+### `policy.toml`
+
+```toml
+daily_limit_minor = 5_000_000_000        # 5000 USDC/day
+confirm_threshold_minor = 100_000_000    # >100 USDC → owner confirms
+
+[[whitelist]]
+address = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+label = "CoinGecko x402"
+
+[[resource_allowlist]]
+host = "api.coingecko.com"
+path_prefix = "/api/v3/simple/price"
+max_price_per_call_minor = 1_000_000     # $1/call
+```
+
+Templates in `mu/policy-templates/`:
+- `approved-recipients-only.toml`
+- `daily-budget.toml`
+- `approval-above-threshold.toml`
+- `cp1-coingecko.toml`
+
+### Environment
+
+| Env var | Default | Description |
+|---------|---------|-------------|
+| `MU_CONNECTOR` | `stub` | `x402` for real payments |
+| `MU_WALLET_ADDR` | — | Wallet address (hex, with or without `0x`) |
+| `MU_HOME` | `/tmp/mu` | Fixtures directory |
+| `MU_POLICY_SOCK` | — | Unix socket path for Composer |
+
+---
+
+## Clients
+
+- **Python** — `mu/clients/mu-client.py`
+- **TypeScript** — `mu/clients/mu-client.ts`
+- **CP1 harness** — `mu/clients/cp1-harness.py`
+
+---
+
+## License
+
+**FSL-1.1-MIT** — Functional Source License.
+
+- **Personal use**: Free (full functionality, `license.key` optional → Personal mode)
+- **Commercial Embed**: $299 license (`license.key` → Commercial mode)
+- **After 2 years**: Converts to MIT (forever free for everyone)
+
+See [LICENSE](./LICENSE) for full terms.
+
+To generate a license key for a customer:
+
+```bash
+cargo run -p mu-license --bin mu-license-gen -- <customer_id_hex> <secret_key_hex>
+```
