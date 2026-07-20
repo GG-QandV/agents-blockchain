@@ -1,5 +1,9 @@
 # μ Gate — Don't give your AI agent your wallet. Put a rule between them.
 
+[![Version](https://img.shields.io/badge/version-0.2.1-blue)](https://github.com/GG-QandV/agents-blockchain)
+[![License](https://img.shields.io/badge/license-BSL%201.1-orange)](./LICENSE)
+[![Rust](https://img.shields.io/badge/rust-1.75%2B-orange)](https://rust-lang.org)
+
 **μ Gate** is a local daemon that controls AI-agent payments. The agent never sees the wallet key. The owner sets rules (daily budget, whitelist, per-resource price caps). Every decision and payment is logged in an append-only hash chain.
 
 **Zero gas fees** for the owner — payments use [x402](https://github.com/coinbase/x402) (EIP-3009 `TransferWithAuthorization`) over USDC on Base.
