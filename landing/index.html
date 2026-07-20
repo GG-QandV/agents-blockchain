@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>μ Gate — Don't give your AI agent your wallet. Put a rule between them.</title>
+<style>
+  :root { --bg: #0a0a0f; --card: #13131a; --border: #1e1e2e; --text: #e0e0f0; --muted: #6c6c8a; --accent: #6c5ce7; --accent2: #00cec9; --font: 'Inter', -apple-system, system-ui, sans-serif; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font); line-height: 1.6; }
+  .container { max-width: 720px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* Header */
+  header { text-align: center; padding: 4rem 0 2rem; }
+  .logo { font-size: 2.5rem; font-weight: 700; letter-spacing: -0.02em; }
+  .logo span { color: var(--accent); }
+  .subtitle { color: var(--muted); font-size: 1.1rem; margin-top: 0.5rem; }
+
+  /* H1 */
+  .hero h1 { font-size: 2.2rem; font-weight: 600; line-height: 1.3; text-align: center; margin: 2rem 0 1rem; }
+  .hero p { text-align: center; color: var(--muted); max-width: 560px; margin: 0 auto 2rem; }
+
+  /* Video placeholder */
+  .video-placeholder { background: var(--card); border: 1px solid var(--border); border-radius: 12px; height: 360px; display: flex; flex-direction: column; align-items: center; justify-content: center; margin: 2rem 0; color: var(--muted); font-size: 0.9rem; }
+  .video-placeholder .play { font-size: 3rem; margin-bottom: 1rem; opacity: 0.3; }
+
+  /* Bullets */
+  .bullets { display: flex; flex-direction: column; gap: 1.5rem; margin: 3rem 0; }
+  .bullet { display: flex; gap: 1rem; align-items: flex-start; }
+  .bullet-icon { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 1rem; }
+  .bullet h3 { font-size: 1rem; font-weight: 600; margin-bottom: 0.25rem; }
+  .bullet p { color: var(--muted); font-size: 0.9rem; }
+
+  /* Pricing */
+  .pricing { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 2rem; text-align: center; margin: 3rem 0; }
+  .pricing .free { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.5rem; }
+  .pricing .price { font-size: 3rem; font-weight: 700; }
+  .pricing .price span { font-size: 1rem; color: var(--muted); font-weight: 400; }
+  .pricing .desc { color: var(--muted); font-size: 0.9rem; margin: 0.5rem 0 1.5rem; }
+  .stripe-btn { display: inline-block; background: var(--accent); color: #fff; text-decoration: none; padding: 0.8rem 2rem; border-radius: 8px; font-weight: 600; font-size: 1rem; transition: opacity 0.2s; border: none; cursor: pointer; }
+  .stripe-btn:hover { opacity: 0.9; }
+
+  /* Footer */
+  footer { text-align: center; color: var(--muted); font-size: 0.8rem; padding: 3rem 0; border-top: 1px solid var(--border); margin-top: 3rem; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.6rem; }
+    .video-placeholder { height: 200px; }
+    .pricing { padding: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header>
+    <div class="logo">μ <span>Gate</span></div>
+    <div class="subtitle">Secure AI-agent payments</div>
+  </header>
+
+  <section class="hero">
+    <h1>Don't give your AI agent your wallet.<br>Put a rule between them.</h1>
+    <p>μ Gate is a local daemon that controls AI-agent payments. The agent never sees the key. The owner sets rules. Every decision is logged.</p>
+  </section>
+
+  <!-- Video placeholder — замінити на 60s CP1 відео після проходження CP1 -->
+  <div class="video-placeholder" id="video">
+    <div class="play">▶</div>
+    <div>CP1 demo (60s) — завантажте після успішного проходження</div>
+    <div style="font-size: 0.8rem; margin-top: 0.5rem; color: #4a4a6a;">mu client → daemon → x402 → Settled ✓</div>
+  </div>
+
+  <div class="bullets">
+    <div class="bullet">
+      <div class="bullet-icon">🔑</div>
+      <div>
+        <h3>Key never leaves the vault</h3>
+        <p>The agent signs intents, not transactions. The wallet key stays in the vault — hardware-backed, biometric-confirmed. The agent couldn't drain even if compromised.</p>
+      </div>
+    </div>
+    <div class="bullet">
+      <div class="bullet-icon">⚡</div>
+      <div>
+        <h3>Zero gas fees for the owner</h3>
+        <p>Payments use <a href="https://github.com/coinbase/x402" style="color: var(--accent2);">x402</a> (EIP-3009) over USDC on Base. The facilitator pays gas. The owner pays exactly the amount authorized — nothing more.</p>
+      </div>
+    </div>
+    <div class="bullet">
+      <div class="bullet-icon">📋</div>
+      <div>
+        <h3>Full audit trail</h3>
+        <p>Every decision — allowed, denied by rule, confirmed by owner, settled, failed — is recorded in an append-only hash chain. Tamper-evident by design.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="pricing">
+    <div class="free">✓ Free for personal use (full functionality)</div>
+    <div class="price">$299 <span>once</span></div>
+    <div class="desc">Commercial Embed License — integrate μ Gate into your product.<br>Includes license key, priority email support.</div>
+    <a class="stripe-btn" href="#" id="buyBtn" onclick="alert('Replace this href with your Stripe Payment Link.\n\nStripe Dashboard → Products → Payment Link\n\nAfter purchase: generate license.key and email it manually.')">
+      Buy Commercial License
+    </a>
+    <p style="margin-top: 1rem; font-size: 0.8rem; color: var(--muted);">
+      License file delivered by email within 24h.<br>
+      After 2 years — converts to MIT (forever free).
+    </p>
+  </div>
+
+  <footer>
+    <p>μ Gate — Functional Source License (FSL-1.1-MIT). Free personal. $299 embed.</p>
+  </footer>
+
+</div>
+</body>
+</html>

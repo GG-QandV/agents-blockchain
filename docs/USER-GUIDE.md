@@ -1,63 +1,71 @@
-# μ + Δ-Composer — руководство пользователя
+# μ + Δ-Composer — User Guide
 
-## Что это такое (за 30 секунд)
+## What is it (30 seconds)
 
-**μ** — цифровой кошелёк-охранник для вашего ИИ-агента. Агент может оплачивать покупки
-(USDC — стейблкоин, цифровой доллар — в сети Base), но **никогда не видит ключей кошелька**.
-Что и кому можно платить, решаете вы — через правила.
+**μ** is a digital wallet-guard for your AI agent. The agent can pay for services
+(USDC — stablecoin on Base), but **never sees the wallet keys**. What and whom
+it can pay is decided by you — through rules.
 
-**Δ-Composer** — приложение, где вы задаёте эти правила: дневной лимит, список разрешённых
-получателей, порог, выше которого платёж требует вашего «да» по отпечатку/лицу.
+**Δ-Composer** is the app where you set those rules: daily limit, list of approved
+recipients, threshold above which a payment requires your biometric confirmation.
 
-Каждое решение записывается в журнал, который невозможно незаметно подделать или откатить.
-
----
-
-## Первая настройка (один раз)
-
-1. Запустите μ-демон (фоновая программа) — он создаст кошелёк, ключи лягут в защищённый
-   чип вашего устройства (Secure Enclave / StrongBox / TPM).
-2. Пополните адрес кошелька небольшой суммой USDC в сети Base.
-   ⚠ Держите на μ только «карманные» суммы — как наличные в кошельке, не как счёт в банке.
-3. Откройте Δ-Composer и задайте три правила:
-
-| Правило             | Что означает                                         | Совет                                             |
-| ------------------- | ---------------------------------------------------- | ------------------------------------------------- |
-| Дневной лимит       | Максимум расходов за 24 часа (включая комиссии сети) | Недельный бюджет агента ÷ 7                       |
-| Whitelist           | Кому вообще можно платить (адреса получателей)       | Только сервисы, которыми агент реально пользуется |
-| Порог подтверждения | Выше этой суммы — платёж ждёт вашего «да»            | Ставьте НИЗКО: криптоплатежи необратимы           |
-
-4. **Добавление адреса**: вставьте адрес → появится картинка-иконка и укрупнённые первые/последние
-   символы → сверьте их с источником адреса → подтвердите. Иконка всегда одинакова для одного
-   адреса — если однажды она выглядит иначе, адрес подменён.
-5. Нажмите «Отправить в μ» → на устройстве появится сводка изменений → подтвердите биометрией.
-   Без вашей биометрии правила изменить невозможно — даже вредоносной программе.
+Every decision is recorded in a tamper-evident append-only journal.
 
 ---
 
-## Ежедневное использование
+## First-time setup (do once)
 
-- Платежи **в пределах правил** агент совершает сам — вы ничего не делаете.
-- Платёж **выше порога** → на устройстве появится окно: получатель (с иконкой и адресом),
-  сумма, комиссия, кто просит, остаток лимита. Есть 15 минут: «да» биометрией / «нет» /
-  игнорировать (= отказ). Бейдж «ПЕРВЫЙ ПЛАТЁЖ» = агент платит этому адресу впервые — проверьте внимательнее.
-- **Журнал**: каждый платёж и каждый отказ с причиной. Пометка SIMULATED = тестовый прогон, деньги не двигались.
+1. Start the μ-daemon (background process) — it creates a wallet; keys go into
+   your device's secure chip (Secure Enclave / StrongBox / TPM).
+2. Fund the wallet address with a small amount of USDC on Base.
+   ⚠ Keep only pocket-money amounts on μ — like cash in a wallet, not a bank account.
+3. Open Δ-Composer and set three rules:
+
+| Rule | Meaning | Advice |
+|------|---------|--------|
+| Daily limit | Maximum spend per 24 hours (including network fees) | Weekly agent budget ÷ 7 |
+| Whitelist | Addresses the agent is allowed to pay | Only services the agent actually uses |
+| Confirmation threshold | Above this amount, payment waits for your approval | Set LOW: crypto payments are irreversible |
+
+4. **Adding an address**: paste the address → an identicon and enlarged first/last
+   characters appear → cross-check them against the address source → confirm.
+   The identicon is always the same for the same address on any device.
+
+5. Activate the ruleset. That's it — the agent can now spend USDC while μ
+   enforces your rules.
 
 ---
 
-## Если что-то пошло не так
+## Day-to-day use
 
-| Ситуация                                         | Что это                                                                              | Что делать                                                                  |
-| ------------------------------------------------ | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------- |
-| «Δ изменилась извне» (Stale) при отправке правил | Правила поменялись с другого экземпляра, пока вы редактировали                       | Composer сам перезагрузит актуальные — проверьте и отправьте снова          |
-| Платёж «висит» (ожидает сверки)                  | Сеть не подтвердила исход; μ держит сумму зарезервированной, **не** повторяет платёж | Ничего: μ сам сверится с сетью. Резерв защищает от двойного списания        |
-| Демон не запускается: «журнал не совпадает»      | Кто-то подменил файл правил старой копией (атака отката) или файлы повреждены        | Не обходить! Это защита. Разобраться, кто трогал файлы                      |
-| Потеря/поломка устройства                        | Ключи живут только в чипе устройства                                                 | Кошелёк и журнал невосстановимы — поэтому храните только операционные суммы |
+- **Agent wants to pay** → μ checks allowed addresses, daily budget remaining,
+  and whether the amount exceeds the confirmation threshold.
+- If the amount is below the threshold → payment goes through automatically.
+  The agent gets a response within ~2 seconds.
+- If the amount is above the threshold → μ shows you a confirmation dialog:
+  who is being paid, what amount, what for (label from the whitelist).
+  Approve or reject — no other options.
 
 ---
 
-## Три правила безопасности
+## How to check what happened
 
-1. **Криптоплатёж необратим.** Порог подтверждения — ваша главная защита. Низкий порог = чаще подтверждать, но безопаснее.
-2. **Сверяйте адрес по иконке и символам** при каждом добавлении в whitelist. Подмена адреса в буфере обмена — самая частая атака.
-3. μ **никогда** не попросит seed-фразу, ключ или пароль от кошелька — их просто не существует в извлекаемом виде. Любая такая просьба = мошенничество.
+The journal is an append-only hash chain that records every decision:
+- Allowed payments (amount, recipient, time)
+- Denials (reason code — wrong address, over budget, owner rejected)
+- Owner confirmations
+
+You can view the journal in Δ-Composer or export it as a file for your accountant.
+
+No entry can be silently modified or deleted — each new entry chains to the previous one.
+
+---
+
+## Safety
+
+- **Keys never leave the secure chip.** μ signs transactions internally; the
+  agent sends a payment intent, never a raw transaction.
+- **Zero gas fees for you** — payments use x402 (EIP-3009) where the facilitator
+  pays gas.
+- **Rules are local.** μ runs as a local daemon on your machine. No cloud, no
+  third-party server.

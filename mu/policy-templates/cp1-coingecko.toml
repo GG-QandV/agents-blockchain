@@ -1,0 +1,14 @@
+# CP1 — live proof policy for x402
+# Endpoint: CoinGecko x402 ($0.01 per call)
+# Budget: $20 USDC on Base
+daily_limit_minor = 20_000_000            # $20 (USDC 6 decimals)
+confirm_threshold_minor = 1_000_000        # >$1 → owner biometrics
+
+[[whitelist]]
+address = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"
+label = "USDC Base (x402 settlement)"
+
+[[resource_allowlist]]
+host = "api.coingecko.com"
+path_prefix = "/api/v3/simple/price"
+max_price_per_call_minor = 1_000_000       # $0.01
