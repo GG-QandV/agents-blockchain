@@ -1,7 +1,4 @@
-# policy.toml — approved-recipients-only
-# Дозволені тільки явно перераховані одержувачі.
-# Без денного ліміту (дуже високий), без підтвердження власника (threshold=0).
-
+# Approved recipients only — no spending limit, no owner confirmation.
 daily_limit_minor = 9_999_999_999_999_999
 confirm_threshold_minor = 0
 

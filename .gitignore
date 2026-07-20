@@ -9,3 +9,4 @@ target/
 agent.key
 *.tar.gz
 arch-backup/
+docs/language/

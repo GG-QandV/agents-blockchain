@@ -1,9 +1,7 @@
-# policy.toml — daily-budget
-# Денний ліміт + список дозволених одержувачів.
-# Суми вище threshold вимагають підтвердження власника.
-
-daily_limit_minor = 5_000_000_000        # 5000 USDC/день
-confirm_threshold_minor = 100_000_000     # >100 USDC → власник
+# Daily budget + approved recipient list.
+# Amounts above threshold require owner confirmation.
+daily_limit_minor = 5_000_000_000        # 5000 USDC/day
+confirm_threshold_minor = 100_000_000     # >100 USDC → owner confirms
 
 [[whitelist]]
 address = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913"

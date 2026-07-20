@@ -144,16 +144,11 @@ Templates in `mu/policy-templates/`:
 
 ## License
 
-**FSL-1.1-MIT** — Functional Source License.
+**BSL 1.1** — Business Source License.
 
-- **Personal use**: Free (full functionality, `license.key` optional → Personal mode)
-- **Commercial Embed**: $299 license (`license.key` → Commercial mode)
-- **After 2 years**: Converts to MIT (forever free for everyone)
+- **Personal use**: Free (full functionality)
+- **Internal business use**: Free (see Additional Use Grant)
+- **Competing product or SaaS**: Requires a commercial license
+- **After 4 years (or Change Date 2030-07-15)**: Converts to Apache 2.0
 
 See [LICENSE](./LICENSE) for full terms.
-
-To generate a license key for a customer:
-
-```bash
-cargo run -p mu-license --bin mu-license-gen -- <customer_id_hex> <secret_key_hex>
-```
