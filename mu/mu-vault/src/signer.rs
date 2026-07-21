@@ -1,24 +1,24 @@
-//! RISK-M4-1: TxSigner — единственный носитель plaintext-ключа кошелька.
-//! !Clone, !Debug, приватное поле, Zeroizing при Drop, конструктор только внутри крейта.
+//! RISK-M4-1: TxSigner — the sole carrier of the wallet plaintext key.
+//! !Clone, !Debug, private field, Zeroizing on Drop, constructor only inside the crate.
 use crate::{Secp256k1Sig, VaultErr};
 use k256::ecdsa::{signature::hazmat::PrehashSigner, RecoveryId, SigningKey};
 use mu_common::Hash32;
 use zeroize::Zeroizing;
 
-/// Хэндл подписи транзакций. Живёт в пределах одного Connector.execute().
-/// Никаких Clone/Debug/Serialize — байты ключа не могут утечь через них.
+/// Transaction signing handle. Lives within a single Connector.execute().
+/// No Clone/Debug/Serialize — key bytes cannot leak through them.
 pub struct TxSigner {
     key: Zeroizing<[u8; 32]>,
 }
 
 impl TxSigner {
-    /// Конструктор доступен только backend'ам внутри крейта (pub(crate)).
+    /// Constructor accessible only to backends inside the crate (pub(crate)).
     pub(crate) fn from_bytes(raw: [u8; 32]) -> Self {
         TxSigner { key: Zeroizing::new(raw) }
     }
 
-    /// Подпись prehash sighash транзакции (RFC 6979 детерминированная).
-    /// Принимает по &self; хэндл передаётся в execute по move и там роняется.
+    /// Sign prehash of transaction sighash (RFC 6979 deterministic).
+    /// Takes &self; handle is moved into execute and dropped there.
     pub fn sign(&self, sighash: &Hash32) -> Result<Secp256k1Sig, VaultErr> {
         let sk = SigningKey::from_bytes(self.key.as_slice().into())
             .map_err(|e| VaultErr::Backend(format!("k256 key: {e}")))?;
@@ -33,7 +33,7 @@ impl TxSigner {
         Ok(Secp256k1Sig { r, s, v: rec.to_byte() })
     }
 
-    /// Публичный адрес кошелька (для сверки, не секрет).
+    /// Public wallet address (for verification, not a secret).
     pub fn verifying_key_bytes(&self) -> Result<[u8; 33], VaultErr> {
         let sk = SigningKey::from_bytes(self.key.as_slice().into())
             .map_err(|e| VaultErr::Backend(format!("k256 key: {e}")))?;
@@ -45,8 +45,8 @@ impl TxSigner {
     }
 }
 
-// Явно НЕ реализуем Clone/Debug. Zeroizing уже зануляет при Drop.
-// Компилятор запретит `let s2 = signer.clone();` и `dbg!(signer)`.
+// Explicitly do NOT implement Clone/Debug. Zeroizing already zeroes on Drop.
+// Compiler will forbid `let s2 = signer.clone();` and `dbg!(signer)`.
 
 #[cfg(test)]
 mod tests {
@@ -71,8 +71,8 @@ mod tests {
     }
 }
 
-/// P-256 (Secp256r1) хэндл кошелька для Sui: flag 0x02 принят Sui нативно,
-/// а P-256 — родная кривая enclave → оговорка «подпись в RAM» снимается (RISK-M4-1 усилен).
+/// P-256 (Secp256r1) wallet handle for Sui: flag 0x02 accepted natively by Sui,
+/// and P-256 is the native enclave curve → the "signature in RAM" caveat is removed (RISK-M4-1 strengthened).
 pub struct TxSignerP256 {
     key: Zeroizing<[u8; 32]>,
 }
@@ -81,7 +81,7 @@ impl TxSignerP256 {
     pub(crate) fn from_bytes(raw: [u8; 32]) -> Self {
         TxSignerP256 { key: Zeroizing::new(raw) }
     }
-    /// Подпись 32-байтного дайджеста (Sui: blake2b256(intent‖tx)); RFC 6979.
+    /// Sign a 32-byte digest (Sui: blake2b256(intent‖tx)); RFC 6979.
     pub fn sign_prehash(&self, digest: &[u8; 32]) -> Result<([u8; 64], [u8; 33]), VaultErr> {
         use p256::ecdsa::signature::hazmat::PrehashSigner;
         use p256::ecdsa::SigningKey;

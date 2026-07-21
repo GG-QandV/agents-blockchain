@@ -1,0 +1,70 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Base API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/base-api-faq.md](https://www.alchemy.com/docs/reference/base-api-faq.md)
+
+# Base API FAQ
+
+> Frequently asked questions about the Base API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Base?
+
+[Base](https://www.alchemy.com/base) is a secure, low-cost, builder-friendly Ethereum Layer 2 (L2) solution designed to bring the next billion users onchain. Developed and incubated within Coinbase, Base is built on the MIT-licensed OP Stack, in collaboration with Optimism, with a goal to progressively decentralize in the coming years. By leveraging Base, developers have an opportunity to provide users with a robust Ethereum L2 environment at a fraction of the cost.
+
+## What is the Base API?
+
+The Base API allows developers to interface with the Base mainnet and testnet nodes. With this API, you can execute transactions, query onchain data, and interact with the Base network, relying on a JSON-RPC standard.
+
+## How can I get started using the Base API?
+
+Explained in [Base API Quickstart](/docs/reference/base-api-quickstart)
+
+## Is Base EVM compatible?
+
+Yes. Base is built as an Ethereum L2, which means it supports any Ethereum Virtual Machine (EVM) codebase. This allows you to deploy and migrate assets from Ethereum L1 and other interoperable chains to Base.
+
+## What API does Base use?
+
+Base utilizes the JSON-RPC API standard. This API is crucial for any blockchain interaction on the Base network, allowing you to read block/transaction data, query chain information, execute smart contracts, and store data onchain.
+
+## What is a Base API key?
+
+When accessing the Base network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network.
+
+For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup)!
+
+## Which libraries support Base?
+
+Common Ethereum libraries like [ethers.js](https://docs.ethers.org/v5/) and [web3.js](https://web3js.readthedocs.io/en/v1.8.2/) should be compatible with Base, given its EVM nature.
+
+## What programming languages work with Base?
+
+Languages that work with Ethereum, such as JavaScript, Solidity, TypeScript, and Shell, should also be compatible with Base. Solidity remains the primary choice for smart contract development, while JavaScript is ideal for offchain interactions.
+
+## What does Base use for gas?
+
+The primary currency for transaction fees and other network activities on Base is ETH.
+
+## What testnet should I use for Base?
+
+Use the **Base Goerli** testnet for Base. This testnet provides an environment to deploy smart contracts, execute transactions, and test applications. ETH for Base Goerli can be obtained from the [Base Goerli Faucet](https://www.coinbase.com/developer-platform/products/faucet).
+
+## What methods does Alchemy support for the Base API?
+
+You can find the list of all the methods Alchemy supports for the Base API on the [Base API Endpoints](/docs/chains#base-apis) page.
+
+## How can I bridge assets between Ethereum and Base?
+
+The Base Bridge facilitates the bridging of ETH between Ethereum and Base. To bridge assets:
+
+1. Navigate to Base Bridge for [Base Goerli](https://goerli-bridge.base.org/deposit) or [Base Mainnet](https://bridge.base.org/withdraw).
+2. Click "Connect wallet" and link your wallet.
+3. Specify the amount of ETH (or a supported asset) you wish to deposit or withdraw.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, please contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

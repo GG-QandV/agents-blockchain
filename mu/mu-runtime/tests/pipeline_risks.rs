@@ -1,4 +1,4 @@
-//! Тесты рисков конвейера M6 на SoftVault + мок-коннекторе.
+//! M6 pipeline risk tests on SoftVault + mock connector.
 use mu_common::{Amount, CanonAddress, Clock, ConnectorId};
 use mu_connect::{ConnErr, Connector, Fee, Intent as ConnIntent, TxRef, TxStatus};
 use mu_human::{PayConfirm, Presenter, PresenterChoice};
@@ -8,7 +8,7 @@ use mu_runtime::policy::{Delta, Omega};
 use mu_vault::backend::SoftVault;
 use std::time::Duration;
 
-// ── моки ─────────────────────────────────────────────────────────────────
+// ── mocks ─────────────────────────────────────────────────────────────────
 struct MockConn {
     exec_result: fn() -> Result<TxRef, ConnErr>,
     status_result: fn() -> TxStatus,
@@ -92,7 +92,7 @@ fn intent(amount: u128) -> RtIntent {
     }
 }
 
-// ── тесты ────────────────────────────────────────────────────────────────
+// ── tests ────────────────────────────────────────────────────────────────
 
 #[test]
 fn omega_ceiling_denies_before_anything() {
@@ -103,14 +103,14 @@ fn omega_ceiling_denies_before_anything() {
     let setup = Setup { dir: tempfile::tempdir().unwrap() };
     let mut rt = make_runtime(&v, &conn, &pres, &clk, &setup, 10_000_000, 10_000_000);
     rt.omega.max_ceiling = Amount::from_minor(100);
-    // amount 5000 + gas 10 > ceiling 100 → DeniedOmega, execute НЕ вызван
+    // amount 5000 + gas 10 > ceiling 100 → DeniedOmega, execute NOT called
     assert_eq!(rt.process(&intent(5000)), IntentStatus::DeniedOmega);
     assert_eq!(conn.exec_calls.get(), 0);
 }
 
 #[test]
 fn delta_window_accumulates_and_denies() {
-    // RISK-M6-3/M5-4: последовательные платежи учитываются, лимит не пробивается
+    // RISK-M6-3/M5-4: sequential payments are counted, limit is not exceeded
     let v = SoftVault::for_test([1;32],[2;32],[3;32]);
     let conn = MockConn {
         exec_result: || Ok(TxRef::Real { tx_hash: [7;32], chain_nonce: 0 }),
@@ -120,17 +120,17 @@ fn delta_window_accumulates_and_denies() {
     let pres = FixedPresenter(PresenterChoice::Approve);
     let clk = FixedClock(10_000);
     let setup = Setup { dir: tempfile::tempdir().unwrap() };
-    // лимит 250: два платежа по (100+10)=110 проходят (220), третий — нет (330>250)
+    // limit 250: two payments of (100+10)=110 go through (220), third doesn't (330>250)
     let mut rt = make_runtime(&v, &conn, &pres, &clk, &setup, 250, 1_000_000);
     assert!(matches!(rt.process(&intent(100)), IntentStatus::Settled { .. }));
     assert!(matches!(rt.process(&intent(100)), IntentStatus::Settled { .. }));
     assert_eq!(rt.process(&intent(100)), IntentStatus::DeniedDelta);
-    assert_eq!(conn.exec_calls.get(), 2); // третий не дошёл до денег
+    assert_eq!(conn.exec_calls.get(), 2); // third never reached money
 }
 
 #[test]
 fn unknown_keeps_reserve_blocks_next() {
-    // ГЛАВНЫЙ ТЕСТ RISK-M6-2/M6-5: Unknown → резерв держится → окно занято
+    // MAIN TEST RISK-M6-2/M6-5: Unknown → reserve is held → window is occupied
     let v = SoftVault::for_test([1;32],[2;32],[3;32]);
     let conn = MockConn {
         exec_result: || Err(ConnErr::Unknown("network".into())),
@@ -141,16 +141,16 @@ fn unknown_keeps_reserve_blocks_next() {
     let clk = FixedClock(10_000);
     let setup = Setup { dir: tempfile::tempdir().unwrap() };
     let mut rt = make_runtime(&v, &conn, &pres, &clk, &setup, 200, 1_000_000);
-    // (150+10)=160 → Unknown → ReconcilePending, Pending в логе ДЕРЖИТ 160
+    // (150+10)=160 → Unknown → ReconcilePending, Pending in log HOLDS 160
     assert_eq!(rt.process(&intent(150)), IntentStatus::ReconcilePending);
     assert_eq!(rt.log.pending().len(), 1);
-    // второй платёж (100+10)=110: 160+110=270 > 200 → DeniedDelta (резерв не испарился!)
+    // second payment (100+10)=110: 160+110=270 > 200 → DeniedDelta (reserve did NOT evaporate!)
     assert_eq!(rt.process(&intent(100)), IntentStatus::DeniedDelta);
 }
 
 #[test]
 fn rejected_rolls_back_reserve() {
-    // достоверный отказ → Pending закрыт Failed → окно свободно
+    // reliable refusal → Pending closed as Failed → window is free
     let v = SoftVault::for_test([1;32],[2;32],[3;32]);
     let conn = MockConn {
         exec_result: || Err(ConnErr::Rejected(mu_connect::RejectReason::InsufficientFunds)),
@@ -162,8 +162,8 @@ fn rejected_rolls_back_reserve() {
     let setup = Setup { dir: tempfile::tempdir().unwrap() };
     let mut rt = make_runtime(&v, &conn, &pres, &clk, &setup, 200, 1_000_000);
     assert_eq!(rt.process(&intent(150)), IntentStatus::Failed);
-    assert_eq!(rt.log.pending().len(), 0); // rollback: Pending закрыт
-    // окно свободно → следующий проходит
+    assert_eq!(rt.log.pending().len(), 0); // rollback: Pending closed
+    // window is free → next one goes through
     let conn2 = MockConn {
         exec_result: || Ok(TxRef::Real { tx_hash: [7;32], chain_nonce: 0 }),
         status_result: || TxStatus::Settled { block: 1, effective_gas: 1 },
@@ -175,7 +175,7 @@ fn rejected_rolls_back_reserve() {
 
 #[test]
 fn human_threshold_and_denial() {
-    // RISK-M3-3: порог по total (amount+gas); отказ владельца — платежа нет
+    // RISK-M3-3: threshold by total (amount+gas); owner denial = no payment
     let v = SoftVault::for_test([1;32],[2;32],[3;32]);
     let conn = MockConn {
         exec_result: || panic!("must not execute after human deny"),
@@ -193,7 +193,7 @@ fn human_threshold_and_denial() {
 
 #[test]
 fn human_approved_with_valid_proof_settles() {
-    // RISK-M9-2 в конвейере: proof верифицируется и платёж идёт
+    // RISK-M9-2 in pipeline: proof is verified and payment goes through
     let v = SoftVault::for_test([1;32],[2;32],[3;32]);
     let conn = MockConn {
         exec_result: || Ok(TxRef::Real { tx_hash: [7;32], chain_nonce: 0 }),
@@ -205,14 +205,14 @@ fn human_approved_with_valid_proof_settles() {
     let setup = Setup { dir: tempfile::tempdir().unwrap() };
     let mut rt = make_runtime(&v, &conn, &pres, &clk, &setup, 1_000_000, 100);
     assert!(matches!(rt.process(&intent(500)), IntentStatus::Settled { .. }));
-    // в логе есть HumanDecision{approved:true}
+    // log contains HumanDecision{approved:true}
     let has_approved = rt.log.entries().iter().any(|e| matches!(e.kind, Kind::HumanDecision { approved: true, .. }));
     assert!(has_approved);
 }
 
 #[test]
 fn broken_biometry_cannot_settle() {
-    // RISK-M4-3 → сквозной: без биометрии Approved невозможен, платёж не идёт
+    // RISK-M4-3 → end-to-end: without biometrics Approved is impossible, payment does not go through
     let mut v = SoftVault::for_test([1;32],[2;32],[3;32]);
     v.set_owner_auth(false);
     let conn = MockConn {
@@ -220,7 +220,7 @@ fn broken_biometry_cannot_settle() {
         status_result: || TxStatus::Pending,
         exec_calls: Default::default(),
     };
-    let pres = FixedPresenter(PresenterChoice::Approve); // владелец «жмёт да», но обряд падает
+    let pres = FixedPresenter(PresenterChoice::Approve); // owner "hits yes" but the ritual fails
     let clk = FixedClock(10_000);
     let setup = Setup { dir: tempfile::tempdir().unwrap() };
     let mut rt = make_runtime(&v, &conn, &pres, &clk, &setup, 1_000_000, 100);
@@ -230,10 +230,10 @@ fn broken_biometry_cannot_settle() {
 
 #[test]
 fn wal_written_before_execute() {
-    // RISK-M6-1 (рантайм-грань): к моменту execute Pending уже в логе.
-    // Типовая грань (compile-fail) обеспечена приватностью WalWritten.
+    // RISK-M6-1 (runtime boundary): by the time execute is called, Pending is already in the log.
+    // The type-level boundary (compile-fail) is ensured by the privacy of WalWritten.
     let v = SoftVault::for_test([1;32],[2;32],[3;32]);
-    // exec_result возвращает Unknown → Pending останется и будет виден
+    // exec_result returns Unknown → Pending will remain and be visible
     let conn = MockConn {
         exec_result: || Err(ConnErr::Unknown("x".into())),
         status_result: || TxStatus::Pending,
@@ -245,7 +245,7 @@ fn wal_written_before_execute() {
     let mut rt = make_runtime(&v, &conn, &pres, &clk, &setup, 1_000_000, 1_000_000);
     let _ = rt.process(&intent(100));
     assert_eq!(conn.exec_calls.get(), 1);
-    // execute был вызван И Pending durable в логе (переоткрытие файла её видит)
+    // execute was called AND Pending is durable in the log (re-opening the file sees it)
     let reopened = Log::open(&setup.dir.path().join("log.mulog"), &v).unwrap();
     assert_eq!(reopened.pending().len(), 1);
 }

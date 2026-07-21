@@ -1,0 +1,165 @@
+# Custom Webhook
+
+> Source: [https://www.alchemy.com/docs/reference/custom-webhook.md](https://www.alchemy.com/docs/reference/custom-webhook.md)
+
+# Custom Webhook
+
+> Track any smart contract or marketplace activity, monitor any contract creation, or ingest any other on-chain interaction. Infinite data access with precise filter controls.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+<Info>
+  Check the [Chains](https://dashboard.alchemy.com/chains) page for details about product and chain support!
+
+> 📄 **This content also appears in [logs](05-tools-resources/reference--logs.md)** — see there for full details.
+
+# Introduction
+
+Alchemy's Custom Webhook allows developers to stream on-chain data and get immediately notified about the most recent blockchain data changes. While previous Alchemy Notify solutions covered only pre-defined, transfers-based events, with Custom Webhooks, developers can understand any contract-based event, from token and marketplace activity, to comprehensive data ingestion. Custom Webhooks utilize a GraphQL interface so that web3 devs can have rich filters and only receive the precise blockchain data they need.
+
+<Info>
+  If you are looking for historical blockchain activity, check out the
+  [Transfers API Endpoints](/docs/reference/transfers-api-endpoints).
+</Info>
+
+# Example Response
+
+With Custom Webhooks utilizing a GraphQL-style interface for queries, there are an infinite number of response payload combinations. While we cannot provide an exact example for each potential query, here is one potential response that highlights the nested structure of each query originating from the block level.
+
+<CodeGroup>
+  ```shell Custom Webhooks Response
+  {
+    "webhookId": "wh_a55wfsvq5h8n8u3z",
+    "id": "whevt_rsdblc6zxi8a6ntl",
+    "createdAt": "2024-01-23T07:51:07.945953790Z",
+    "type": "GRAPHQL",
+    "event": {
+      "data": {
+        "block": {
+          "logs": [
+            {
+              "transaction": {
+                "hash": "0x8a179038d909c1906fddf0a2d38e4d3ef76eba30c1c26f758451e3b69a64f5a6",
+                "index": 105,
+                "from": {
+                  "address": "0xeeda051ab883d52923bc0951dd2edcbc7c0da597"
+                },
+                "to": {
+                  "address": "0xdafce4acc2703a24f29d1321adaadf5768f54642"
+                },
+                "maxFeePerGas": "0x7a06d848c",
+                "maxPriorityFeePerGas": "0x59682f00",
+                "gasUsed": 628816,
+                "cumulativeGasUsed": 10040718,
+                "effectiveGasPrice": "0x57cc4f32c",
+                "logs": [
+                  {
+                    "account": {
+                      "address": "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d"
+                    },
+                    "topics": [
+                      "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+                      "0x000000000000000000000000dbfd76af2157dc15ee4e57f3f942bb45ba84af24",
+                      "0x0000000000000000000000000000000000000000000000000000000000000000",
+                      "0x00000000000000000000000000000000000000000000000000000000000006e5"
+                    ],
+                    "index": 238
+                  },
+                  {
+                    "account": {
+                      "address": "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d"
+                    },
+                    "topics": [
+                      "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+                      "0x000000000000000000000000dbfd76af2157dc15ee4e57f3f942bb45ba84af24",
+                      "0x000000000000000000000000dafce4acc2703a24f29d1321adaadf5768f54642",
+                      "0x00000000000000000000000000000000000000000000000000000000000006e5"
+                    ],
+                    "index": 239
+                  },
+                  {
+                    "account": {
+                      "address": "0xbc4ca0eda7647a8ab7c2061c2e118a18a936f13d"
+                    },
+                    "topics": [
+                      "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+                      "0x000000000000000000000000dafce4acc2703a24f29d1321adaadf5768f54642",
+                      "0x0000000000000000000000000000000000000000000000000000000000000000",
+                      "0x00000000000000000000000000000000000000000000000000000000000006e5"
+                    ],
+                    "index": 240
+                  }
+                ],
+                "type": 2,
+                "status": 1
+              }
+            }
+          ]
+        }
+      },
+      "sequenceNumber": "10000000000578619000"
+    }
+  }
+  ```
+</CodeGroup>
+
+# Field Definitions
+
+Below you can find descriptions for select response fields. Note that this is not a comprehensive list but rather a partial list that highlights the shared response fields that all Custom Webhooks will have!
+
+| Field            | Description                                                   | Value                      |
+| ---------------- | ------------------------------------------------------------- | -------------------------- |
+| `webhookId`      | Unique ID of the webhook destination.                         | `wh_octjglnywaupz6th`      |
+| `id`             | ID of the event.                                              | `whevt_ogrc5v64myey69ux`   |
+| `createdAt`      | Timestamp when the webhook was created.                       | `2022-02-28T17:48:53.306Z` |
+| `type`           | Webhook event type.                                           | `GRAPHQL`                  |
+| `event`          | Nested block/transaction/log object.                          | `N/A`                      |
+| `block`          | Nested object under each block                                | `N/A`                      |
+| `sequenceNumber` | An incrementing integer used for client-side re-org handling. | `10000000000578619000`     |
+
+# How to Set Up Custom Webhooks
+
+1. Navigate to the [Webhooks page](https://dashboard.alchemy.com/apps/latest/webhooks) in your Alchemy Dashboard.
+
+<Tip>Make sure you have the correct app selected in the top left of the dashboard.</Tip>
+
+2. Click the **Create Webhook** button.
+3. Choose **Custom Webhook** as the webhook type.
+4. Select your desired chain and network. **NOTE:** Each Custom Webhook can only be mapped to a single network/chain; if you want to have the same query applied to numerous chains, make sure to duplicate the creation process!
+5. Add your unique webhook URL. This is the link to receive requests. The webhook payload might not always be compatible for 3rd party integrations. For simple visual testing, we recommend using hosted sites like [requestbin](https://requestbin.com/) or [webhook.site](https://webhook.site/) OR spinning up a dedicated server for webhook notifications for production applications.
+6. Define a GraphQL query using the dashboard playground.
+
+If you're new to GraphQL, this editor has autocomplete enabled and will magically suggest fields as you start typing. If you get lost, you can always search for available queries in the docs tab on the right!
+
+<Warning>
+  **Important Note About Empty Topics**
+
+Leaving topics empty makes your filter match **all events** (for the selected address, or for **all addresses** if none is provided).
+This can generate very high webhook volume and **significant usage costs**.
+If you only want specific event types, be sure to include topic filters.
+Learn more: [Event Log Filters](https://www.alchemy.com/docs/reference/custom-webhook-filters#eventlog-filters)
+
+</Warning>
+
+7. Test and validate your GraphQL query by clicking the **Test Webhook** button. Confirm that your GraphQL query is valid and does not contain any syntactical errors. **NOTE:** If you want to test your GraphQL query on a historical block, you can simply define your target block hash within the top-level block filter.
+
+<CodeGroup>
+  ```shell Historical Block Filter
+  {
+    block (hash: "0x23..... 2d1e") {
+      hash,
+      }
+  }
+  ```
+</CodeGroup>
+
+8. Click **Create Webhook** to submit your GraphQL filter to Alchemy. Alchemy automatically replaces the top-level block hash filter with *latest* so each webhook is fired for the latest canonical block!
+9. Check your endpoint to see responses.
+
+# Useful Endpoints
+
+| Endpoint                                     | Description                                                   |
+| -------------------------------------------- | ------------------------------------------------------------- |
+| [Create Webhook](/docs/data/webhooks/webhooks-api-endpoints/notify-api-endpoints/create-webhook)  | This endpoint allows you to create a webhook programatically. |
+| [Delete Webhook](/docs/data/webhooks/webhooks-api-endpoints/notify-api-endpoints/delete-webhook)  | Allows you to delete a webhook.                               |
+| [Get All Webhooks](/docs/data/webhooks/webhooks-api-endpoints/notify-api-endpoints/team-webhooks) | Allows you to get all instantiated webhooks.                  |

@@ -1,0 +1,126 @@
+# How to Get the Number of Transactions in a Block
+
+> Source: [https://www.alchemy.com/docs/how-to-get-the-number-of-transactions-in-a-block.md](https://www.alchemy.com/docs/how-to-get-the-number-of-transactions-in-a-block.md)
+
+# How to Get the Number of Transactions in a Block
+
+> This is a simple script to teach you how to communicate with the blockchain and read the number of transactions in a block.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+*This guide assumes you've gone through the [getting started](/docs/alchemy-quickstart-guide) steps and have an [Alchemy account!](https://dashboard.alchemy.com/signup)*
+
+<Info>
+  This tutorial uses the **[eth\_getBlockTransactionCountByNumber](/docs/reference/eth-getblocktransactioncountbynumber)** endpoint.
+</Info>
+
+Each Block in a Blockchain is assigned a block number. It is the unique sequential number for each Block. Follow the steps below to return all transactions in the current finalized Block on Ethereum:
+
+## 1. Create a project directory
+
+<CodeGroup>
+  ```shell shell
+  mkdir get-num-block-txns
+  cd get-num-block-txns
+  ```
+</CodeGroup>
+
+## 2. Install HTTP client library
+
+You can use any HTTP library of your choosing. In this guide, we will make use of the [Axios](https://www.npmjs.com/package/axios) library for HTTP requests.
+
+<CodeGroup>
+  ```shell npm
+  npm install axios
+  ```
+
+  ```text yarn
+  yarn add axios
+  ```
+</CodeGroup>
+
+## 3. Create `index.js`
+
+<CodeGroup>
+  ```javascript index.js
+  const options = {
+    method: "POST",
+    url: "https://eth-mainnet.g.alchemy.com/v2/{your-api-key}",
+    headers: { accept: "application/json", "content-type": "application/json" },
+    data: {
+      id: 1,
+      jsonrpc: "2.0",
+      method: "eth_getBlockTransactionCountByNumber",
+      params: "finalized",
+    },
+  };
+
+  axios
+    .request(options)
+    .then(function (response) {
+         console.log(response.data);
+    })
+    .catch(function (error) {
+      console.error(error);
+    });
+  ```
+</CodeGroup>
+
+This is an `axios` call, where a POST request is made to the Alchemy API and the `data` sent contains the particular endpoint called
+
+```shell
+method: "eth_getBlockTransactionCountByNumber",
+```
+
+And the param which specifies, returning information on the most recent finalized Block:
+
+```shell
+params: "finalized",
+```
+
+## 4. Run it using node
+
+<CodeGroup>
+  ```shell shell
+  node index.js
+  ```
+</CodeGroup>
+
+You will see the following response logged to the console:
+
+<CodeGroup>
+  ```json json
+  { jsonrpc: '2.0', id: 1, result: '0xb3' }
+  ```
+</CodeGroup>
+
+This response is in HEX. To view it in decimal, you can add a simple convert function to the code:
+
+## 5. Converting HEX to Decimal:
+
+<CodeGroup>
+  ```javascript javascript
+  function hexToDec(hex) {
+    return parseInt(hex, 16);
+  }
+  ```
+</CodeGroup>
+
+Convert the `result` response from Hexademical to Decimal. Target the `result` by updating the response in the then block.
+
+<CodeGroup>
+  ```javascript index.js
+   result = response.data.result;
+   console.log(hexToDec(result));
+  ```
+</CodeGroup>
+
+The result will be returned as a number in the console:
+
+<CodeGroup>
+  ```json json
+  179
+  ```
+</CodeGroup>
+
+Once you complete this tutorial, let us know how your experience was or if you have any feedback by tagging us on Twitter [@Alchemy](https://twitter.com/Alchemy)! 🎉

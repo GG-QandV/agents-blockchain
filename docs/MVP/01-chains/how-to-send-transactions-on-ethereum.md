@@ -1,0 +1,241 @@
+# How to Send Transactions on Ethereum
+
+> Source: [https://www.alchemy.com/docs/how-to-send-transactions-on-ethereum.md](https://www.alchemy.com/docs/how-to-send-transactions-on-ethereum.md)
+
+# How to Send Transactions on Ethereum
+
+> This is a beginner's guide for sending Ethereum transactions in web3.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+There are three main steps in order to send a transaction to the Ethereum blockchain: create, sign, and broadcast. We'll go through all three, hopefully answering any questions you might have! In this tutorial, we'll be using [Alchemy](https://dashboard.alchemy.com/signup) to send our transactions to the Ethereum chain. You can [create a free Alchemy account here.](https://alchemy.com/?r=affiliate:9efcc9a2-ef89-4a2b-a5f3-1dd52ad32c4c)
+
+<Warning>
+  This guide is for signing your transactions on the *backend* for your app, if you want to integrate signing your transactions on the frontend, you'll need to integrate a [browser provider with Web3](#with-a-browser-provider).
+</Warning>
+
+## The Basics
+
+Like most blockchain developers when they first start, you might have done some research on how to send a transaction (something that should be pretty simple) and ran into a plethora of guides, each saying different things and leaving you a bit overwhelmed and confused. If you're in that boat, don't worry; we all were at some point! So, before we start, let's get a few things straight:
+
+### 1. Alchemy does not store your private keys
+
+* This means that Alchemy's servers cannot sign and send transactions on your behalf. The reason for this is security purposes. Alchemy will never ask you to share your private key, and you should never share your private key with a hosted node (or anyone for that matter).
+* However, you can use modern Web3 libraries like Viem or Ethers.js to sign your transactions. These wallets exist only on your machine running the code, and cannot share your private key with anyone else.
+* You can read from the blockchain using Alchemy's RPC API, but to write to it you'll need to use Web3 libraries or an external wallet to sign your transactions before sending them through Alchemy.
+
+### 2. What is a "signer"?
+
+* Signers will sign transactions for you using your private key. In this tutorial, we'll be using Viem and Ethers.js to sign our transaction, but you could also use any other web3 library.
+* In the frontend, an excellent example of a signer would be [Metamask](https://metamask.io), which will sign and send transactions on your behalf.
+
+### 3. Why do I need to sign my transactions?
+
+* Every user that wants to send a transaction on the Ethereum network must sign the transaction first in order to validate that the origin of the transaction is who it claims to be.
+* It is super important to protect this private key, since having access to it grants full control over your Ethereum account, allowing you (or anyone with access) to perform transactions on your behalf.
+
+### 4. How do I protect my private key?
+
+* There are many ways to protect your private key and to use it to send off transactions. In this tutorial, we will be using a `.env` file. However, you could also use a separate provider that stores private keys, use a Keystore file, or other options.
+
+### 5. What is the web3 library?
+
+* Modern Web3 libraries like Viem and Ethers.js are wrapper libraries around the standard JSON-RPC calls that are quite common to use in Ethereum development.
+* There are many different web3 libraries for different languages. In this tutorial, we'll use Viem and Ethers.js which are written in JavaScript.
+
+Okay, now that we have a few of these questions out of the way, let's move onto the tutorial. Feel free to contact us at support@alchemy.com or open a ticket in the dashboard.
+
+<Info>
+  This guide assumes you have an Alchemy account, an Ethereum address or Metamask wallet, Node.js, and npm installed. If not, follow these steps:
+</Info>
+
+## Steps to Sending Your Transaction
+
+### 1. Create an Alchemy app on the Sepolia testnet
+
+Navigate to your [Alchemy Dashboard](https://dashboard.alchemy.com) and create a new app, choosing Sepolia for your network. (In practice, you could use any testnet of your choice, but for this guide, we're sticking to Sepolia.)
+
+<Warning>
+  Use [Sepolia testnet](https://www.alchemy.com/overviews/sepolia-testnet) for testing. The Ethereum Foundation has deprecated Goerli, Ropsten, Rinkeby, and Kovan testnets. Get free testnet ETH from the [Alchemy Sepolia faucet](https://www.alchemy.com/faucets/ethereum-sepolia).
+</Warning>
+
+### 2. Request Eth from the [Alchemy Sepolia faucet](https://www.alchemy.com/faucets/ethereum-sepolia)
+
+Follow the instructions on the faucet homepage to receive Eth. Make sure to include your **Sepolia** Ethereum address (from Metamask) and not another network. After following the instructions, double-check that you've received the Eth in your wallet.
+
+### 3. Create a new project directory and `cd` into it
+
+Create a new project directory from the [command line ](https://www.computerhope.com/jargon/c/commandi.htm)(terminal for macs) and navigate into it:
+
+<CodeGroup>
+  ```shell shell
+  mkdir sendtx-example
+  cd sendtx-example
+  ```
+</CodeGroup>
+
+### 4. Install Viem/Ethers.js and dotenv
+
+Run the following command in your project directory:
+
+<CodeGroup>
+  ```shell shell
+  npm init --yes
+  npm install viem ethers dotenv
+  ```
+</CodeGroup>
+
+### 5. Create the .env file
+
+We'll use a `.env` file to safely store our API key and private key.
+
+<Info>
+  We make a .env file to securely store private environmental variables in our local machine that we may access from other files (some of which we can make public).
+
+  If you want to check out how `dotenv` actually works in the context of a conventional NodeJS server file, check out this helpful [video](https://www.youtube.com/watch?v=5WFyhsnU4Ik)!
+</Info>
+
+Create a .env file (make sure the file is literally just named `.env`, nothing more) in your project directory and add the following (replacing `your-api-key` and `your-private-key`, keeping both within the quotation marks):
+
+* To find your Alchemy API Key, navigate to the app details page of the app you just created on your Alchemy dashboard, click "View Key" in the top right corner, and grab the Api Key.
+* To find your private key using Metamask, check out this [guide](https://metamask.zendesk.com/hc/en-us/articles/360015289632-How-to-Export-an-Account-Private-Key).
+
+<CodeGroup>
+  ```sol .env
+  API_KEY = "your-api-key"
+  PRIVATE_KEY = "your-private-key"
+  ```
+</CodeGroup>
+
+### 6. Create `sendTx.js` file
+
+Great, now that we have our sensitive data protected in a `.env` file, let's start coding. For our send transaction example, we'll be sending Eth back to the Sepolia faucet.
+
+Create a `sendTx.js` file, which is where we will configure and send our example transaction, and add the following lines of code to it:
+
+<CodeGroup>
+  ```javascript Viem
+  import { createWalletClient, createPublicClient, http, parseEther, parseGwei } from 'viem'
+  import { privateKeyToAccount } from 'viem/accounts'
+  import { sepolia } from 'viem/chains'
+  import dotenv from 'dotenv'
+
+  dotenv.config()
+  const { API_KEY, PRIVATE_KEY } = process.env
+
+  const account = privateKeyToAccount(`0x${PRIVATE_KEY}`)
+
+  const walletClient = createWalletClient({
+    account,
+    chain: sepolia,
+    transport: http(`https://eth-sepolia.g.alchemy.com/v2/${API_KEY}`)
+  })
+
+  const publicClient = createPublicClient({
+    chain: sepolia,
+    transport: http(`https://eth-sepolia.g.alchemy.com/v2/${API_KEY}`)
+  })
+
+  async function main() {
+    const hash = await walletClient.sendTransaction({
+      to: "0xa238b6008Bc2FBd9E386A5d4784511980cE504Cd",
+      value: parseEther("0.001"),
+      gas: 21000n,
+      maxPriorityFeePerGas: parseGwei("5"),
+      maxFeePerGas: parseGwei("20")
+    })
+
+    console.log("Sent transaction", hash)
+
+    // Wait for confirmation
+    const receipt = await publicClient.waitForTransactionReceipt({ hash })
+    console.log("Transaction confirmed", receipt)
+  }
+
+  main()
+  ```
+
+  ```javascript Ethers.js
+  import { ethers } from 'ethers'
+  import dotenv from 'dotenv'
+
+  dotenv.config()
+  const { API_KEY, PRIVATE_KEY } = process.env
+
+  const provider = new ethers.JsonRpcProvider(`https://eth-sepolia.g.alchemy.com/v2/${API_KEY}`)
+  const wallet = new ethers.Wallet(PRIVATE_KEY, provider)
+
+  async function main() {
+    const transaction = {
+      to: "0xa238b6008Bc2FBd9E386A5d4784511980cE504Cd",
+      value: ethers.parseEther("0.001"),
+      gasLimit: 21000,
+      maxPriorityFeePerGas: ethers.parseUnits("5", "gwei"),
+      maxFeePerGas: ethers.parseUnits("20", "gwei"),
+      type: 2,
+    }
+
+    const tx = await wallet.sendTransaction(transaction)
+    console.log("Sent transaction", tx.hash)
+
+    // Wait for confirmation
+    const receipt = await tx.wait()
+    console.log("Transaction confirmed", receipt)
+  }
+
+  main()
+  ```
+</CodeGroup>
+
+Now, before we jump into running this code, let's talk about some of the components here.
+
+* **Wallet/Account**: This object stores your private key, and can be used to sign transactions. In Viem, we create an account from a private key. In Ethers.js, we create a Wallet instance.
+
+* **Clients**: Viem uses separate clients for wallet operations (sending transactions) and public operations (reading blockchain data). Ethers.js combines these in the provider and wallet objects.
+
+* **Transaction**: The transaction object has a few aspects we need to specify:
+
+  * `to`: This is the address we want to send Eth to. In this case, we are sending Eth back to the [Sepolia faucet](https://sepoliafaucet.com/) we initially requested from.
+  * `gas`/`gasLimit`: This is the maximum amount of gas you are willing to consume on a transaction. Standard limit is 21000 units.
+  * `value`: This is the amount we wish to send, specified in wei where 10^18 wei = 1 ETH
+  * `maxFeePerGas`: This is the total amount you are willing to pay per gas for the transaction to execute. Since EIP 1559, this field or the `maxPriorityFeePerGas` field is required.
+  * `nonce`: Automatically handled by the libraries but can be manually specified if needed.
+  * \[OPTIONAL] `data`: Used for sending additional information with your transfer, or calling a smart contract, not required for balance transfers.
+
+* **Transaction Signing and Sending**: Both libraries handle signing and sending automatically when using `sendTransaction`. The libraries automatically calculate the nonce and handle EIP-1559 fee structures.
+
+* `sendTransaction`: Once we have a signed transaction, we can send it off to be included in a subsequent block by using `sendTransaction`
+
+<Info>
+  There are two main types of transactions that can be sent in Ethereum.
+</Info>
+
+### 7. Run the code using `node sendTx.js`
+
+Navigate back to your terminal or command line and run:
+
+<CodeGroup>
+  ```shell shell
+  node sendTx.js
+  ```
+</CodeGroup>
+
+### 8. See your transaction in the Mempool
+
+Open up the [Mempool page](https://dashboard.alchemy.com/mempool) in your Alchemy dashboard and filter by the app you created to find your transaction. This is where we can watch our transaction transition from pending state to mined state (if successful) or dropped state if unsuccessful. Make sure to keep it on "All" so that you capture "mined", "pending", and "dropped" transactions. You can also search for your transaction by looking for transactions sent to address `0x31b98d14007bdee637298086988a0bbd31184523`
+
+To view the details of your transaction once you've found it, select the tx hash, which should take you to a view that looks like this:
+
+![2504](https://alchemyapi-res.cloudinary.com/image/upload/v1764192918/docs/tutorials/transactions/sending-transactions/6edf8ed-Mempool.png "Mempool.png")
+
+View your transaction on the Alchemy Mempool Watcher
+
+From there you can view your transaction on Etherscan by clicking on the icon circled in red!
+
+### Transaction sent successfully
+
+> 📄 **This content also appears in [How to Get the Number of Transactions in a Block](05-tools-resources/how-to-get-the-number-of-transactions-in-a-block.md)** — see there for full details.
+
+If you have any questions or feedback, please contact us at support@alchemy.com or open a ticket in the dashboard.
+
+\_Not sure what to do next? As a final test of your skills, get your hands dirty with some solidity programming by implementing our [Hello World Smart Contract](/docs/how-to-deploy-a-smart-contract-to-the-sepolia-testnet) tutorial.

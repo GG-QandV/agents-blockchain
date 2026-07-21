@@ -1,0 +1,124 @@
+# How to check a transaction status from its hash
+
+> Source: [https://www.alchemy.com/docs/how-to-check-the-status-of-a-transaction-using-its-hash.md](https://www.alchemy.com/docs/how-to-check-the-status-of-a-transaction-using-its-hash.md)
+
+# How to check a transaction status from its hash
+
+> Use a transaction hash and eth_getTransactionReceipt to tell whether a transaction succeeded, reverted, or is still pending.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+This guide shows you how to use a transaction hash and `eth_getTransactionReceipt`
+to tell whether a transaction succeeded, reverted, or is still pending.
+
+## Prerequisites
+
+* Node.js 18 or later
+* An Alchemy API key
+* A transaction hash on Ethereum Mainnet
+
+<Note>
+  A transaction receipt exists only after the transaction is mined. If the
+  method returns `null`, the transaction is still pending or the hash is
+  unknown.
+</Note>
+
+<Steps>
+  <Step title="Set your API key">
+    Export your API key as an environment variable:
+
+    ```bash
+    export ALCHEMY_API_KEY="YOUR_API_KEY"
+    ```
+  </Step>
+
+  <Step title="Create the script">
+    Create a file named `check-status.mjs` and add this code:
+
+    ```javascript title="check-status.mjs"
+    const apiKey = process.env.ALCHEMY_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("Set the ALCHEMY_API_KEY environment variable first.");
+    }
+
+    const rpcUrl = `https://eth-mainnet.g.alchemy.com/v2/${apiKey}`;
+    const txHash =
+      "0xd488331be3a2f9cdd0f2b351f2b13f5151630aaafd2c2b246f7f3cd7fd0b1dfc";
+
+    async function checkTransactionStatus(hash) {
+      const response = await fetch(rpcUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_getTransactionReceipt",
+          params: [hash],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
+      const payload = await response.json();
+
+      if (payload.error) {
+        throw new Error(payload.error.message);
+      }
+
+      const receipt = payload.result;
+
+      if (!receipt) {
+        console.log("Transaction is still pending or the hash is unknown.");
+        return;
+      }
+
+      if (receipt.status === "0x1") {
+        console.log("Transaction succeeded.");
+        return;
+      }
+
+      console.log("Transaction reverted.");
+    }
+
+    await checkTransactionStatus(txHash);
+    ```
+  </Step>
+
+  <Step title="Run the script">
+    Run the file:
+
+    ```bash
+    node check-status.mjs
+    ```
+
+    A successful run prints one of these results:
+
+    ```text
+    Transaction succeeded.
+    ```
+
+    ```text
+    Transaction reverted.
+    ```
+
+    ```text
+    Transaction is still pending or the hash is unknown.
+    ```
+  </Step>
+</Steps>
+
+## How to interpret the result
+
+* `Transaction succeeded.` means the receipt exists and `status` is `0x1`
+* `Transaction reverted.` means the receipt exists and `status` is `0x0`
+* `Transaction is still pending or the hash is unknown.` means the receipt is `null`
+
+## Next steps
+
+* [Get transaction details](/docs/how-to-get-transaction-details)
+* [Learn more about sending transactions](/docs/sending-transactions)

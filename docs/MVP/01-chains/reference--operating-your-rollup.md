@@ -1,0 +1,60 @@
+# Operating your Rollup
+
+> Source: [https://www.alchemy.com/docs/reference/operating-your-rollup.md](https://www.alchemy.com/docs/reference/operating-your-rollup.md)
+
+# Operating your Rollup
+
+> How to monitor &amp; keep your rollup running smoothly after launching with Alchemy.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+Keep your rollup running smoothly with robust operational practices. This guide covers the following:
+
+* [Reliability & uptime](#1-reliability--uptime)
+* [Upgrades & governance](#2-upgrades--governance)
+* [Security best practices](#3-security-best-practices)
+* [Monitoring & analytics](#4-monitoring--analytics)
+* [Billing & costs](#5-billing--costs)
+* [Support](#6-support--contact)
+
+This guide covers reliability, upgrades, security, and monitoring.
+
+# 1. Reliability & Uptime
+
+* Our platform is designed to target high uptime using a multi-cloud, multi-region infrastructure.
+* Features include autoscaling, redundancy, and real-time monitoring to ensure continuous service.
+* A dedicated status page provides real-time updates on network performance.
+
+# 2. Upgrades & Governance
+
+* Upgrades are managed in coordination with your team to roll out new features and improvements.
+* Software updates and L1 contract upgrades are conducted via a secure multisignature process.
+* Parameter adjustments (such as gas limits and sequencer settings) can be made through governance contracts.
+* Options for future decentralization are available if you wish to transition control over time.
+
+# 3. Security Best Practices
+
+* Our rollup implementations are built on audited frameworks and secure infrastructure.
+* Critical components are protected through encryption, DDoS mitigation, and secure key management.
+* A multisignature wallet is recommended for administering sensitive contracts.
+* Regular monitoring and security testing ensure the overall safety of your network.
+
+# 4. Monitoring & Analytics
+
+* The Alchemy Dashboard provides detailed metrics including TPS, gas usage, and RPC performance.
+* Log data and alerts help identify issues and trigger maintenance actions.
+* Integration with external analytics tools is supported for deeper insights.
+
+# 5. Billing & Costs
+
+* Costs include deployment fees, monthly subscriptions, and usage-based charges.
+* Infrastructure costs, L1 posting fees, and additional services are clearly reflected in your monthly billing.
+* Transparent pricing and usage reports are available in your account dashboard.
+
+# 6. Support & Contact
+
+* Access dedicated support channels for immediate assistance.
+* Engage with our community through forums or chat channels.
+* Comprehensive documentation and troubleshooting guides are available online.
+
+By following these operational practices, you can ensure that your rollup remains secure, efficient, and reliable over time.

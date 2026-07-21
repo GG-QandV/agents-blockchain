@@ -1,0 +1,101 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-quickstart](../00-consolidated/api-quickstart.md).
+> Below is the original chain-specific version.
+
+# Sei API Quickstart
+
+> Source: [https://www.alchemy.com/docs/reference/sei-api-quickstart.md](https://www.alchemy.com/docs/reference/sei-api-quickstart.md)
+
+# Sei API Quickstart
+
+> How to get started building on Sei using Alchemy
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+> 📄 **This content also appears in [Choose Your Starting Point](05-tools-resources/get-started.md)** — see there for full details.
+
+Sei is a high-performance blockchain designed for decentralized finance (DeFi) applications. It offers fast transaction speeds, scalability, and a developer-friendly environment, making it an ideal platform for deploying DeFi applications and services.
+
+The Sei API lets you interact with the Sei network through a collection of JSON-RPC methods. If you're familiar with other blockchain JSON-RPC APIs, working with Sei will feel natural.
+
+## Send your first request on Alchemy
+
+Let's use the [`viem`](https://www.npmjs.com/package/viem) package to create a Sei client connected to Alchemy and fetch the latest block number!
+
+<CodeGroup>
+  ```text npm
+  npm install --save viem
+  ```
+
+  ```text yarn
+  yarn add viem
+  ```
+</CodeGroup>
+
+## Create a client connected to Alchemy
+
+<CodeGroup>
+```js
+import { createPublicClient, http } from "viem"; 
+import { sei } from "viem/chains";
+
+const client = createPublicClient({
+  chain: sei,
+  transport: http("https://sei-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY"),
+});
+```
+</CodeGroup>
+
+Now that you've created a client connected to Alchemy, you can continue with some basics:
+
+## Get the latest block number
+
+<CodeGroup>
+```js
+const blockNumber = await client.getBlockNumber();
+console.log("Current block number:", blockNumber);
+```
+</CodeGroup>
+
+## Get an address balance
+
+<CodeGroup>
+```js 
+const balance = await client.getBalance({ address: "0xab5801a7d398351b8be11c439e05c5b3259aec9b" });
+console.log("Balance (SEI):", Number(balance) / 1e18);
+```
+</CodeGroup>
+
+## Read block data
+
+<CodeGroup>
+```js
+const block = await client.getBlock({
+  blockNumber: blockNumber, // from previous example
+});
+console.log(block);
+```
+</CodeGroup>
+
+## Fetch a transaction by hash
+
+<CodeGroup> 
+```js 
+const tx = await client.getTransaction({ hash: "0xYOUR_TX_HASH" });
+console.log(tx);
+```
+</CodeGroup>
+
+## Fetch a transaction receipt
+
+<CodeGroup>
+```js
+const receipt = await client.getTransactionReceipt({
+  hash: "0xYOUR_TX_HASH"
+});
+console.log(receipt);
+```
+</CodeGroup>
+
+# Sei APIs
+
+For the full list of Sei APIs, see the [Sei API Endpoints](/docs/chains#sei-apis).

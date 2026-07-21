@@ -1,5 +1,5 @@
-//! Хранилище: append-only файл + fsync (RISK-M5-1), verify_chain (RISK-M5-2),
-//! обрезка хвоста (RISK-M5-5), window_sum (RISK-M5-4).
+//! Storage: append-only file + fsync (RISK-M5-1), verify_chain (RISK-M5-2),
+//! tail truncation (RISK-M5-5), window_sum (RISK-M5-4).
 use crate::entry::{entry_hash, Entry, Kind, WINDOW_SECS};
 use mu_common::{Amount, Hash32};
 use mu_vault::{DomainTag, Vault};
@@ -25,14 +25,14 @@ const GENESIS: Hash32 = Hash32([0u8; 32]);
 pub struct Log {
     file: File,
     path: PathBuf,
-    entries: Vec<Entry>, // MVP: рабочая копия в памяти (сегментация — фаза 2)
+    entries: Vec<Entry>, // MVP: working copy in memory (segmentation — phase 2)
     last_hash: Hash32,
     next_seq: u64,
 }
 
 impl Log {
-    /// Открытие: чтение всех записей, обрезка битого хвоста (RISK-M5-5).
-    /// Подпись новой TailTruncated-записи требует vault → передаётся сюда.
+    /// Open: read all entries, truncate corrupted tail (RISK-M5-5).
+    /// Signing the new TailTruncated entry requires vault → passed here.
     pub fn open(path: &Path, vault: &dyn Vault) -> Result<Self, LogErr> {
         let mut file = OpenOptions::new().create(true).read(true).append(true).open(path)?;
         let mut buf = Vec::new();
@@ -41,7 +41,7 @@ impl Log {
 
         let (entries, valid_bytes, truncated) = decode_all(&buf);
         if truncated {
-            // усечь файл до последней валидной записи
+            // truncate file to the last valid entry
             file.set_len(valid_bytes as u64)?;
             file.sync_all()?;
         }
@@ -50,13 +50,13 @@ impl Log {
 
         let mut log = Log { file, path: path.to_path_buf(), entries, last_hash, next_seq };
         if truncated {
-            let lost = log.next_seq; // всё, что было бы дальше
+            let lost = log.next_seq; // everything beyond would have been lost
             log.append_inner(Kind::TailTruncated { lost_from_seq: lost }, 0, vault)?;
         }
         Ok(log)
     }
 
-    /// RISK-M5-1: durable append. Возврат Ok(hash) — только после flush+sync.
+    /// RISK-M5-1: durable append. Return Ok(hash) only after flush+sync.
     pub fn append(&mut self, kind: Kind, ts: u64, vault: &dyn Vault) -> Result<Hash32, LogErr> {
         self.append_inner(kind, ts, vault)
     }
@@ -72,7 +72,7 @@ impl Log {
         let rec = encode_entry(&e);
         self.file.write_all(&rec)?;
         self.file.flush()?;
-        self.file.sync_all()?; // fsync до возврата (RISK-M5-1)
+        self.file.sync_all()?; // fsync before return (RISK-M5-1)
 
         self.last_hash = h;
         self.next_seq = seq.saturating_add(1);
@@ -80,8 +80,8 @@ impl Log {
         Ok(h)
     }
 
-    /// RISK-M5-2: полная проверка цепи (hash-chain + монотонность seq).
-    /// Проверка подписей — verify_signatures() с pubkey (отделена: ключ приходит извне).
+    /// RISK-M5-2: full chain verification (hash-chain + seq monotonicity).
+    /// Signature verification is done via verify_signatures() with pubkey (separate: key comes from outside).
     pub fn verify_chain(&self) -> Result<(), LogErr> {
         let mut prev = GENESIS;
         let mut expect_seq = 0u64;
@@ -98,7 +98,7 @@ impl Log {
         Ok(())
     }
 
-    /// Pending без парного Settled/Failed (по intent_hash).
+    /// Pending without a paired Settled/Failed (by intent_hash).
     pub fn pending(&self) -> Vec<&Entry> {
         let mut closed: HashSet<[u8; 32]> = HashSet::new();
         for e in &self.entries {
@@ -115,7 +115,7 @@ impl Log {
             .collect()
     }
 
-    /// RISK-M5-4: окно 24ч. Settled ∪ открытые Pending; Simulated/Failed/Denied исключены.
+    /// RISK-M5-4: 24h window. Settled ∪ open Pending; Simulated/Failed/Denied excluded.
     pub fn window_sum(&self, now: u64) -> Amount {
         let from = now.saturating_sub(WINDOW_SECS);
         let open_pending: Vec<&Entry> = self.pending();
@@ -125,7 +125,7 @@ impl Log {
             if e.ts < from { continue; }
             let add = match &e.kind {
                 Kind::Settled { effective_gas: _, .. } => {
-                    // сумма Settled = amount_total его Pending; ищем парный Pending
+                    // Settled amount = amount_total from its Pending; find paired Pending
                     self.pending_total_for(&e.kind)
                 }
                 Kind::Pending { amount_total, .. } if open_set.contains(&e.seq) => Some(*amount_total),
@@ -154,7 +154,7 @@ impl Log {
     pub fn path(&self) -> &Path { &self.path }
 }
 
-// ── сериализация записи: len:u32 LE ‖ body ────────────────────────────────
+// ── entry serialization: len:u32 LE ‖ body ────────────────────────────────
 fn encode_entry(e: &Entry) -> Vec<u8> {
     let mut body = Vec::new();
     body.extend(e.seq.to_be_bytes());
@@ -170,14 +170,14 @@ fn encode_entry(e: &Entry) -> Vec<u8> {
     out
 }
 
-/// Декод всех записей; возвращает (записи, валидные_байты, был_ли_битый_хвост).
+/// Decode all entries; returns (entries, valid_bytes, was_tail_corrupted).
 fn decode_all(buf: &[u8]) -> (Vec<Entry>, usize, bool) {
     let mut entries = Vec::new();
     let mut pos = 0usize;
     loop {
         if pos == buf.len() { return (entries, pos, false); }
         let Some(rec) = try_decode_at(buf, pos) else {
-            return (entries, pos, true); // битый хвост (RISK-M5-5)
+            return (entries, pos, true); // corrupted tail (RISK-M5-5)
         };
         let (e, next) = rec;
         entries.push(e);

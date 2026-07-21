@@ -1,6 +1,6 @@
-//! X mu-common — сквозной слой: Amount, Clock, идентификаторы.
-//! RISK-X-1: Amount не имеет операторов +,-,* — только checked_*.
-//! RISK-X-2: два несмешиваемых времени (unix u64 vs монотонный Instant).
+//! X mu-common — cross-cutting layer: Amount, Clock, identifiers.
+//! RISK-X-1: Amount has no +,-,* operators — only checked_*.
+//! RISK-X-2: two non-interchangeable times (unix u64 vs monotonic Instant).
 #![forbid(unsafe_code)]
 
 pub mod amount;

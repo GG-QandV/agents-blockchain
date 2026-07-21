@@ -1,0 +1,38 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Robinhood Chain API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/robinhood-chain-api-faq.md](https://www.alchemy.com/docs/reference/robinhood-chain-api-faq.md)
+
+# Robinhood Chain API FAQ
+
+> Frequently asked questions about the Robinhood Chain API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Robinhood Chain?
+Robinhood Chain is a permissionless Ethereum Layer 2 built on Arbitrum, optimized for tokenized real-world assets including equities and ETFs, enabling 24/7 onchain trading and self-custody.
+
+## How do I get started with Robinhood Chain?
+Check out our [Robinhood Chain API Quickstart guide](/docs/reference/robinhood-chain-api-quickstart) to get started building on Robinhood Chain.
+
+## What is the Robinhood Chain API?
+The Robinhood Chain API lets you interact with the Robinhood Chain network. You can execute transactions, query onchain data, and interact with the Robinhood Chain network using a JSON-RPC standard.
+
+## Is Robinhood Chain EVM compatible?
+Yes, Robinhood Chain is EVM compatible.
+
+## What API does Robinhood Chain use?
+Robinhood Chain uses the JSON-RPC API standard. This API handles all blockchain interactions on the Robinhood Chain network, letting you read block/transaction data, query chain information, execute smart contracts, and store data onchain.
+
+## What methods are supported on Robinhood Chain?
+Robinhood Chain supports standard Ethereum JSON-RPC methods. Some chain-specific methods may vary. Please check the Robinhood Chain API endpoints documentation for a complete list.
+
+## What is a Robinhood Chain API key?
+When accessing the Robinhood Chain network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network. For the best development experience, we recommend you [sign up for a free API key](https://dashboard.alchemy.com/signup).
+
+## Which libraries support Robinhood Chain?
+Common Ethereum libraries like [ethers.js](https://docs.ethers.org/v5/) should be compatible with Robinhood Chain, given its EVM nature.
+
+> 📄 **This content also appears in [ADI API FAQ](05-tools-resources/reference--adi-api-faq.md)** — see there for full details.

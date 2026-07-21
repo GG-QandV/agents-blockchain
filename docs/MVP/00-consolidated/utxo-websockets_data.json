@@ -1,0 +1,29 @@
+{
+  "template_name": "utxo-websockets",
+  "chain_count": 3,
+  "chains": [
+    "Bitcoin/Utxo Websockets",
+    "Bitcoincash/Utxo Websockets",
+    "Litecoin/Utxo Websockets"
+  ],
+  "per_chain": {
+    "Bitcoin/Utxo Websockets": {
+      "title": "UTXO WebSockets",
+      "rpc_url": "https://www.alchemy.com/docs/bitcoin/utxo-websockets.md](https://www.alchemy.com/docs/bitcoin/utxo-websockets.md)",
+      "_unique_lines": 221,
+      "_total_lines": 306
+    },
+    "Bitcoincash/Utxo Websockets": {
+      "title": "UTXO WebSockets",
+      "rpc_url": "https://www.alchemy.com/docs/bitcoincash/utxo-websockets.md](https://www.alchemy.com/docs/bitcoincash/utxo-websockets.md)",
+      "_unique_lines": 185,
+      "_total_lines": 280
+    },
+    "Litecoin/Utxo Websockets": {
+      "title": "UTXO WebSockets",
+      "rpc_url": "https://www.alchemy.com/docs/litecoin/utxo-websockets.md](https://www.alchemy.com/docs/litecoin/utxo-websockets.md)",
+      "_unique_lines": 185,
+      "_total_lines": 280
+    }
+  }
+}

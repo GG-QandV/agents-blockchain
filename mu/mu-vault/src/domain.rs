@@ -1,5 +1,5 @@
-//! RISK-M4-5: доменные теги. sign_* сами добавляют тег в digest,
-//! поэтому одну и ту же подпись нельзя переиспользовать в другом домене.
+//! RISK-M4-5: domain tags. sign_* themselves add the tag to the digest,
+//! so the same signature cannot be reused in a different domain.
 use mu_common::Hash32;
 use sha2::{Digest, Sha256};
 
@@ -22,7 +22,7 @@ impl DomainTag {
     }
 }
 
-/// digest_с_тегом = SHA256(tag ‖ payload_digest).
+/// digest_with_tag = SHA256(tag ‖ payload_digest).
 pub fn tagged_digest(tag: DomainTag, payload: &Hash32) -> Hash32 {
     let mut h = Sha256::new();
     h.update(tag.as_bytes());
@@ -39,7 +39,7 @@ mod tests {
     #[test]
     fn tags_separate_domains() {
         let p = Hash32([7u8; 32]);
-        // один payload, разные теги → разные итоговые digests (RISK-M4-5)
+        // same payload, different tags → different resulting digests (RISK-M4-5)
         assert_ne!(
             tagged_digest(DomainTag::MuCore, &p).0,
             tagged_digest(DomainTag::MuDelta, &p).0

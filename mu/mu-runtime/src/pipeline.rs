@@ -1,4 +1,4 @@
-//! Конвейер: Ω → Δ → [human] → WAL → execute → Settled/Failed/ReconcilePending.
+//! Pipeline: Ω → Δ → [human] → WAL → execute → Settled/Failed/ReconcilePending.
 use crate::policy::{delta_check, needs_human, omega_check, Delta, Omega};
 use mu_common::{Amount, CanonAddress, Clock, ConnectorId, Hash32};
 use mu_connect::{ConnErr, Connector, Intent as ConnIntent, TxRef, TxStatus};
@@ -8,7 +8,7 @@ use mu_vault::Vault;
 use sha2::{Digest, Sha256};
 use std::time::{Duration, Instant};
 
-/// Входной intent конвейера (уже прошёл M8: аутентичен, канонизирован).
+/// Pipeline input intent (already passed M8: authenticated, canonicalized).
 #[derive(Clone, Debug)]
 pub struct RtIntent {
     pub recipient: CanonAddress,
@@ -40,14 +40,14 @@ pub enum IntentStatus {
     TimeoutHuman,
     Settled { tx_hash: [u8; 32] },
     Failed,
-    /// RISK-M6-5: исход неизвестен; резерв держится (Pending в логе), решает reconcile.
+    /// RISK-M6-5: outcome unknown; reserve is held (Pending in log), reconcile decides.
     ReconcilePending,
 }
 
-/// ═══ RISK-M6-1: типовое принуждение «WAL до денег» ═══
-/// WalWritten порождается ТОЛЬКО write_wal (приватное поле, конструктора снаружи нет).
-/// exec_after_wal — единственная функция, вызывающая connector.execute,
-/// и она требует WalWritten по move. Вызов execute без WAL не компилируется.
+/// ═══ RISK-M6-1: type-level enforcement "WAL before money" ═══
+/// WalWritten is produced ONLY by write_wal (private field, no external constructor).
+/// exec_after_wal — the only function that calls connector.execute,
+/// and it requires WalWritten by move. Calling execute without WAL does not compile.
 pub struct WalWritten {
     intent_hash: Hash32,
     _priv: (),
@@ -65,7 +65,7 @@ fn write_wal(
         Kind::Pending { intent_hash, amount_total: amount_total.minor(), chain_nonce },
         ts,
         vault,
-    )?; // fsync внутри (RISK-M5-1)
+    )?; // fsync inside (RISK-M5-1)
     Ok(WalWritten { intent_hash, _priv: () })
 }
 
@@ -92,14 +92,14 @@ pub struct Runtime<'a> {
 }
 
 impl<'a> Runtime<'a> {
-    /// Обработка одного intent'а. &mut self = сериализация (RISK-M6-3):
-    /// второй process не начнётся, пока не завершён первый.
+    /// Process one intent. &mut self = serialization (RISK-M6-3):
+    /// a second process cannot start until the first finishes.
     pub fn process(&mut self, i: &RtIntent) -> IntentStatus {
         let now = self.clock.now_unix();
         let ih = i.hash();
 
-        // 1. Sui gasless: quote не потрібен (total = amount)
-        // Ω-check робить тільки amount (без gas)
+        // 1. Sui gasless: quote not needed (total = amount)
+        // Ω-check uses only amount (no gas)
         let conn_intent = ConnIntent { recipient: i.recipient, amount: i.amount, chain_id: i.chain_id };
 
         // 2. Ω-check
@@ -111,13 +111,13 @@ impl<'a> Runtime<'a> {
             }
         };
 
-        // 3. Δ-check (окно по логу)
+        // 3. Δ-check (window over log)
         if delta_check(&i.recipient, total, &self.delta, &self.log, now).is_err() {
             let _ = self.log.append(Kind::DeniedDelta { intent_hash: ih }, now, self.vault);
             return IntentStatus::DeniedDelta;
         }
 
-        // 4. human при total > threshold (RISK-M3-3: та же величина total)
+        // 4. human when total > threshold (RISK-M3-3: same total value)
         if needs_human(total, &self.delta) {
             let req = PayConfirm {
                 recipient: i.recipient,
@@ -143,7 +143,7 @@ impl<'a> Runtime<'a> {
                     return IntentStatus::TimeoutHuman;
                 }
                 HumanDecision::Approved(proof) => {
-                    // RISK-M9-2: конвейер верифицирует proof, а не верит M9 на слово
+                    // RISK-M9-2: pipeline verifies proof, does not trust M9 on its word
                     if !verify_auth_proof(&proof, &ih, &self.owner_pubkey) {
                         let _ = self.log.append(Kind::Alert { code: 0x0901 }, now, self.vault);
                         return IntentStatus::DeniedHuman;
@@ -153,21 +153,21 @@ impl<'a> Runtime<'a> {
             }
         }
 
-        // 5. WAL до денег (RISK-M6-1) — единственный источник WalWritten
+        // 5. WAL before money (RISK-M6-1) — sole source of WalWritten
         let signer = match self.vault.tx_signer() {
             Ok(s) => s,
-            Err(_) => return IntentStatus::Failed, // ключ недоступен ДО денег — безопасный отказ
+            Err(_) => return IntentStatus::Failed, // key unavailable BEFORE money — safe abort
         };
         let wal = match write_wal(&mut self.log, self.vault, ih, total, 0, now) {
             Ok(w) => w,
-            Err(_) => return IntentStatus::Failed, // WAL не записан → денег не трогаем
+            Err(_) => return IntentStatus::Failed, // WAL not written → don't touch money
         };
 
-        // 6. исполнение
+        // 6. execution
         let (ih2, res) = exec_after_wal(wal, self.connector, &conn_intent, signer);
         match res {
             Ok(TxRef::Real { tx_hash, .. }) => {
-                // 7. финальность: Settled только при консенсусе status (RISK-M6-2/M7-3)
+                // 7. finality: Settled only upon status consensus (RISK-M6-2/M7-3)
                 match self.connector.status(&TxRef::Real { tx_hash, chain_nonce: 0 }) {
                     Ok(TxStatus::Settled { effective_gas, .. }) => {
                         let _ = self.log.append(
@@ -181,12 +181,12 @@ impl<'a> Runtime<'a> {
                         let _ = self.log.append(Kind::Failed { intent_hash: ih2 }, self.clock.now_unix(), self.vault);
                         IntentStatus::Failed
                     }
-                    // Pending / ошибка опроса → резерв держится (RISK-M6-5)
+                    // Pending / polling error → reserve is held (RISK-M6-5)
                     _ => IntentStatus::ReconcilePending,
                 }
             }
             Ok(TxRef::Simulated { .. }) => {
-                // стаб: помечаем Simulated; окно НЕ трогает (RISK-M7S-1)
+                // stub: mark Simulated; window is NOT touched (RISK-M7S-1)
                 let _ = self.log.append(Kind::Failed { intent_hash: ih2 }, self.clock.now_unix(), self.vault);
                 let _ = self.log.append(
                     Kind::Simulated { intent_hash: ih2, connector: "stub" },
@@ -196,13 +196,13 @@ impl<'a> Runtime<'a> {
                 IntentStatus::Failed
             }
             Err(ConnErr::Rejected(_)) => {
-                // достоверный неуход → закрываем Pending (rollback резерва)
+                // reliable non-delivery → close Pending (rollback reserve)
                 let _ = self.log.append(Kind::Failed { intent_hash: ih2 }, self.clock.now_unix(), self.vault);
                 IntentStatus::Failed
             }
-            // RISK-M6-2/M6-5: Unknown НИКОГДА не rollback — Pending остаётся, резерв держится.
-            // ConnErr non_exhaustive → catch-all обязан отображаться в КОНСЕРВАТИВНУЮ ветку
-            // (неизвестный вариант ошибки = неизвестность исхода = держим резерв), не в Failed.
+            // RISK-M6-2/M6-5: Unknown NEVER rollbacks — Pending remains, reserve is held.
+            // ConnErr non_exhaustive → catch-all MUST map to CONSERVATIVE branch
+            // (unknown error variant = unknown outcome = hold reserve), not to Failed.
             Err(ConnErr::Unknown(_)) | Err(ConnErr::Config(_)) => IntentStatus::ReconcilePending,
             Err(_) => IntentStatus::ReconcilePending,
         }

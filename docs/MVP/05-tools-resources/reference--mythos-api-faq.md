@@ -1,0 +1,38 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Mythos API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/mythos-api-faq.md](https://www.alchemy.com/docs/reference/mythos-api-faq.md)
+
+# Mythos API FAQ
+
+> Frequently asked questions about the Mythos API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Mythos?
+Mythos Chain is an EVM-compatible blockchain built for gaming, powering decentralized game economies, unified NFT marketplaces, and multi-token ecosystems through the MYTH token.
+
+## How do I get started with Mythos?
+Check out our [Mythos API Quickstart guide](/docs/reference/mythos-api-quickstart) to get started building on Mythos.
+
+## What is the Mythos API?
+The Mythos API lets you interface with the Mythos network. You can execute transactions, query onchain data, and interact with the Mythos network using the JSON-RPC standard.
+
+## Is Mythos EVM compatible?
+Yes, Mythos is EVM compatible.
+
+## What API does Mythos use?
+Mythos uses the JSON-RPC API standard. This API handles all blockchain interaction on the Mythos network, letting you read block/transaction data, query chain information, execute smart contracts, and store data onchain.
+
+## What methods are supported on Mythos?
+Mythos supports standard Ethereum JSON-RPC methods. Some chain-specific methods may vary. Please check the Mythos API endpoints documentation for a complete list.
+
+## What is a Mythos API key?
+When you access the Mythos network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network. For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup)!
+
+## Which libraries support Mythos?
+Common Ethereum libraries like [ethers.js](https://docs.ethers.org/v5/) should be compatible with Mythos, given its EVM nature.
+
+> 📄 **This content also appears in [ADI API FAQ](05-tools-resources/reference--adi-api-faq.md)** — see there for full details.

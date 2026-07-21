@@ -1,0 +1,38 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Pharos API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/pharos-api-faq.md](https://www.alchemy.com/docs/reference/pharos-api-faq.md)
+
+# Pharos API FAQ
+
+> Frequently asked questions about the Pharos API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Pharos?
+Pharos is a high-performance, EVM-compatible Layer 1 blockchain that combines modular architecture and deep-parallel execution to deliver sub-second finality and high throughput, designed to unify Web2 and Web3 assets and liquidity.
+
+## How do I get started with Pharos?
+Check out our [Pharos API Quickstart guide](/docs/reference/pharos-api-quickstart) to get started building on Pharos.
+
+## What is the Pharos API?
+The Pharos API lets you interface with the Pharos network. You can execute transactions, query onchain data, and interact with the Pharos network using the JSON-RPC standard.
+
+## Is Pharos EVM compatible?
+Yes, Pharos is EVM compatible.
+
+## What API does Pharos use?
+Pharos uses the JSON-RPC API standard. This API handles all blockchain interaction on the Pharos network, letting you read block/transaction data, query chain information, execute smart contracts, and store data onchain.
+
+## What methods are supported on Pharos?
+Pharos supports standard Ethereum JSON-RPC methods. Some chain-specific methods may vary. Please check the Pharos API endpoints documentation for a complete list.
+
+## What is a Pharos API key?
+When you access the Pharos network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network. For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup)!
+
+## Which libraries support Pharos?
+Common Ethereum libraries like [ethers.js](https://docs.ethers.org/v5/) should be compatible with Pharos, given its EVM nature.
+
+> 📄 **This content also appears in [ADI API FAQ](05-tools-resources/reference--adi-api-faq.md)** — see there for full details.

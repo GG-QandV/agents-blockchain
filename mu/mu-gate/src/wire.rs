@@ -1,9 +1,9 @@
-//! RISK-M8-3: hardened-парсер проводного формата. Ручной, без общих CBOR-библиотек,
-//! фиксированная схема, жёсткие лимиты, ни одной паники на любом входе.
+//! RISK-M8-3: hardened wire format parser. Manual, no common CBOR libraries,
+//! fixed schema, strict limits, zero panics on any input.
 //!
-//! Формат кадра: len:u32 LE (≤ MAX_FRAME) ‖ body
+//! Frame format: len:u32 LE (≤ MAX_FRAME) ‖ body
 //! body = payload ‖ sig[64]
-//! payload (наша минимальная TLV-схема, детерминированная):
+//! payload (our minimal TLV schema, deterministic):
 //!   v:u16 ‖ recipient_len:u8 ‖ recipient[..] ‖ amount:u128(BE)
 //!   ‖ chain_id:u64(BE) ‖ agent_len:u8 ‖ agent_id[..] ‖ nonce:u64(BE) ‖ ts:u64(BE)
 
@@ -29,12 +29,12 @@ pub struct WireIntent {
     pub agent_id: String,
     pub nonce: u64,
     pub ts: u64,
-    /// payload-байты (для проверки подписи) и сама подпись.
+    /// payload bytes (for signature verification) and the signature itself.
     pub signed_bytes: Vec<u8>,
     pub sig: [u8; SIG_LEN],
 }
 
-/// Курсор с границами: ни один read не выходит за буфер (RISK-M8-3).
+/// Bounds-checked cursor: no read exceeds the buffer (RISK-M8-3).
 struct Cur<'a> {
     b: &'a [u8],
     i: usize,
@@ -64,11 +64,11 @@ impl<'a> Cur<'a> {
     fn remaining(&self) -> usize { self.b.len().saturating_sub(self.i) }
 }
 
-/// Разбор кадра целиком (уже без длины-префикса — её снимает транспорт).
+/// Parse full frame (without length prefix — transport strips it).
 pub fn parse_wire(frame: &[u8]) -> Result<WireIntent, WireErr> {
     if frame.len() > MAX_FRAME { return Err(WireErr::TooLong); }
     if frame.len() < SIG_LEN + 4 { return Err(WireErr::TooShort); }
-    // payload = всё кроме последних 64 байт подписи
+    // payload = everything except the last 64 bytes (signature)
     let split = frame.len().checked_sub(SIG_LEN).ok_or(WireErr::TooShort)?;
     let (payload, sig_bytes) = frame.split_at(split);
 
@@ -92,7 +92,7 @@ pub fn parse_wire(frame: &[u8]) -> Result<WireIntent, WireErr> {
     let nonce = c.u64()?;
     let ts = c.u64()?;
 
-    // лишние байты в payload запрещены (строгая схема, RISK-M8-3)
+    // extra bytes in payload are forbidden (strict schema, RISK-M8-3)
     if c.remaining() != 0 { return Err(WireErr::BadLength); }
 
     let mut sig = [0u8; SIG_LEN];
@@ -106,7 +106,7 @@ pub fn parse_wire(frame: &[u8]) -> Result<WireIntent, WireErr> {
 }
 
 fn ascii_string(b: &[u8]) -> Result<String, WireErr> {
-    // печатаемый ASCII без управляющих (RISK-M9-3 против скрытых символов на входе)
+    // printable ASCII, no control chars (RISK-M9-3 against hidden characters in input)
     if b.iter().any(|&x| !(0x20..=0x7e).contains(&x)) {
         return Err(WireErr::BadLength);
     }
@@ -128,7 +128,7 @@ mod tests {
         p.extend_from_slice(agent.as_bytes());
         p.extend_from_slice(&nonce.to_be_bytes());
         p.extend_from_slice(&ts.to_be_bytes());
-        p.extend_from_slice(&[0u8; SIG_LEN]); // фиктивная подпись
+        p.extend_from_slice(&[0u8; SIG_LEN]); // dummy signature
         p
     }
 
@@ -153,16 +153,16 @@ mod tests {
     #[test]
     fn rejects_trailing_garbage() {
         let mut f = build(1, "0xabc", "a", 1, 1);
-        f.insert(f.len() - SIG_LEN, 0xFF); // лишний байт в payload
+        f.insert(f.len() - SIG_LEN, 0xFF); // extra byte in payload
         assert_eq!(parse_wire(&f), Err(WireErr::BadLength));
     }
     #[test]
     fn no_panic_on_fuzz_like_inputs() {
-        // RISK-M8-3: любой мусор не роняет парсер
+        // RISK-M8-3: any garbage does not crash the parser
         for len in 0..200 {
             for seed in 0..8u8 {
                 let junk: Vec<u8> = (0..len).map(|i| (i as u8) ^ seed).collect();
-                let _ = parse_wire(&junk); // не паникует
+                let _ = parse_wire(&junk); // does not panic
             }
         }
     }

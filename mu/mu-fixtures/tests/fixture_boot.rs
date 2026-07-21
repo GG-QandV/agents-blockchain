@@ -1,4 +1,4 @@
-//! Фикстуры реально пригодны для boot: нормальная проходит, rollback-атака ловится.
+//! Fixtures are actually bootable: normal passes, rollback attack is caught.
 use mu_core::{CoreErr, Mu};
 use mu_log::Log;
 use mu_vault::backend::SoftVault;

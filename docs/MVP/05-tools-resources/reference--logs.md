@@ -1,0 +1,160 @@
+# logs
+
+> Source: [https://www.alchemy.com/docs/reference/logs.md](https://www.alchemy.com/docs/reference/logs.md)
+
+# logs
+
+> Emits logs attached to a new block that match certain topic filters.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+The `logs` subscription type emits logs that match a specified topic filter and are included in newly added blocks. To learn more about logs on Ethereum and other EVM chains, check out [Understanding Logs: Deep Dive into eth\_getLogs](/docs/deep-dive-into-eth_getlogs).
+
+<Info>
+  When a chain reorganization occurs, logs that are part of blocks on the old chain will be emitted again with the property removed set to `true`. Logs that are part of the blocks on the new chain are also emitted so it is possible to see logs for the same transaction multiple times in the case of a reorganization.
+
+  If `removed` is not included in the response payload then the logs are still a part of the canonical chain.
+</Info>
+
+# Supported networks
+
+<Info>
+  Check the [Chains](https://dashboard.alchemy.com/chains) page for details about product and chain support!
+
+  ![](https://alchemyapi-res.cloudinary.com/image/upload/v1764179964/docs/api-reference/alchemy-transact/transaction-simulation/523fb8a9a9d899921ee1046d0ff1b389967a9976d1c6112ebbbe071ddd1ef374-image.png)
+</Info>
+
+# Parameters
+
+An object with the following fields:
+
+* `address` (optional): `string`] or `[array of strings]` Singular address or array of addresses. Only logs created from one of these addresses will be emitted.
+
+* `topics`: an array of topic specifiers (**up to 4 topics allowed per address**).
+
+  * Each topic specifier is either `null`, a single string, or an array of strings.
+  * For every non `null` topic, a log will be emitted when activity associated with that topic occurs.
+
+# Request
+
+<CodeGroup>
+  ```shell javascript
+  // initiate websocket stream first
+  wscat -c wss://eth-mainnet.g.alchemy.com/v2/demo
+
+  // then call subscription 
+  {"jsonrpc":"2.0","id": 1, "method": "eth_subscribe", "params": ["logs", {"address": "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", "topics": ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"]}]}
+  ```
+
+  ```javascript Viem
+  import { createPublicClient, webSocket, encodeEventTopics, parseAbiItem } from 'viem'
+  import { mainnet } from 'viem/chains'
+
+  const client = createPublicClient({
+    chain: mainnet,
+    transport: webSocket('wss://eth-mainnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->')
+  })
+
+  // Watch for Transfer events on a specific contract
+  const unsubscribe = client.watchEvent({
+    address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // USDC contract
+    event: parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)'),
+    onLogs: (logs) => {
+      logs.forEach((log) => {
+        console.log('Transfer event detected:', {
+          from: log.args.from,
+          to: log.args.to,
+          value: log.args.value,
+          transactionHash: log.transactionHash
+        })
+      })
+    }
+  })
+
+  // Watch for logs with specific topics (more flexible filtering)
+  const unsubscribeTopics = client.watchEvent({
+    address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+    events: [
+      parseAbiItem('event Transfer(address indexed from, address indexed to, uint256 value)'),
+      parseAbiItem('event Approval(address indexed owner, address indexed spender, uint256 value)')
+    ],
+    onLogs: (logs) => {
+      console.log('Token events detected:', logs)
+    }
+  })
+  ```
+
+  ```javascript Ethers.js
+  import { WebSocketProvider, Contract, Interface, id } from 'ethers'
+
+  const provider = new WebSocketProvider('wss://eth-mainnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->')
+
+  // Create a contract instance for easier event filtering
+  const contractAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48' // USDC
+  const abi = [
+    'event Transfer(address indexed from, address indexed to, uint256 value)',
+    'event Approval(address indexed owner, address indexed spender, uint256 value)'
+  ]
+  const contract = new Contract(contractAddress, abi, provider)
+
+  // Listen for Transfer events
+  contract.on('Transfer', (from, to, value, event) => {
+    console.log('Transfer event detected:', {
+      from: from,
+      to: to,
+      value: value.toString(),
+      transactionHash: event.transactionHash
+    })
+  })
+
+  // Listen for raw logs with topic filtering
+  const transferTopic = id("Transfer(address,address,uint256)")
+  const filter = {
+    address: contractAddress,
+    topics: [transferTopic]
+  }
+
+  provider.on(filter, (log) => {
+    console.log('Raw log detected:', log)
+  })
+  ```
+</CodeGroup>
+
+# Result
+
+<CodeGroup>
+  ```json result
+  {
+      "jsonrpc":"2.0",
+      "method":"eth_subscription",
+      "params": {
+          "subscription":"0x4a8a4c0517381924f9838102c5a4dcb7",
+          "result":{
+              "address":"0x8320fe7702b96808f7bbc0d4a888ed1468216cfd",
+              "blockHash":"0x61cdb2a09ab99abf791d474f20c2ea89bf8de2923a2d42bb49944c8c993cbf04",
+              "blockNumber":"0x29e87",
+              "data":"0x00000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000003",
+              "logIndex":"0x0",
+              "topics":["0xd78a0cb8bb633d06981248b816e7bd33c2a35a6089241d099fa519e361cab902"],
+              "transactionHash":"0xe044554a0a55067caafd07f8020ab9f2af60bdfe337e395ecd84b4877a3d1ab4",
+              "transactionIndex":"0x0"
+          }
+      }
+  }
+  ```
+</CodeGroup>
+
+Here are the individual properties of the response:
+
+* **`jsonrpc`**: The `jsonrpc` property specifies the version of the JSON-RPC protocol that is being used, which in this case is "2.0".
+* **`method`**: The `method` property specifies the method that was called, which in this case is `eth_subscription`.
+* **`params`**: The `params` property contains the parameters of the method call. In this case, it contains a `subscription` property, which specifies the subscription identifier, and a `result` property, which contains the result of the subscription.
+* **`result`**: The `result` property contains information about a specific transaction on the Ethereum blockchain.
+* **`address`**: The `address` property specifies the address from which this log originated.
+* **`blockhash`**: The `blockHash` property specifies the hash of the block in which the transaction was included.
+* **`blockNumber`**: The `blockNumber` property specifies the number of the block in which the transaction was included. It is encoded as a hexadecimal string.
+* **`data`**: Contains one or more 32 Bytes non-indexed arguments of the log.
+* **`logIndex`**: The `logIndex` property specifies the index or position of the log entry within the block. It is encoded as a hexadecimal string.
+* **`topics`**: An array of 0 to 4 32 bytes topic hashes of indexed log arguments (up to 4 topics allowed per address).
+* **`transactionHash`**: The `transactionHash` property specifies the hash of the transaction.
+* **`transactionIndex`**: The `transactionIndex` property specifies the index or position of the transaction within the block. It is encoded as a hexadecimal string.

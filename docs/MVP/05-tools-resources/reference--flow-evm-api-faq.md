@@ -1,0 +1,58 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Flow API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/flow-evm-api-faq.md](https://www.alchemy.com/docs/reference/flow-evm-api-faq.md)
+
+# Flow API FAQ
+
+> Frequently asked questions about the Flow API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Flow?
+
+Flow is a layer one blockchain with support for both Solidity and Cadence, a next-gen smart contract language. Any smart contract that works on Ethereum or an EVM L2 works on Flow.
+
+## What is the Flow API?
+
+The Flow API enables interaction with the Flow network through JSON-RPC methods. It provides tools for transactions, smart contract deployment, and data retrieval.
+
+## How can I get started using the Flow API?
+
+Refer to the [Flow API Quickstart guide](/docs/reference/flow-evm-api-quickstart) for setup instructions.
+
+## Is Flow EVM-compatible?
+
+Flow supports full EVM equivalence. Solidity contracts work out of the box on Flow and can access Flow's protocol benefits without code changes. That means Solidity devs can tap into Flow's user base and unique IPs without any implementation risk.
+
+## What API does Flow use?
+
+Flow uses a JSON-RPC API standard tailored to its multi-role architecture.
+
+## What is a Flow API key?
+
+When accessing Flow via a node provider, you use an API key to interact with the network.
+
+For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup).
+
+## What programming languages work with Flow?
+
+Flow uses Cadence, a resource-oriented programming language, for smart contracts. For offchain interactions and dApp development, you can use JavaScript, TypeScript, or other web development languages. Flow now also works with Solidity.
+
+## Which libraries support Flow?
+
+Flow has its own set of libraries and tools designed specifically for its ecosystem. However, it also supports integrations with popular libraries like fcl-js (Flow Client Library) which facilitates interaction with the Flow blockchain.
+
+## What does Flow use for gas?
+
+$FLOW, the native cryptocurrency, is used for transaction fees and gas.
+
+## What methods does Alchemy support for the Flow API?
+
+Refer to the [Flow API Endpoints](/docs/chains#flow-apis) for a complete list of Alchemy-supported methods.
+
+## Where can I get additional help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

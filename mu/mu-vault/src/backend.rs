@@ -1,8 +1,8 @@
-//! Бэкенды Vault.
-//! SoftVault — полнофункциональный, ТОЛЬКО для тестов/CI (feature="softvault").
-//! Platform-бэкенды (Enclave/StrongBox/TPM) — каркас с явными TODO под FFI устройства.
+//! Vault backends.
+//! SoftVault — fully functional, ONLY for tests/CI (feature="softvault").
+//! Platform backends (Enclave/StrongBox/TPM) — skeleton with explicit TODO for device FFI.
 //!
-//! RISK-M4-4: деградация всегда fail-stop. attest().hw_backed=false + требование hw → halt (решает демон).
+//! RISK-M4-4: degradation is always fail-stop. attest().hw_backed=false + hw requirement → halt (decided by daemon).
 use crate::domain::tagged_digest;
 use crate::signer::TxSigner;
 use crate::{DomainTag, P256Sig, Vault, VaultErr, VaultInfo};
@@ -11,16 +11,16 @@ use p256::ecdsa::{signature::hazmat::PrehashSigner, SigningKey as P256Signing};
 use zeroize::Zeroizing;
 
 // ─────────────────────────────────────────────────────────────────────────
-// SoftVault — ключи в памяти процесса. НЕ для продакшена.
-// RISK-M4-4: release-профиль обязан НЕ включать feature "softvault".
-// В lib.rs демона это проверяется через compile_error! (см. комментарий ниже).
+// SoftVault — keys in process memory. NOT for production.
+// RISK-M4-4: release profile MUST NOT enable feature "softvault".
+// This is checked in the daemon's lib.rs via compile_error! (see comment below).
 // ─────────────────────────────────────────────────────────────────────────
 #[cfg(feature = "softvault")]
 pub struct SoftVault {
     mu_key: Zeroizing<[u8; 32]>,
     owner_key: Zeroizing<[u8; 32]>,
     wallet_key: Zeroizing<[u8; 32]>,
-    /// Симуляция «свежая биометрия получена». В реальном бэкенде — платформенный обряд.
+    /// Simulates "fresh biometrics obtained". In a real backend — platform-specific ritual.
     owner_auth_ok: bool,
 }
 
@@ -34,7 +34,7 @@ impl SoftVault {
             owner_auth_ok: true,
         }
     }
-    /// Тест RISK-M4-3: смоделировать отказ биометрии.
+    /// RISK-M4-3 test: simulate biometric failure.
     pub fn set_owner_auth(&mut self, ok: bool) {
         self.owner_auth_ok = ok;
     }
@@ -56,14 +56,14 @@ impl SoftVault {
 #[cfg(feature = "softvault")]
 impl Vault for SoftVault {
     fn sign_mu(&self, tag: DomainTag, digest: &Hash32) -> Result<P256Sig, VaultErr> {
-        // RISK-M4-5: только структурные домены μ, не delta/human
+        // RISK-M4-5: only structural μ domains, not delta/human
         match tag {
             DomainTag::MuCore | DomainTag::MuLog => Self::p256_sign(&self.mu_key, tag, digest),
             _ => Err(VaultErr::Backend("sign_mu wrong domain".into())),
         }
     }
     fn owner_sign(&self, tag: DomainTag, digest: &Hash32) -> Result<P256Sig, VaultErr> {
-        // RISK-M4-3: без свежей биометрии — отказ
+        // RISK-M4-3: without fresh biometrics — deny
         if !self.owner_auth_ok {
             return Err(VaultErr::UserAuthRequired);
         }
@@ -84,15 +84,15 @@ impl Vault for SoftVault {
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// Platform-бэкенды: каркас. Реальная реализация — FFI под устройство,
-// пишется и проверяется на самих устройствах (device-smoke из спеки M4 §6).
+// Platform backends: skeleton. Real implementation — FFI per device,
+// written and tested on actual devices (device-smoke from spec M4 §6).
 // ─────────────────────────────────────────────────────────────────────────
 
-/// Apple Secure Enclave. Ключи μ/owner — SecKey P-256 в железе;
-/// owner-ключ создаётся с kSecAccessControlBiometryCurrentSet (RISK-M4-3).
-/// Ключ кошелька — AES-256-GCM(privkey, KEK-из-Enclave), AAD=mu_id‖chain_id (RISK-M4-2).
+/// Apple Secure Enclave. μ/owner keys — SecKey P-256 in hardware;
+/// owner key created with kSecAccessControlBiometryCurrentSet (RISK-M4-3).
+/// Wallet key — AES-256-GCM(privkey, KEK-from-Enclave), AAD=mu_id‖chain_id (RISK-M4-2).
 pub struct AppleEnclave {
-    // TODO(device): дескрипторы SecKey, ссылка на wrap-файл.
+    // TODO(device): SecKey descriptors, reference to wrap file.
     _priv: (),
 }
 
@@ -104,7 +104,7 @@ impl AppleEnclave {
 
 /// Android StrongBox Keystore. setIsStrongBoxBacked(true);
 /// owner: setUserAuthenticationRequired + BiometricPrompt CryptoObject.
-/// Fallback на TEE-Keystore → attest().hw_backed=false (решение о допуске у демона).
+/// Fallback to TEE-Keystore → attest().hw_backed=false (admission decision by daemon).
 pub struct AndroidStrongBox {
     _priv: (),
 }
@@ -133,10 +133,10 @@ mod tests {
     fn softvault_domain_separation() {
         let v = SoftVault::for_test([1; 32], [2; 32], [3; 32]);
         let d = Hash32([0xAB; 32]);
-        // sign_mu не принимает delta-домен (RISK-M4-5)
+        // sign_mu does not accept delta domain (RISK-M4-5)
         assert!(v.sign_mu(DomainTag::MuDelta, &d).is_err());
         assert!(v.sign_mu(DomainTag::MuCore, &d).is_ok());
-        // owner_sign не принимает core-домен
+        // owner_sign does not accept core domain
         assert!(v.owner_sign(DomainTag::MuCore, &d).is_err());
         assert!(v.owner_sign(DomainTag::MuDelta, &d).is_ok());
     }
@@ -145,7 +145,7 @@ mod tests {
         let mut v = SoftVault::for_test([1; 32], [2; 32], [3; 32]);
         v.set_owner_auth(false);
         let d = Hash32([1; 32]);
-        // RISK-M4-3: без биометрии — UserAuthRequired
+        // RISK-M4-3: without biometrics — UserAuthRequired
         assert!(matches!(
             v.owner_sign(DomainTag::MuDelta, &d),
             Err(VaultErr::UserAuthRequired)

@@ -1,0 +1,101 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-quickstart](../00-consolidated/api-quickstart.md).
+> Below is the original chain-specific version.
+
+# Gnosis Chain API Quickstart
+
+> Source: [https://www.alchemy.com/docs/reference/gnosis-api-quickstart.md](https://www.alchemy.com/docs/reference/gnosis-api-quickstart.md)
+
+# Gnosis Chain API Quickstart
+
+> How to get started building on Gnosis Chain using Alchemy
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+> 📄 **This content also appears in [Choose Your Starting Point](05-tools-resources/get-started.md)** — see there for full details.
+
+Gnosis Chain (formerly xDai) is an EVM-compatible blockchain known for its stable and low-cost transactions. Designed to support the needs of decentralized applications (dApps), Gnosis Chain provides a reliable and efficient environment for deploying Ethereum-based applications.
+
+The Gnosis Chain API lets you interact with the Gnosis Chain network through a collection of JSON-RPC methods. If you're familiar with Ethereum's JSON-RPC APIs, working with Gnosis Chain is intuitive and straightforward.
+
+## Send your first request on Alchemy
+
+Let's use the [`viem`](https://www.npmjs.com/package/viem) package to create a Gnosis Chain client connected to Alchemy and fetch the latest block number!
+
+<CodeGroup>
+  ```text npm
+  npm install --save viem
+  ```
+
+  ```text yarn
+  yarn add viem
+  ```
+</CodeGroup>
+
+## Create a client connected to Alchemy
+
+<CodeGroup>
+```js
+import { createPublicClient, http } from "viem"; 
+import { gnosis } from "viem/chains";
+
+const client = createPublicClient({
+  chain: gnosis,
+  transport: http("https://gnosis-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY"),
+});
+```
+</CodeGroup>
+
+Now that you've created a client connected to Alchemy, you can continue with some basics:
+
+## Get the latest block number
+
+<CodeGroup>
+```js
+const blockNumber = await client.getBlockNumber();
+console.log("Current block number:", blockNumber);
+```
+</CodeGroup>
+
+## Get an address balance
+
+<CodeGroup>
+```js 
+const balance = await client.getBalance({ address: "0xab5801a7d398351b8be11c439e05c5b3259aec9b" });
+console.log("Balance (xDAI):", Number(balance) / 1e18);
+```
+</CodeGroup>
+
+## Read block data
+
+<CodeGroup>
+```js
+const block = await client.getBlock({
+  blockNumber: blockNumber, // from previous example
+});
+console.log(block);
+```
+</CodeGroup>
+
+## Fetch a transaction by hash
+
+<CodeGroup> 
+```js 
+const tx = await client.getTransaction({ hash: "0xYOUR_TX_HASH" });
+console.log(tx);
+```
+</CodeGroup>
+
+## Fetch a transaction receipt
+
+<CodeGroup>
+```js
+const receipt = await client.getTransactionReceipt({
+  hash: "0xYOUR_TX_HASH"
+});
+console.log(receipt);
+```
+</CodeGroup>
+
+# Gnosis Chain APIs
+
+For the full list of Gnosis Chain APIs, see the [Gnosis Chain API Endpoints](/docs/chains#gnosis-apis).

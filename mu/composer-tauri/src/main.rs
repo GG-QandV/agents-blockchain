@@ -1,6 +1,6 @@
-//! C1 Tauri-glue: тонкие команды над composer-core/mu-policy.
-//! Вся логика — в проверенных крейтах части 1; здесь только маршалинг (спека §4.1).
-//! Никакой сети: только draft-файл и unix socket демона (N-04).
+//! C1 Tauri-glue: thin commands over composer-core/mu-policy.
+//! All logic is in the proven crates of part 1; here only marshalling (spec §4.1).
+//! No networking: only draft file and daemon unix socket (N-04).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![forbid(unsafe_code)]
 
@@ -15,7 +15,7 @@ use std::path::PathBuf;
 const DECIMALS: u8 = 6;
 const CHAIN: u64 = 8453;
 
-// ── DTO для UI (без секретов; адреса — hex + redacted) ────────────────────
+// ── DTO for UI (no secrets; addresses — hex + redacted) ────────────────────
 #[derive(Serialize, Deserialize, Clone)]
 struct WlDto { address_hex: String, redacted: String, label: String }
 #[derive(Serialize, Deserialize, Clone)]
@@ -29,7 +29,7 @@ fn draft_path() -> PathBuf {
     std::env::var("MU_HOME").map(PathBuf::from).unwrap_or_else(|_| PathBuf::from(".")).join("draft.bin")
 }
 fn omega_view() -> OmegaView {
-    // MVP: потолок из env; при живом демоне — из GetPolicy (F-01, фаза интеграции)
+    // MVP: ceiling from env; with live daemon — from GetPolicy (F-01, integration phase)
     let ceil = std::env::var("MU_CEILING").ok()
         .and_then(|s| parse_decimal(&s, DECIMALS).ok())
         .unwrap_or(Amount::from_minor(1_000_000_000));
@@ -68,7 +68,7 @@ fn hash_hex(d: &Delta) -> String {
     delta_hash(d).0.iter().map(|b| format!("{b:02x}")).collect()
 }
 
-// ── Tauri-команды ──────────────────────────────────────────────────────────
+// ── Tauri commands ──────────────────────────────────────────────────────────
 #[tauri::command]
 fn get_state() -> StateDto {
     let p = load_draft(&draft_path()).ok().flatten().unwrap_or(DeltaProposal {
@@ -84,13 +84,13 @@ fn get_state() -> StateDto {
     }
 }
 
-/// Валидация на каждый ввод (F-03) — UI шлёт всю форму, получает отчёт.
+/// Validation on every input (F-03) — UI sends the whole form, gets a report.
 #[tauri::command]
 fn validate_form(delta: DeltaDto) -> Result<ReportDto, String> {
     Ok(report_dto(&from_dto(&delta)?))
 }
 
-/// Канонизация адреса при вставке (S3): redacted + identicon-seed.
+/// Address canonicalization on paste (S3): redacted + identicon-seed.
 #[tauri::command]
 fn check_address(input: String) -> Result<serde_json::Value, String> {
     match canon_address_checked(&input, CHAIN) {
@@ -116,13 +116,13 @@ fn save_form(delta: DeltaDto, base_hash: String) -> Result<String, String> {
     Ok("saved".into())
 }
 
-/// Экспорт proposal демону (F-05). Ответ демона возвращается UI как есть.
+/// Export proposal to daemon (F-05). Daemon response is returned to UI as-is.
 #[tauri::command]
 fn propose() -> Result<String, String> {
     let p = load_draft(&draft_path()).map_err(|e| format!("{e:?}"))?.ok_or("no draft")?;
     let rep = validate(&p.new_delta, &omega_view());
     if !rep.ok() {
-        return Err(format!("blocked: {:?}", rep.errors)); // S4: экспорт только при 0 ошибок
+        return Err(format!("blocked: {:?}", rep.errors)); // S4: export only with 0 errors
     }
     let raw = encode_proposal(&p).map_err(|e| format!("{e:?}"))?;
     let sock = std::env::var("MU_POLICY_SOCK").map_err(|_| "daemon offline")?;
@@ -135,7 +135,7 @@ fn propose() -> Result<String, String> {
         Ok(String::from_utf8_lossy(&resp).to_string())
     }
     #[cfg(not(unix))]
-    { Err("named pipe: платформенная ветка (Windows DACL)".into()) }
+    { Err("named pipe: platform-specific branch (Windows DACL)".into()) }
 }
 
 fn now() -> u64 {

@@ -1,0 +1,47 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-overview](../00-consolidated/api-overview.md).
+> Below is the original chain-specific version.
+
+# Pharos API Overview
+
+> Source: [https://www.alchemy.com/docs/pharos/pharos-api-overview.md](https://www.alchemy.com/docs/pharos/pharos-api-overview.md)
+
+# Pharos API Overview
+
+> Overview of available Pharos API methods
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## Pharos APIs
+
+📙 Get started with our [Pharos API Quickstart Guide](/docs/reference/pharos-api-quickstart).
+
+|                                                                                                 |                                                                                             |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [`eth_accounts`](/docs/chains/pharos/pharos-api-endpoints/eth-accounts)                         | [`eth_blockNumber`](/docs/chains/pharos/pharos-api-endpoints/eth-block-number)              |
+| [`eth_call`](/docs/chains/pharos/pharos-api-endpoints/eth-call)                                 | [`eth_chainId`](/docs/chains/pharos/pharos-api-endpoints/eth-chain-id)                      |
+| [`eth_createAccessList`](/docs/chains/pharos/pharos-api-endpoints/eth-create-access-list)       | [`eth_estimateGas`](/docs/chains/pharos/pharos-api-endpoints/eth-estimate-gas)              |
+| [`eth_feeHistory`](/docs/chains/pharos/pharos-api-endpoints/eth-fee-history)                    | [`eth_gasPrice`](/docs/chains/pharos/pharos-api-endpoints/eth-gas-price)                    |
+| [`eth_getAccount`](/docs/chains/pharos/pharos-api-endpoints/eth-get-account)                    | [`eth_getBalance`](/docs/chains/pharos/pharos-api-endpoints/eth-get-balance)                |
+| [`eth_getBlockByHash`](/docs/chains/pharos/pharos-api-endpoints/eth-get-block-by-hash)          | [`eth_getBlockByNumber`](/docs/chains/pharos/pharos-api-endpoints/eth-get-block-by-number)  |
+| [`eth_getBlockReceipts`](/docs/chains/pharos/pharos-api-endpoints/eth-get-block-receipts)       | [`eth_getBlockTransactionCountByHash`](/docs/chains/pharos/pharos-api-endpoints/eth-get-block-transaction-count-by-hash) |
+| [`eth_getBlockTransactionCountByNumber`](/docs/chains/pharos/pharos-api-endpoints/eth-get-block-transaction-count-by-number) | [`eth_getCode`](/docs/chains/pharos/pharos-api-endpoints/eth-get-code)                      |
+| [`eth_getFilterChanges`](/docs/chains/pharos/pharos-api-endpoints/eth-get-filter-changes)       | [`eth_getFilterLogs`](/docs/chains/pharos/pharos-api-endpoints/eth-get-filter-logs)         |
+| [`eth_getLogs`](/docs/chains/pharos/pharos-api-endpoints/eth-get-logs)                          | [`eth_getProof`](/docs/chains/pharos/pharos-api-endpoints/eth-get-proof)                    |
+| [`eth_getRawTransactionByHash`](/docs/chains/pharos/pharos-api-endpoints/eth-get-raw-transaction-by-hash) | [`eth_getStorageAt`](/docs/chains/pharos/pharos-api-endpoints/eth-get-storage-at)           |
+| [`eth_getTransactionByBlockHashAndIndex`](/docs/chains/pharos/pharos-api-endpoints/eth-get-transaction-by-block-hash-and-index) | [`eth_getTransactionByBlockNumberAndIndex`](/docs/chains/pharos/pharos-api-endpoints/eth-get-transaction-by-block-number-and-index) |
+| [`eth_getTransactionByHash`](/docs/chains/pharos/pharos-api-endpoints/eth-get-transaction-by-hash) | [`eth_getTransactionCount`](/docs/chains/pharos/pharos-api-endpoints/eth-get-transaction-count) |
+| [`eth_getTransactionReceipt`](/docs/chains/pharos/pharos-api-endpoints/eth-get-transaction-receipt) | [`eth_getUncleByBlockHashAndIndex`](/docs/chains/pharos/pharos-api-endpoints/eth-get-uncle-by-block-hash-and-index) |
+| [`eth_getUncleByBlockNumberAndIndex`](/docs/chains/pharos/pharos-api-endpoints/eth-get-uncle-by-block-number-and-index) | [`eth_getUncleCountByBlockHash`](/docs/chains/pharos/pharos-api-endpoints/eth-get-uncle-count-by-block-hash) |
+| [`eth_getUncleCountByBlockNumber`](/docs/chains/pharos/pharos-api-endpoints/eth-get-uncle-count-by-block-number) | [`eth_maxPriorityFeePerGas`](/docs/chains/pharos/pharos-api-endpoints/eth-max-priority-fee-per-gas) |
+| [`eth_newBlockFilter`](/docs/chains/pharos/pharos-api-endpoints/eth-new-block-filter)           | [`eth_newFilter`](/docs/chains/pharos/pharos-api-endpoints/eth-new-filter)                  |
+| [`eth_protocolVersion`](/docs/chains/pharos/pharos-api-endpoints/eth-protocol-version)          | [`eth_sendRawTransaction`](/docs/chains/pharos/pharos-api-endpoints/eth-send-raw-transaction) |
+| [`eth_submitWork`](/docs/chains/pharos/pharos-api-endpoints/eth-submit-work)                    | [`eth_subscribe`](/docs/chains/pharos/pharos-api-endpoints/eth-subscribe)                   |
+| [`eth_uninstallFilter`](/docs/chains/pharos/pharos-api-endpoints/eth-uninstall-filter)          | [`eth_unsubscribe`](/docs/chains/pharos/pharos-api-endpoints/eth-unsubscribe)               |
+| [`net_peerCount`](/docs/chains/pharos/pharos-api-endpoints/net-peer-count)                      | [`net_version`](/docs/chains/pharos/pharos-api-endpoints/net-version)                       |
+| [`web3_clientVersion`](/docs/chains/pharos/pharos-api-endpoints/web-3-client-version)           | [`web3_sha3`](/docs/chains/pharos/pharos-api-endpoints/web-3-sha-3)                         |
+
+## Related APIs
+
+The following Alchemy APIs are also supported on Pharos:
+
+* [Debug API](/docs/reference/debug-api-quickstart)

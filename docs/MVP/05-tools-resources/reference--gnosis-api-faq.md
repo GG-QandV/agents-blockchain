@@ -1,0 +1,58 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Gnosis Chain API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/gnosis-api-faq.md](https://www.alchemy.com/docs/reference/gnosis-api-faq.md)
+
+# Gnosis Chain API FAQ
+
+> Frequently asked questions about the Gnosis API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Gnosis Chain?
+
+Gnosis Chain (formerly xDai) is a high-performance blockchain designed to offer developers stable and low-cost transactions. It is Ethereum Virtual Machine (EVM) compatible, enabling developers to deploy Ethereum-based applications seamlessly on it.
+
+## What is the Gnosis Chain API?
+
+The Gnosis Chain API lets you interact with the Gnosis Chain network through a collection of JSON-RPC methods. Because it's compatible with the Ethereum ecosystem, you'll find working with Gnosis Chain familiar if you've used Ethereum's JSON-RPC APIs.
+
+## How can I get started using the Gnosis Chain API?
+
+Explained in [Gnosis Chain Quickstart](/docs/reference/gnosis-api-quickstart).
+
+## Is Gnosis Chain EVM compatible?
+
+Yes, Gnosis Chain is fully compatible with the Ethereum Virtual Machine (EVM). This compatibility allows Ethereum developers to port their projects to Gnosis Chain with minimal changes, taking advantage of the chain's stability and low transaction fees.
+
+## What API does Gnosis Chain use?
+
+Gnosis Chain uses the JSON-RPC API standard for blockchain interactions. This is the same standard used by Ethereum.
+
+## What is a Gnosis Chain API key?
+
+When you access the Gnosis Chain network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network.
+
+For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup)!
+
+## Which libraries support Gnosis Chain?
+
+Because Gnosis Chain is EVM-compatible, popular Ethereum libraries like ethers.js and web3.js work with Gnosis Chain. If you're familiar with Ethereum's development ecosystem, you can integrate with minimal changes.
+
+## What programming languages work with Gnosis Chain?
+
+Like Ethereum, Gnosis Chain supports a range of programming languages for blockchain interaction and smart contract development, including Solidity for smart contracts, as well as JavaScript and TypeScript for dApp development and offchain interactions.
+
+## What does Gnosis Chain use for gas?
+
+Gnosis Chain uses xDai, a stablecoin pegged to the US dollar, for transaction fees, gas, and other network activities.
+
+## What methods does Alchemy support for the Gnosis Chain API?
+
+You can find the list of all the methods Alchemy supports for the Gnosis Chain API on [Gnosis Chain API Endpoints](/docs/reference/gnosis-chain-api-endpoints) page.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

@@ -1,0 +1,37 @@
+# App Management API Overview
+
+> Source: [https://www.alchemy.com/docs/reference/admin-api/overview.md](https://www.alchemy.com/docs/reference/admin-api/overview.md)
+
+# App Management API Overview
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+The App Management API lets you programmatically create, configure, and manage Alchemy apps without using the Alchemy Dashboard. It is designed for automation, compliance, and enterprise workflows.
+
+An App represents a single Alchemy project. You create an app, configure which networks it can access, and optionally restrict usage via allowlists. All changes are applied immediately.
+
+***
+
+## What you can do
+
+Use this API to:
+
+* Create and delete apps
+* Update app metadata and configuration
+* Manage network and allowlist settings
+* Retrieve app details
+* Query supported networks
+
+Each request is authenticated using an access key and returns JSON responses.
+
+***
+
+## Authentication
+
+All requests must include an access key with App Management permissions.
+
+To create an access key:
+
+1. Go to the [security tab](https://dashboard.alchemy.com/settings/security?utm_source=docs&utm_medium=referral&utm_content=reference_admin-api_overview) in the Alchemy Dashboard
+2. Create a new access key
+3. Enable App Management with Read & Write permissions

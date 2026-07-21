@@ -1,0 +1,31 @@
+# Dashboard Tools Quickstart
+
+> Source: [https://www.alchemy.com/docs/dashboard-tools-quickstart.md](https://www.alchemy.com/docs/dashboard-tools-quickstart.md)
+
+# Dashboard Tools Quickstart
+
+> Guide to show the tools available on the Alchemy Dashboard
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+# What is the Alchemy Dashboard?
+
+Sign in to the Alchemy Dashboard to access reliable and scalable node infrastructure, enhanced APIs, and developer tools.
+
+It is the main "hub" to access and manage your applications and analytics on Alchemy.
+
+![](https://alchemyapi-res.cloudinary.com/image/upload/v1749600255/docs/Screenshot_2025-06-10_at_5.04.11_PM_kuvqif.png)
+
+# What tools are available on the Alchemy Dashboard?
+
+Select the `Tools` tab in the Alchemy Dashboard to reveal a dropdown menu with the following tools:
+
+![](https://alchemyapi-res.cloudinary.com/image/upload/v1749600126/docs/Screenshot_2025-06-10_at_5.02.01_PM_lpw211.png)
+
+Here are quick start guides / direct links for each tool below:
+
+1. [Request Logs](/docs/alchemy-request-logs)
+2. [Dashboard Alerts](https://www.alchemy.com/docs/dashboard-alerts)
+3. [Sandbox](https://www.alchemy.com/docs/alchemy-sandbox)
+4. [Faucets](https://www.alchemy.com/faucets)
+5. [Roles](https://www.alchemy.com/docs/dashboard-roles)

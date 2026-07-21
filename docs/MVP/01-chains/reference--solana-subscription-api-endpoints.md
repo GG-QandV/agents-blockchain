@@ -1,0 +1,93 @@
+# Solana Subscription API Endpoints
+
+> Source: [https://www.alchemy.com/docs/reference/solana-subscription-api-endpoints.md](https://www.alchemy.com/docs/reference/solana-subscription-api-endpoints.md)
+
+# Solana Subscription API Endpoints
+
+> List of Solana PubSub WebSocket subscription methods, grouped by category.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+# Overview
+
+Solana exposes a PubSub WebSocket API alongside its standard HTTP JSON-RPC. Each subscription opens a long-lived stream that pushes notifications when on-chain state changes (account data, program-owned accounts, transaction logs, signature status, slots, blocks, votes, and roots).
+
+Connect to the PubSub endpoint using your Alchemy WebSocket URL:
+
+```text
+wss://solana-mainnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->
+```
+
+<Info>
+  Solana PubSub WebSocket subscriptions are supported on both Solana Mainnet and Solana Devnet. Swap `solana-mainnet` for `solana-devnet` in the URL above to connect to Devnet (e.g. `wss://solana-devnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->`). Pricing is the same on both networks.
+</Info>
+
+<Info>
+  Solana uses native `*Subscribe` / `*Unsubscribe` methods instead of `eth_subscribe`. Each `*Subscribe` call returns a numeric subscription id which you pass to the matching `*Unsubscribe` to cancel the stream.
+</Info>
+
+# Request Format
+
+Solana PubSub uses [JSON-RPC 2.0](https://www.jsonrpc.org/specification) over a persistent WebSocket connection.
+
+| Field     | Type                       | Description                                                                          |
+| --------- | -------------------------- | ------------------------------------------------------------------------------------ |
+| `jsonrpc` | `string`                   | JSON-RPC version. Set this to `"2.0"`.                                               |
+| `id`      | `string \| number \| null` | Client-supplied request identifier. The server echoes it in the subscribe response.  |
+| `method`  | `string`                   | PubSub method name, such as `accountSubscribe` or `slotSubscribe`.                   |
+| `params`  | `array`                    | Ordered method parameters. Use an empty array when the method takes no parameters.   |
+
+Many subscription methods accept an optional `commitment` parameter. Subscriptions that accept commitment default to `finalized` when unspecified.
+
+# Notification Format
+
+After a subscribe request succeeds, the server returns a numeric subscription id in the JSON-RPC response. Later notifications are pushed as JSON-RPC messages with a method-specific notification name and the active subscription id.
+
+| Field                 | Type     | Description                                                                                                  |
+| --------------------- | -------- | ------------------------------------------------------------------------------------------------------------ |
+| `jsonrpc`             | `string` | JSON-RPC version.                                                                                            |
+| `method`              | `string` | Notification name, such as `accountNotification` or `slotNotification`.                                      |
+| `params.result`       | `any`    | Method-specific notification payload. Many methods include a `context` object and a method-specific `value`. |
+| `params.subscription` | `number` | Subscription id returned by the corresponding `*Subscribe` method.                                           |
+
+# Method Reference
+
+## Accounts
+
+| Method                                                | Description                                                            |
+| ----------------------------------------------------- | ---------------------------------------------------------------------- |
+| [`accountSubscribe`](/docs/reference/account-subscribe) | Subscribe to notifications when one account's lamports or data change. |
+| [`programSubscribe`](/docs/reference/program-subscribe) | Subscribe to notifications for accounts owned by a program.            |
+
+## Transactions
+
+| Method                                                    | Description                                                      |
+| --------------------------------------------------------- | ---------------------------------------------------------------- |
+| [`logsSubscribe`](/docs/reference/logs-subscribe)         | Subscribe to transaction log messages that match a log filter.   |
+| [`signatureSubscribe`](/docs/reference/signature-subscribe) | Subscribe to status notifications for one transaction signature. |
+
+## Cluster
+
+| Method                                                                  | Description                                                          |
+| ----------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| [`rootSubscribe`](/docs/reference/root-subscribe)                       | Subscribe to notifications when the validator sets a new root slot.  |
+| [`slotSubscribe`](/docs/reference/slot-subscribe)                       | Subscribe to notifications when the validator processes a new slot.  |
+
+# Pricing
+
+Solana WebSocket subscriptions on Alchemy are billed by **bandwidth** — pro-rated to the exact byte. See [Compute Unit Costs](/docs/reference/compute-unit-costs#solana-websocket-subscriptions) for the per-byte CU rate and PAYG pricing.
+
+<Warning>
+  Broad streams can produce very high bandwidth, especially `programSubscribe` without filters. To keep usage predictable:
+
+  * Prefer the most specific stream and scope with `mentions` / `mentionsAccountOrProgram` / `dataSize` / `memcmp` filters.
+  * Keep payloads small (e.g. `encoding: "base64"`, `transactionDetails: "signatures"`).
+  * Set [usage limits](/docs/how-to-set-usage-limits-and-alerts-for-your-account) and [usage alerts](/docs/dashboard-alerts) before running high-volume streams in production.
+</Warning>
+
+# Supported Networks
+
+<Info>
+  Check the [Chains](https://dashboard.alchemy.com/chains) page for details about product and chain support!
+
+  > 📄 **This content also appears in [logs](05-tools-resources/reference--logs.md)** — see there for full details.

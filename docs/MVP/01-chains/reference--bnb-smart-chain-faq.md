@@ -1,0 +1,55 @@
+# BNB Smart Chain FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/bnb-smart-chain-faq.md](https://www.alchemy.com/docs/reference/bnb-smart-chain-faq.md)
+
+# BNB Smart Chain FAQ
+
+> Frequently asked questions about the BNB Smart Chain API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is BNB Smart Chain (BSC)?
+
+BNB Smart Chain (BSC) is a high-performance blockchain developed by Binance, designed to offer low transaction costs and fast execution times. It is Ethereum Virtual Machine (EVM) compatible, which lets you deploy Ethereum-based applications seamlessly.
+
+## What is the BNB Smart Chain API?
+
+The BNB Smart Chain API lets you interact with the BSC network through a collection of JSON-RPC methods. If you're familiar with Ethereum's JSON-RPC APIs, working with BSC is intuitive and straightforward.
+
+## How can I get started using the BSC API?
+
+Explained in [BNB Smart Chain Quickstart](/docs/reference/bnb-smart-chain-api-quickstart).
+
+## Is BSC EVM compatible?
+
+Yes, BNB Smart Chain is fully compatible with the Ethereum Virtual Machine (EVM). This compatibility lets you port your Ethereum projects to BSC with minimal changes, taking advantage of the chain's high throughput and low transaction fees.
+
+## What API does BSC use?
+
+BNB Smart Chain uses the JSON-RPC API standard for blockchain interactions. This is the same standard used by Ethereum.
+
+## What is a BSC API key?
+
+When accessing the BSC network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network.
+
+For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup).
+
+## Which libraries support BSC?
+
+Given BSC's EVM compatibility, popular Ethereum libraries like ethers.js and web3.js are fully compatible with BSC. You can develop and integrate seamlessly if you're familiar with Ethereum's development ecosystem.
+
+## What programming languages work with BSC?
+
+Similar to Ethereum, BSC supports a range of programming languages for blockchain interaction and smart contract development, including Solidity for smart contracts, as well as JavaScript and TypeScript for dApp development and offchain interactions.
+
+## What does BSC use for gas?
+
+BSC uses BNB, the native cryptocurrency of the Binance ecosystem, for transaction fees, gas, and other network activities.
+
+## What methods does Alchemy support for the BSC API?
+
+You can find the list of all the methods Alchemy support for the BSC API on [BSC API Endpoints](/docs/bnb-smart-chain/bnb-smart-chain-api-overview) page.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

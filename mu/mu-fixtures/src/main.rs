@@ -1,7 +1,7 @@
-//! mu-fixtures — генератор dev-артефактов для smoke демона (ТОЛЬКО SoftVault).
-//! Создаёт в $MU_HOME: mu.bin, log.mulog (пустая валидная цепь), agent.key (ed25519 seed),
-//! печатает pubkey агента для allowlist и mu_pubkey для verify.
-//! Использование: MU_HOME=/tmp/mu ./mu-fixtures [rollback-attack]
+//! mu-fixtures — dev artifact generator for smoke daemon (SoftVault ONLY).
+//! Creates in $MU_HOME: mu.bin, log.mulog (empty valid chain), agent.key (ed25519 seed),
+//! prints agent pubkey for allowlist and mu_pubkey for verify.
+//! Usage: MU_HOME=/tmp/mu ./mu-fixtures [rollback-attack]
 use mu_common::{Amount, CanonAddress, Hash32};
 use mu_core::object::Omega;
 use mu_core::Mu;
@@ -50,13 +50,13 @@ fn main() {
     let v = SoftVault::for_test(MU_KEY, OWNER_KEY, WALLET_KEY);
     let attack = std::env::args().any(|a| a == "rollback-attack");
 
-    // 1) лог: пустая валидная цепь (+ одна Alert-запись, чтобы last_hash ≠ genesis)
+    // 1) log: empty valid chain (+ one Alert entry so last_hash ≠ genesis)
     let mut log = Log::open(&h.join("log.mulog"), &v).expect("log open");
     if log.entries().is_empty() {
         log.append(Kind::Alert { code: 0x0000 }, 1_000, &v).expect("genesis mark");
     }
 
-    // 2) μ: выпуск с log_head = текущий хвост цепи
+    // 2) μ: issue with log_head = current chain tail
     let d = sample_delta();
     let dsig = v.owner_sign(DomainTag::MuDelta, &delta_hash(&d)).expect("owner sign").0;
     let mu_v1 = Mu::issue(
@@ -66,31 +66,31 @@ fn main() {
     ).expect("issue");
     mu_v1.save(&h.join("mu.bin")).expect("save mu");
 
-    // 3) ключ агента для gate allowlist
+    // 3) agent key for gate allowlist
     let sk = ed25519_dalek::SigningKey::from_bytes(&AGENT_SEED);
     std::fs::write(h.join("agent.key"), AGENT_SEED).expect("agent key");
     let agent_pub = sk.verifying_key().to_bytes();
 
     if attack {
-        // сценарий rollback: Δ ужесточили (лог знает), а на диск вернули старый μ
+        // rollback scenario: Δ was tightened (log knows), old μ restored to disk
         let d2 = Delta { daily_limit: Amount::from_minor(50_000_000), ..sample_delta() };
         let s2 = v.owner_sign(DomainTag::MuDelta, &delta_hash(&d2)).unwrap().0;
         let head = log.append(Kind::DeltaChanged {
             old_hash: delta_hash(mu_v1.delta()), new_hash: delta_hash(&d2),
         }, 2_000, &v).unwrap();
         let mu_v2 = mu_v1.apply_delta(d2, s2, head, &v).unwrap();
-        // сохраняем v2… и тут же перезаписываем старым v1 = атака
+        // save v2… and immediately overwrite with old v1 = attack
         mu_v2.save(&h.join("mu.bin")).unwrap();
         mu_v1.save(&h.join("mu.bin")).unwrap();
-        println!("ROLLBACK-ATTACK fixture: демон ОБЯЗАН отказать в старте (LogHeadMismatch)");
+        println!("ROLLBACK-ATTACK fixture: daemon MUST refuse to start (LogHeadMismatch)");
     }
 
     println!("MU_HOME:        {}", h.display());
     println!("mu.bin:         id={} v{} limit={}", hexs(mu_v1.id()), mu_v1.version(),
              mu_common::amount::display_minor(mu_v1.delta().daily_limit, 6));
-    println!("log.mulog:      {} записей, last_hash={}…", log.entries().len(), &hexs(&log.last_hash().0)[..16]);
+    println!("log.mulog:      {} entries, last_hash={}…", log.entries().len(), &hexs(&log.last_hash().0)[..16]);
     println!("mu_pubkey:      {}", hexs(&mu_pubkey()));
     println!("agent_id:       agent-1");
-    println!("agent_pubkey:   {}   ← в allowlist демона", hexs(&agent_pub));
-    println!("agent.key:      seed для подписи intent'ов (тест-утилита/скрипт)");
+    println!("agent_pubkey:   {}   ← in daemon allowlist", hexs(&agent_pub));
+    println!("agent.key:      seed for signing intents (test utility/script)");
 }

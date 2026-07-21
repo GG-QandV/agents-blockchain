@@ -1,0 +1,42 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# ADI API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/adi-api-faq.md](https://www.alchemy.com/docs/reference/adi-api-faq.md)
+
+# ADI API FAQ
+
+> Frequently asked questions about the ADI API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is ADI?
+ADI Network is an EVM-compatible Layer 2 that leverages cryptographic Zero-Knowledge validity proofs (ZKPs) to ensure both security and efficiency in transaction processing. ADI is enabling seamless integration between traditional finance, crypto ecosystems, and regulated markets.
+
+## How do I get started with ADI?
+Check out our [ADI API Quickstart guide](/docs/reference/adi-api-quickstart) to get started building on ADI.
+
+## What is the ADI API?
+The ADI API allows you to interface with the ADI mainnet. With this API, you can execute transactions, query onchain data, and interact with the ADI network, relying on a JSON-RPC standard.
+
+## Is ADI EVM compatible?
+Yes, ADI is EVM compatible.
+
+## What API does ADI use?
+ADI uses the JSON-RPC API standard. This API is crucial for any blockchain interaction on the ADI network, allowing you to read block/transaction data, query chain information, execute smart contracts, and store data onchain.
+
+## What methods are supported on ADI?
+ADI supports standard Ethereum JSON-RPC methods. Some chain-specific methods may vary. Please check the [ADI API Endpoints](/docs/chains#adi-apis) for a complete list.
+
+## What is an ADI API key?
+When accessing the ADI network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network. For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup).
+
+## Which libraries support ADI?
+Common Ethereum libraries like [ethers.js](https://docs.ethers.org/v5/) should be compatible with ADI, given its EVM nature.
+
+## What is the native currency of ADI?
+The native currency of ADI is ADI.
+
+## My question isn’t here, where can I get help?
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

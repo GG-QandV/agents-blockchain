@@ -1,7 +1,7 @@
-//! Приёмная сторона (по спеке — в демоне; здесь референс + сквозные тесты).
-//! Конвейер §6: размер → decode → mu-policy.validate → base_hash==current (TOCTOU) → apply.
-//! Биометрия/подпись owner (M9/M4) в этой части — за замыканием apply: сюда подставляется
-//! реальный путь M9→M4→M1 демона.
+//! Receiving side (per spec — in the daemon; here reference + end-to-end tests).
+//! Pipeline §6: size → decode → mu-policy.validate → base_hash==current (TOCTOU) → apply.
+//! Biometrics/owner signature (M9/M4) in this part is behind the apply closure: the real
+//! M9→M4→M1 daemon path is injected here.
 use crate::proposal::{decode_proposal, DeltaProposal, PROPOSAL_MAX};
 use mu_common::Hash32;
 use mu_policy::{delta_hash, validate, Delta, OmegaView, VErr};
@@ -11,7 +11,7 @@ pub enum RejectCode {
     TooLarge,
     Malformed,
     Invalid(Vec<VErr>),
-    Stale,        // TOCTOU: base_delta_hash != hash(текущей Δ)
+    Stale,        // TOCTOU: base_delta_hash != hash(current Δ)
     HumanDenied,
     Internal,
 }
@@ -22,13 +22,13 @@ pub enum ProposeOutcome {
     Rejected(RejectCode),
 }
 
-/// Состояние политики демона (упрощённый срез M1/M9 для endpoint'а).
+/// Daemon policy state (simplified slice of M1/M9 for the endpoint).
 pub struct DaemonPolicy {
     pub current: Delta,
     pub omega: OmegaView,
 }
 
-/// approve — замыкание «покажи diff и получи биометрию» (реальный демон: M9.confirm_delta).
+/// approve — closure "show diff and get biometrics" (real daemon: M9.confirm_delta).
 pub fn handle_propose(
     state: &mut DaemonPolicy,
     raw: &[u8],
@@ -41,17 +41,17 @@ pub fn handle_propose(
         Ok(p) => p,
         Err(_) => return ProposeOutcome::Rejected(RejectCode::Malformed),
     };
-    // валидация ТЕМ ЖЕ mu-policy, что в Composer (§4.2: ноль расхождений)
+    // validation with THE SAME mu-policy as Composer (§4.2: zero divergence)
     let rep = validate(&prop.new_delta, &state.omega);
     if !rep.ok() {
         return ProposeOutcome::Rejected(RejectCode::Invalid(rep.errors));
     }
-    // TOCTOU (§9.1): предложение построено от УСТАРЕВШЕЙ Δ → Stale
+    // TOCTOU (§9.1): proposal built from STALE Δ → Stale
     let current_hash = delta_hash(&state.current);
     if prop.base_delta_hash != current_hash {
         return ProposeOutcome::Rejected(RejectCode::Stale);
     }
-    // diff → биометрия (RISK-M9-1: diff рендерится демоном из proposal, не из UI Composer)
+    // diff → biometrics (RISK-M9-1: diff is rendered by daemon from proposal, not from UI Composer)
     if !approve(&state.current, &prop.new_delta) {
         return ProposeOutcome::Rejected(RejectCode::HumanDenied);
     }

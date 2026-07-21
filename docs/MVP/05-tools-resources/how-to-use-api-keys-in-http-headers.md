@@ -1,0 +1,138 @@
+# How to make HTTP header-based API requests
+
+> Source: [https://www.alchemy.com/docs/how-to-use-api-keys-in-http-headers.md](https://www.alchemy.com/docs/how-to-use-api-keys-in-http-headers.md)
+
+# How to make HTTP header-based API requests
+
+> Send Alchemy API requests with your API key in the Authorization header instead of the URL.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+This guide shows you how to keep your Alchemy API key out of the request URL
+and send it in the `Authorization` header instead. You will make one JSON-RPC
+request and one NFT API request using Node.js.
+
+## Why use headers
+
+Putting your API key in the `Authorization` header keeps it out of request
+URLs, which are more likely to appear in logs, browser history, and shared
+screenshots.
+
+<Info>
+  You can use either an API key or an access key in the
+  `Authorization` header. This guide uses an API key for simplicity. If you
+  need access keys, see [how to create access keys](/docs/how-to-create-access-keys).
+</Info>
+
+## Prerequisites
+
+* Node.js 18 or later
+* An Alchemy API key
+* A terminal you can run `node` from
+
+<Steps>
+  <Step title="Set your API key">
+    Export your API key as an environment variable:
+
+    ```bash
+    export ALCHEMY_API_KEY="YOUR_API_KEY"
+    ```
+  </Step>
+
+  <Step title="Create the script">
+    Create a file named `requests.mjs` and add this code:
+
+    ```javascript title="requests.mjs"
+    const apiKey = process.env.ALCHEMY_API_KEY;
+
+    if (!apiKey) {
+      throw new Error("Set the ALCHEMY_API_KEY environment variable first.");
+    }
+
+    async function fetchJson(url, init) {
+      const response = await fetch(url, init);
+
+      if (!response.ok) {
+        throw new Error(`Request failed with status ${response.status}`);
+      }
+
+      const payload = await response.json();
+
+      if (payload.error) {
+        throw new Error(payload.error.message);
+      }
+
+      return payload;
+    }
+
+    async function getBalance(address) {
+      const payload = await fetchJson("https://eth-mainnet.g.alchemy.com/v2", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 1,
+          method: "eth_getBalance",
+          params: [address, "latest"],
+        }),
+      });
+
+      console.log("Balance result:", payload.result);
+    }
+
+    async function getNftsForOwner(address) {
+      const url =
+        `https://eth-mainnet.g.alchemy.com/nft/v3/getNFTsForOwner` +
+        `?owner=${address}&withMetadata=false&pageSize=1`;
+
+      const payload = await fetchJson(url, {
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+        },
+      });
+
+      console.log("NFT API result:", JSON.stringify(payload, null, 2));
+    }
+
+    const address = "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045";
+
+    await getBalance(address);
+    await getNftsForOwner(address);
+    ```
+  </Step>
+
+  <Step title="Run the script">
+    Run the file:
+
+    ```bash
+    node requests.mjs
+    ```
+
+    If the request succeeds, you should see a balance payload followed by an NFT
+    API response. If you get a `401` error, check that your API key is valid and
+    that you are sending it in the `Authorization` header.
+  </Step>
+</Steps>
+
+## Quick cURL example
+
+If you want to inspect the raw HTTP request, run this command:
+
+```bash
+curl "https://eth-mainnet.g.alchemy.com/v2" \
+  -X POST \
+  -H "Authorization: Bearer $ALCHEMY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"eth_blockNumber","params":[]}'
+```
+
+This uses the same authentication pattern: no API key in the URL, `Authorization`
+header only.
+
+## Next steps
+
+* [Create access keys](/docs/how-to-create-access-keys)
+* [Review request logs](/docs/alchemy-request-logs)

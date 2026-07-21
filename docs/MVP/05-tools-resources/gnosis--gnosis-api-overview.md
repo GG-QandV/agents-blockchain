@@ -1,0 +1,50 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-overview](../00-consolidated/api-overview.md).
+> Below is the original chain-specific version.
+
+# Gnosis API Overview
+
+> Source: [https://www.alchemy.com/docs/gnosis/gnosis-api-overview.md](https://www.alchemy.com/docs/gnosis/gnosis-api-overview.md)
+
+# Gnosis API Overview
+
+> Overview of available Gnosis API methods
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## Gnosis APIs
+
+📙 Get started with our [Gnosis API Quickstart Guide](/docs/reference/gnosis-api-quickstart).
+
+|                                                                                                 |                                                                                             |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [`eth_accounts`](/docs/chains/gnosis/gnosis-api-endpoints/eth-accounts)                         | [`eth_blobBaseFee`](/docs/chains/gnosis/gnosis-api-endpoints/eth-blob-base-fee)             |
+| [`eth_blockNumber`](/docs/chains/gnosis/gnosis-api-endpoints/eth-block-number)                  | [`eth_call`](/docs/chains/gnosis/gnosis-api-endpoints/eth-call)                             |
+| [`eth_chainId`](/docs/chains/gnosis/gnosis-api-endpoints/eth-chain-id)                          | [`eth_createAccessList`](/docs/chains/gnosis/gnosis-api-endpoints/eth-create-access-list)   |
+| [`eth_estimateGas`](/docs/chains/gnosis/gnosis-api-endpoints/eth-estimate-gas)                  | [`eth_feeHistory`](/docs/chains/gnosis/gnosis-api-endpoints/eth-fee-history)                |
+| [`eth_gasPrice`](/docs/chains/gnosis/gnosis-api-endpoints/eth-gas-price)                        | [`eth_getAccount`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-account)                |
+| [`eth_getAccountInfo`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-account-info)           | [`eth_getBalance`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-balance)                |
+| [`eth_getBlockByHash`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-block-by-hash)          | [`eth_getBlockByNumber`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-block-by-number)  |
+| [`eth_getBlockReceipts`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-block-receipts)       | [`eth_getBlockTransactionCountByHash`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-block-transaction-count-by-hash) |
+| [`eth_getBlockTransactionCountByNumber`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-block-transaction-count-by-number) | [`eth_getCode`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-code)                      |
+| [`eth_getFilterChanges`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-filter-changes)       | [`eth_getFilterLogs`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-filter-logs)         |
+| [`eth_getLogs`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-logs)                          | [`eth_getProof`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-proof)                    |
+| [`eth_getRawTransactionByHash`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-raw-transaction-by-hash) | [`eth_getStorageAt`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-storage-at)           |
+| [`eth_getTransactionByBlockHashAndIndex`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-transaction-by-block-hash-and-index) | [`eth_getTransactionByBlockNumberAndIndex`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-transaction-by-block-number-and-index) |
+| [`eth_getTransactionByHash`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-transaction-by-hash) | [`eth_getTransactionCount`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-transaction-count) |
+| [`eth_getTransactionReceipt`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-transaction-receipt) | [`eth_getUncleByBlockHashAndIndex`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-uncle-by-block-hash-and-index) |
+| [`eth_getUncleCountByBlockHash`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-uncle-count-by-block-hash) | [`eth_getUncleCountByBlockNumber`](/docs/chains/gnosis/gnosis-api-endpoints/eth-get-uncle-count-by-block-number) |
+| [`eth_maxPriorityFeePerGas`](/docs/chains/gnosis/gnosis-api-endpoints/eth-max-priority-fee-per-gas) | [`eth_newBlockFilter`](/docs/chains/gnosis/gnosis-api-endpoints/eth-new-block-filter)       |
+| [`eth_newFilter`](/docs/chains/gnosis/gnosis-api-endpoints/eth-new-filter)                      | [`eth_newPendingTransactionFilter`](/docs/chains/gnosis/gnosis-api-endpoints/eth-new-pending-transaction-filter) |
+| [`eth_protocolVersion`](/docs/chains/gnosis/gnosis-api-endpoints/eth-protocol-version)          | [`eth_sendRawTransaction`](/docs/chains/gnosis/gnosis-api-endpoints/eth-send-raw-transaction) |
+| [`eth_sendRawTransactionSync`](/docs/chains/gnosis/gnosis-api-endpoints/eth-send-raw-transaction-sync) | [`eth_simulateV1`](/docs/chains/gnosis/gnosis-api-endpoints/eth-simulate-v-1)               |
+| [`eth_submitWork`](/docs/chains/gnosis/gnosis-api-endpoints/eth-submit-work)                    | [`eth_subscribe`](/docs/chains/gnosis/gnosis-api-endpoints/eth-subscribe)                   |
+| [`eth_syncing`](/docs/chains/gnosis/gnosis-api-endpoints/eth-syncing)                           | [`eth_uninstallFilter`](/docs/chains/gnosis/gnosis-api-endpoints/eth-uninstall-filter)      |
+| [`eth_unsubscribe`](/docs/chains/gnosis/gnosis-api-endpoints/eth-unsubscribe)                   | [`net_listening`](/docs/chains/gnosis/gnosis-api-endpoints/net-listening)                   |
+| [`net_version`](/docs/chains/gnosis/gnosis-api-endpoints/net-version)                           | [`web3_clientVersion`](/docs/chains/gnosis/gnosis-api-endpoints/web-3-client-version)       |
+| [`web3_sha3`](/docs/chains/gnosis/gnosis-api-endpoints/web-3-sha-3)                             |                                                                                             |
+
+## Related APIs
+
+The following Alchemy APIs are also supported on Gnosis:
+
+> 📄 **This content also appears in [Abstract API Overview](05-tools-resources/abstract--abstract-api-overview.md)** — see there for full details.

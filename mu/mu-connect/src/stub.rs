@@ -1,6 +1,6 @@
-//! M7b/M7c — заглушки. RISK-M7S-1: возвращают ТОЛЬКО TxRef::Simulated.
-//! Тип TxRef::Real сконструировать здесь невозможно — конструктор варианта
-//! используется лишь в crypto.rs; стаб физически не создаёт Real.
+//! M7b/M7c — stubs. RISK-M7S-1: return ONLY TxRef::Simulated.
+//! The TxRef::Real variant cannot be constructed here — the variant constructor
+//! is used only in crypto.rs; the stub physically cannot create Real.
 use crate::{ConnErr, Connector, FailReason, Fee, Intent, TxRef, TxStatus};
 use mu_common::Amount;
 use mu_vault::TxSigner;
@@ -24,7 +24,7 @@ impl Connector for StubConnector {
         let n = self.counter.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         let mut id = [0u8; 16];
         id[..8].copy_from_slice(&n.to_be_bytes());
-        // RISK-M7S-1: только Simulated
+        // RISK-M7S-1: only Simulated
         Ok(TxRef::Simulated { id })
     }
     fn status(&self, r: &TxRef) -> Result<TxStatus, ConnErr> {

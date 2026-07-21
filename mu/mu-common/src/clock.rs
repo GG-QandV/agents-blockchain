@@ -1,6 +1,6 @@
-//! RISK-X-2: разделение источников времени.
-//! now_unix — для timestamp'ов записей и окна 24ч.
-//! monotonic — для дедлайнов/TTL (не подвержен переводу часов).
+//! RISK-X-2: separation of time sources.
+//! now_unix — for record timestamps and 24h window.
+//! monotonic — for deadlines/TTL (not affected by clock adjustments).
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 
 pub trait Clock: Send + Sync {

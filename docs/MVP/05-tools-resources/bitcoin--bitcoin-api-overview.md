@@ -1,0 +1,37 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-overview](../00-consolidated/api-overview.md).
+> Below is the original chain-specific version.
+
+# Bitcoin API Overview
+
+> Source: [https://www.alchemy.com/docs/bitcoin/bitcoin-api-overview.md](https://www.alchemy.com/docs/bitcoin/bitcoin-api-overview.md)
+
+# Bitcoin API Overview
+
+> Overview of available Bitcoin API methods
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## Bitcoin APIs
+
+📙 Get started with our [Bitcoin API Quickstart Guide](/docs/reference/bitcoin-api-quickstart).
+
+|                                                                                                 |                                                                                             |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [`createrawtransaction`](/docs/chains/bitcoin/bitcoin-api-endpoints/createrawtransaction)       | [`decoderawtransaction`](/docs/chains/bitcoin/bitcoin-api-endpoints/decoderawtransaction)   |
+| [`decodescript`](/docs/chains/bitcoin/bitcoin-api-endpoints/decodescript)                       | [`estimatesmartfee`](/docs/chains/bitcoin/bitcoin-api-endpoints/estimatesmartfee)           |
+| [`getbestblockhash`](/docs/chains/bitcoin/bitcoin-api-endpoints/getbestblockhash)               | [`getblock`](/docs/chains/bitcoin/bitcoin-api-endpoints/getblock)                           |
+| [`getblockchaininfo`](/docs/chains/bitcoin/bitcoin-api-endpoints/getblockchaininfo)             | [`getblockcount`](/docs/chains/bitcoin/bitcoin-api-endpoints/getblockcount)                 |
+| [`getblockfilter`](/docs/chains/bitcoin/bitcoin-api-endpoints/getblockfilter)                   | [`getblockhash`](/docs/chains/bitcoin/bitcoin-api-endpoints/getblockhash)                   |
+| [`getblockheader`](/docs/chains/bitcoin/bitcoin-api-endpoints/getblockheader)                   | [`getblockstats`](/docs/chains/bitcoin/bitcoin-api-endpoints/getblockstats)                 |
+| [`getblocktemplate`](/docs/chains/bitcoin/bitcoin-api-endpoints/getblocktemplate)               | [`getchaintips`](/docs/chains/bitcoin/bitcoin-api-endpoints/getchaintips)                   |
+| [`getchaintxstats`](/docs/chains/bitcoin/bitcoin-api-endpoints/getchaintxstats)                 | [`getconnectioncount`](/docs/chains/bitcoin/bitcoin-api-endpoints/getconnectioncount)       |
+| [`getdifficulty`](/docs/chains/bitcoin/bitcoin-api-endpoints/getdifficulty)                     | [`getindexinfo`](/docs/chains/bitcoin/bitcoin-api-endpoints/getindexinfo)                   |
+| [`getmemoryinfo`](/docs/chains/bitcoin/bitcoin-api-endpoints/getmemoryinfo)                     | [`getmempoolancestors`](/docs/chains/bitcoin/bitcoin-api-endpoints/getmempoolancestors)     |
+| [`getmempooldescendants`](/docs/chains/bitcoin/bitcoin-api-endpoints/getmempooldescendants)     | [`getmempoolinfo`](/docs/chains/bitcoin/bitcoin-api-endpoints/getmempoolinfo)               |
+| [`getnetworkhashps`](/docs/chains/bitcoin/bitcoin-api-endpoints/getnetworkhashps)               | [`getnetworkinfo`](/docs/chains/bitcoin/bitcoin-api-endpoints/getnetworkinfo)               |
+| [`getrawmempool`](/docs/chains/bitcoin/bitcoin-api-endpoints/getrawmempool)                     | [`getrawtransaction`](/docs/chains/bitcoin/bitcoin-api-endpoints/getrawtransaction)         |
+| [`gettxout`](/docs/chains/bitcoin/bitcoin-api-endpoints/gettxout)                               | [`gettxoutproof`](/docs/chains/bitcoin/bitcoin-api-endpoints/gettxoutproof)                 |
+| [`gettxoutsetinfo`](/docs/chains/bitcoin/bitcoin-api-endpoints/gettxoutsetinfo)                 | [`sendrawtransaction`](/docs/chains/bitcoin/bitcoin-api-endpoints/sendrawtransaction)       |
+| [`submitblock`](/docs/chains/bitcoin/bitcoin-api-endpoints/submitblock)                         | [`submitheader`](/docs/chains/bitcoin/bitcoin-api-endpoints/submitheader)                   |
+| [`submitpackage`](/docs/chains/bitcoin/bitcoin-api-endpoints/submitpackage)                     | [`testmempoolaccept`](/docs/chains/bitcoin/bitcoin-api-endpoints/testmempoolaccept)         |
+| [`validateaddress`](/docs/chains/bitcoin/bitcoin-api-endpoints/validateaddress)                 | [`verifymessage`](/docs/chains/bitcoin/bitcoin-api-endpoints/verifymessage)                 |

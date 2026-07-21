@@ -1,0 +1,123 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Ethereum API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/ethereum-api-faq.md](https://www.alchemy.com/docs/reference/ethereum-api-faq.md)
+
+# Ethereum API FAQ
+
+> Frequently Asked Questions about the Ethereum API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What testnet should you use for Ethereum development?
+
+If you're getting started on Alchemy, use **Sepolia** as your testnet of choice for development.
+
+The Ethereum Foundation winded down support for the Rinkeby, Ropsten, and Kovan networks after Ethereum's transition to a proof-of-stake model and the Goerli testnet is also deprecated. To ensure that your testnet applications remain fully functional after the transition, we recommend using Sepolia, which will remain unchanged. Learn more at [Choosing a Web3 Network](/docs/choosing-a-web3-network).
+
+## What API does Ethereum use?
+
+Ethereum uses the JSON-RPC API standard. The Ethereum JSON-RPC API serves as the backbone for the Ethereum network and powers any blockchain interaction. This API suite lets you read block/transaction data, query chain information, execute smart contracts, store data onchain, and more. You interact with Ethereum’s base JSON-RPC APIs to communicate with its decentralized network of nodes.
+
+## What is an Ethereum API key?
+
+When accessing the Ethereum network via a node provider, API services like Alchemy require an API key, which lets you monitor your apps and access usage metrics.
+
+While many Ethereum development environments have a set of default shared API keys, they are often throttled during periods of high usage leading to slower response times and a higher likelihood of request failures.
+
+For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup).
+
+With a dedicated API key, you can:
+
+* access **higher request throughput** and **increased concurrent requests**.
+* query [Data APIs](/docs/reference/data-overview), gaining access to free archive data, logs, and higher-level API abstractions.
+* leverage **individualized usage metrics**.
+
+## Does Ethereum only use JSON-RPC?
+
+The raw Ethereum client only uses JSON-RPC notation to encode remote procedure calls for interpreting requests and serving up responses. However, most libraries actually abstract away the JSON-RPC standard.
+
+## How does Alchemy's Ethereum API work?
+
+Alchemy's Ethereum API gives developers and users access to read and write data to the Ethereum blockchain.
+
+If you’re not familiar with [how a blockchain works](/docs/blockchain-101), here’s a quick recap:
+
+* The Ethereum blockchain is made up of blocks of data.
+* Blocks are stored on distributed Ethereum nodes.
+* Each node in the network serves as a “mini-server” that allows its operator to read/write blocks of data.
+
+Alchemy provides access to our higher-level infrastructure that lets you interface with the Ethereum network. With API access, you can send read/write requests to the blockchain.
+
+We take care of the hard stuff so you can focus on your product.
+
+## Can you use Python for Ethereum?
+
+Yes! While JavaScript libraries have historically gained traction in the Ethereum development community, you can also use Python to read and write the same data. One commonly used blockchain interaction library is web3.py which wraps many of the same methods featured in web3.js and Ethers.js.
+
+For Python-based EVM development, [Brownie](https://eth-brownie.readthedocs.io/en/stable/) offers a full suite of Web3 developer tools for compiling, testing, and deploying dApps similar to its peer environments Hardhat and Truffle.
+
+## How do I get the timestamp for a transaction?
+
+There are three steps to get the timestamp for a transaction:
+
+1. Grab the `blockNumber` field in your transaction object
+   1. If you only have the transaction hash, you can get the full object by making a request to [`eth_getTransactionByHash`](/docs/reference/eth-gettransactionbyhash).
+2. Get the block info by calling \[ref:eth-getblockbynumber)
+3. Grab the `timestamp` field in the returned block object
+
+Here is an [example request](https://composer.alchemy.com/?composer_state=%7B%22network%22%3A0%2C%22methodName%22%3A%22eth_getBlockByNumber%22%2C%22paramValues%22%3A%5B%22latest%22%2Cfalse%5D%7D).
+
+Block numbers themselves are Ethereum's measure of time, however standard timestamps are available by looking at the block data.
+
+## Contract vs wallet address
+
+A quick way to distinguish between a contract address and a wallet address is by calling [eth\_getCode](/docs/reference/eth-getcode), which returns contract code if it's a contract and nothing if it's a wallet. Here's an example of both using our composer tool:
+
+* [**0x Contract Address**](https://composer.alchemy.com/?composer_state=%7B%22network%22%3A0%2C%22methodName%22%3A%22eth_getCode%22%2C%22paramValues%22%3A%5B%220xe41d2489571d322189246dafa5ebde1f4699f498%22%2C%22latest%22%5D%7D)
+* [**Vitalik's Wallet Address**](https://composer.alchemy.com/?composer_state=%7B%22network%22%3A0%2C%22methodName%22%3A%22eth_getCode%22%2C%22paramValues%22%3A%5B%220xAb5801a7D398351b8bE11C439e05C5B3259aeC9B%22%2C%22latest%22%5D%7D)
+
+## What is the difference between `DATA` and `QUANTITY`?
+
+The difference between the types “`DATA`” and “`QUANTITY`” is that “`DATA`” always comes specified with a required length (ex: 20 Bytes), so you'll need to make sure the string you pass in is the right length. In contrast, `QUANTITY` does not have length requirements.
+
+For example given a parameter type: “DATA, 20 Bytes”, a valid input would be:
+
+```text
+"0x0000000000000000000000000000000000000003"
+```
+
+*note: every two hex characters make one byte, so that string is `0x` followed by forty hex characters*
+
+However, if this were a QUANTITY, a valid input would be:
+
+```text
+"0x3"
+```
+
+## What is the default block parameter?
+
+The default block parameter is used to specify the block height in your request. It is an additional parameter on all of the following methods:
+
+* [eth\_getBalance](/docs/reference/eth-getbalance)
+* [eth\_getCode](/docs/reference/eth-getcode)
+* [eth\_getTransactionCount](/docs/reference/eth-gettransactioncount)
+* [eth\_getStorageAt](/docs/reference/eth-getstorageat)
+* [eth\_call](/docs/reference/eth-call)
+
+The following options are possible for the defaultBlock parameter:
+
+* HEX String - an integer block number
+* String `earliest` for the earliest/genesis block
+* String `latest` - for the latest mined block
+* String `pending` - for the pending state/transactions
+
+## What methods does Alchemy support for the Ethereum API?
+
+You can find the list of all the methods Alchemy support for the Ethereum API on the [Ethereum API Endpoints Overview](/docs/chains#ethereum-apis).
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

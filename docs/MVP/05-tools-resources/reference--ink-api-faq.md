@@ -1,0 +1,58 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Ink API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/ink-api-faq.md](https://www.alchemy.com/docs/reference/ink-api-faq.md)
+
+# Ink API FAQ
+
+> Frequently asked questions about the Ink API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Ink Chain?
+
+Ink Chain is a high-performance Layer 2 blockchain developed by Kraken, designed to offer users a seamless bridge to DeFi with low transaction costs and fast execution times. It is built on Optimism's Superchain and is compatible with the Ethereum ecosystem, enabling developers to deploy Ethereum-based applications seamlessly on it.
+
+## What is the Ink Chain API?
+
+The Ink Chain API lets you interact with the Ink network through a collection of JSON-RPC methods. Because it's compatible with the Ethereum ecosystem, you'll find working with Ink familiar if you've used Ethereum's JSON-RPC APIs.
+
+## How can I get started using the Ink API?
+
+Explained in [Ink API Quickstart](/docs/reference/ink-api-quickstart).
+
+## Is Ink EVM compatible?
+
+Yes, Ink Chain is fully compatible with the Ethereum Virtual Machine (EVM). This compatibility allows Ethereum developers to port their projects to Ink with minimal changes, taking advantage of the chain's high throughput and low transaction fees.
+
+## What API does Ink use?
+
+Ink Chain uses the JSON-RPC API standard for blockchain interactions. This is the same standard used by Ethereum.
+
+## What is an Ink API key?
+
+When you access the Ink network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network.
+
+For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup)!
+
+## Which libraries support Ink?
+
+Because Ink is compatible with the Ethereum ecosystem, popular Ethereum libraries like ethers.js and web3.js work with Ink. If you're familiar with Ethereum's development ecosystem, you can integrate with minimal changes.
+
+## What programming languages work with Ink?
+
+Like Ethereum, Ink supports a range of programming languages for blockchain interaction and smart contract development, including Solidity for smart contracts, as well as JavaScript and TypeScript for dApp development and offchain interactions.
+
+## What does Ink use for gas?
+
+Ink uses ETH for transaction fees and gas, similar to other Layer 2 solutions built on Optimism's Superchain.
+
+## What methods does Kraken support for the Ink API?
+
+You can find the list of all the methods Alchemy supports for the Ink API on the [Ink API Endpoints](/docs/chains#ink-apis) page.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

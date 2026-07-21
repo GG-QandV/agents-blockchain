@@ -1,0 +1,58 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Mantle Chain API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/mantle-api-faq.md](https://www.alchemy.com/docs/reference/mantle-api-faq.md)
+
+# Mantle Chain API FAQ
+
+> Frequently asked questions about the Mantle Chain API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Mantle Chain?
+
+Mantle Chain is a high-performance blockchain platform designed to provide scalable and efficient solutions for decentralized applications (dApps). It focuses on delivering fast transaction speeds, low costs, and robust security, making it an ideal choice for developers seeking to build innovative blockchain solutions.
+
+## What is the Mantle Chain API?
+
+The Mantle Chain API facilitates interaction with the Mantle Chain network through a collection of JSON-RPC methods. It provides developers with tools to interact with the blockchain, enabling functionalities such as transactions, smart contract deployment, and data retrieval.
+
+## How can I get started using the Mantle Chain API?
+
+Explained in [Mantle Chain API Quickstart](/docs/reference/mantle-chain-api-quickstart).
+
+## Is Mantle Chain EVM compatible?
+
+Yes, Mantle Chain is fully compatible with the Ethereum Virtual Machine (EVM). This compatibility allows Ethereum developers to port their projects to Mantle Chain with minimal changes, benefiting from the chain's high throughput and low transaction fees.
+
+## What API does Mantle Chain use?
+
+Mantle Chain uses the JSON-RPC API standard for blockchain interactions. This is the same standard used by Ethereum.
+
+## What is a Mantle Chain API key?
+
+When you access the Mantle Chain network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network.
+
+For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup)!
+
+## Which libraries support Mantle Chain?
+
+Because Mantle Chain is EVM-compatible, popular Ethereum libraries like ethers.js and web3.js work with Mantle Chain. If you're familiar with Ethereum's development ecosystem, you can integrate with minimal changes.
+
+## What programming languages work with Mantle Chain?
+
+Like Ethereum, Mantle Chain supports a range of programming languages for blockchain interaction and smart contract development, including Solidity for smart contracts, as well as JavaScript and TypeScript for dApp development and offchain interactions.
+
+## What does Mantle Chain use for gas?
+
+Mantle Chain uses MNTL, its native cryptocurrency, for transaction fees, gas, and other network activities.
+
+## What methods does Alchemy support for the Mantle Chain API?
+
+You can find the list of all the methods Alchemy supports for the Mantle Chain API on the [Mantle API Endpoints](/docs/chains#mantle-apis) page.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

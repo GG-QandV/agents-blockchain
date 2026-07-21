@@ -1,0 +1,54 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-overview](../00-consolidated/api-overview.md).
+> Below is the original chain-specific version.
+
+# BNB Smart Chain API Overview
+
+> Source: [https://www.alchemy.com/docs/bnb-smart-chain/bnb-smart-chain-api-overview.md](https://www.alchemy.com/docs/bnb-smart-chain/bnb-smart-chain-api-overview.md)
+
+# BNB Smart Chain API Overview
+
+> Overview of available BNB Smart Chain API methods
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## BNB Smart Chain APIs
+
+📙 Get started with our [BNB Smart Chain API Quickstart Guide](/docs/reference/bnb-smart-chain-api-quickstart).
+
+|                                                                                                 |                                                                                             |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [`eth_accounts`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-accounts)       | [`eth_blobBaseFee`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-blob-base-fee) |
+| [`eth_blockNumber`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-block-number) | [`eth_call`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-call)           |
+| [`eth_callMany`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-call-many)      | [`eth_chainId`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-chain-id)    |
+| [`eth_createAccessList`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-create-access-list) | [`eth_estimateGas`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-estimate-gas) |
+| [`eth_feeHistory`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-fee-history)  | [`eth_fillTransaction`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-fill-transaction) |
+| [`eth_gasPrice`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-gas-price)      | [`eth_getAccount`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-account) |
+| [`eth_getAccountInfo`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-account-info) | [`eth_getBalance`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-balance) |
+| [`eth_getBlobSidecars`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-blob-sidecars) | [`eth_getBlockByHash`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-block-by-hash) |
+| [`eth_getBlockByNumber`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-block-by-number) | [`eth_getBlockReceipts`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-block-receipts) |
+| [`eth_getBlockTransactionCountByHash`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-block-transaction-count-by-hash) | [`eth_getBlockTransactionCountByNumber`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-block-transaction-count-by-number) |
+| [`eth_getCode`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-code)        | [`eth_getFilterChanges`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-filter-changes) |
+| [`eth_getFilterLogs`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-filter-logs) | [`eth_getFinalizedHeader`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-finalized-header) |
+| [`eth_getLogs`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-logs)        | [`eth_getProof`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-proof)  |
+| [`eth_getRawTransactionByHash`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-raw-transaction-by-hash) | [`eth_getStorageAt`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-storage-at) |
+| [`eth_getTransactionByBlockHashAndIndex`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-transaction-by-block-hash-and-index) | [`eth_getTransactionByBlockNumberAndIndex`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-transaction-by-block-number-and-index) |
+| [`eth_getTransactionByHash`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-transaction-by-hash) | [`eth_getTransactionCount`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-transaction-count) |
+| [`eth_getTransactionReceipt`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-transaction-receipt) | [`eth_getUncleByBlockHashAndIndex`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-uncle-by-block-hash-and-index) |
+| [`eth_getUncleByBlockNumberAndIndex`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-uncle-by-block-number-and-index) | [`eth_getUncleCountByBlockHash`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-uncle-count-by-block-hash) |
+| [`eth_getUncleCountByBlockNumber`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-get-uncle-count-by-block-number) | [`eth_maxPriorityFeePerGas`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-max-priority-fee-per-gas) |
+| [`eth_newBlockFilter`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-new-block-filter) | [`eth_newFilter`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-new-filter) |
+| [`eth_newPendingTransactionFilter`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-new-pending-transaction-filter) | [`eth_protocolVersion`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-protocol-version) |
+| [`eth_sendRawTransaction`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-send-raw-transaction) | [`eth_sendRawTransactionSync`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-send-raw-transaction-sync) |
+| [`eth_simulateV1`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-simulate-v-1) | [`eth_submitWork`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-submit-work) |
+| [`eth_subscribe`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-subscribe)     | [`eth_syncing`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-syncing)     |
+| [`eth_uninstallFilter`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-uninstall-filter) | [`eth_unsubscribe`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/eth-unsubscribe) |
+| [`net_listening`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/net-listening)     | [`net_peerCount`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/net-peer-count) |
+| [`net_version`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/net-version)         | [`parlia_getSnapshot`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/parlia-get-snapshot) |
+| [`txpool_content`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/txpool-content)   | [`web3_clientVersion`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/web-3-client-version) |
+| [`web3_sha3`](/docs/chains/bnb-smart-chain/bnb-smart-chain-api-endpoints/web-3-sha-3)           |                                                                                             |
+
+## Related APIs
+
+The following Alchemy APIs are also supported on BNB Smart Chain:
+
+> 📄 **This content also appears in [Celo API Overview](05-tools-resources/celo--celo-api-overview.md)** — see there for full details.

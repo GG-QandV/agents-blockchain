@@ -1,5 +1,5 @@
-//! C4: клиент транспорта. Кадрирование len:u32 LE ‖ body поверх любого Read+Write —
-//! unix socket в проде, in-memory пара в тестах.
+//! C4: transport client. Framing len:u32 LE ‖ body over any Read+Write —
+//! unix socket in production, in-memory pair in tests.
 use std::io::{Read, Write};
 
 pub const FRAME_MAX: usize = 8192 + 16;

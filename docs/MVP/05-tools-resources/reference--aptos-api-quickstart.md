@@ -1,0 +1,128 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-quickstart](../00-consolidated/api-quickstart.md).
+> Below is the original chain-specific version.
+
+# Aptos API Quickstart
+
+> Source: [https://www.alchemy.com/docs/reference/aptos-api-quickstart.md](https://www.alchemy.com/docs/reference/aptos-api-quickstart.md)
+
+# Aptos API Quickstart
+
+> Get started building on Aptos and using REST
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+# Introduction
+
+Aptos is a next-generation Layer 1 blockchain designed for scalability, safety, and upgradeability. It leverages the Move programming language and a novel consensus mechanism to achieve high throughput and low latency.
+
+With its modular architecture, Aptos supports frequent and instant upgrades, making it a dynamic platform for building and deploying applications.
+
+***
+
+## What is the Aptos Chain API?
+
+The Aptos API provides a set of tools to interact with the Aptos blockchain.
+
+It offers both RESTful and JSON-RPC endpoints, allowing for seamless integration, transaction management, wallet interactions, and more.
+
+Key features include:
+
+* Account and Wallet Management: Create and manage Aptos accounts, check balances, and send/receive tokens.
+* Transaction Handling: Initiate, sign, and broadcast transactions.
+* Blockchain Data: Query blockchain data, such as account balances, block information, and transaction details.
+* Smart Contract Execution: Interact with Aptos smart contracts to perform decentralized actions.
+* Gas Estimates: Get current gas fees and estimate transaction costs.
+* Event Streams: Subscribe to real-time blockchain events through WebSockets.
+* Resource Access: Access blockchain resources like token metadata, account states, and more.
+
+***
+
+## Getting started
+
+### 1. Choose a package manager (npm or yarn)
+
+Select a package manager to manage your project's dependencies. The choice between `npm` and `yarn` depends on your preference or project requirements.
+
+| npm                                                                                                                       | yarn                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Begin with `npm` by following the [npm documentation](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm). | For `yarn`, refer to [yarn's installation guide](https://classic.yarnpkg.com/lang/en/docs/install). |
+
+### 2. Set up your project
+
+Open your terminal and run the following commands:
+
+<CodeGroup>
+  ```text npm
+  mkdir aptos-api-quickstart
+  cd aptos-api-quickstart
+  npm init --yes
+  ```
+
+  ```text yarn
+  mkdir aptos-api-quickstart
+  cd aptos-api-quickstart
+  yarn init --yes
+  ```
+</CodeGroup>
+
+This creates a new directory named `aptos-api-quickstart` and initializes a Node.js project within it.
+
+### 3. Make your first request
+
+Install Axios, a popular HTTP client, to make API requests:
+
+<CodeGroup>
+  ```bash bash
+  npm install axios
+  # Or with yarn
+  # yarn add axios
+  ```
+</CodeGroup>
+
+Create an `index.js` file in your project directory and paste the following code:
+
+<CodeGroup>
+  ```javascript javascript
+  const axios = require('axios');
+
+  const url = `https://aptos-mainnet.g.alchemy.com/v2/${yourAPIKey}/v1/accounts`;
+
+  axios.get(url)
+  .then(response => {
+    console.log('Accounts:', response.data);
+  })
+  .catch(error => {
+    console.error('Error fetching accounts:', error.message);
+  });
+
+  ```
+</CodeGroup>
+
+Replace `yourAPIKey` with your actual Alchemy API key that you can get from the [Alchemy Dashboard](https://dashboard.alchemy.com/signup).
+
+### 4. Run your script
+
+To execute your script and make a request to the Aptos App, run:
+
+<CodeGroup>
+  ```bash bash
+  node index.js
+  ```
+</CodeGroup>
+
+You should see a list of Aptos accounts (if any exist on your node or fullnode) outputted to your console. For example:
+
+```shell
+[
+  {
+    "authentication_key": "0x...",
+    "sequence_number": "0",
+    "modules": [...],
+    "resources": [...]
+  }
+]
+```
+
+## Next steps
+
+You've made your first request to the Aptos App API.

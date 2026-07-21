@@ -1,0 +1,152 @@
+# Batch Requests
+
+> Source: [https://www.alchemy.com/docs/reference/batch-requests.md](https://www.alchemy.com/docs/reference/batch-requests.md)
+
+# Batch Requests
+
+> Best practices for making batch JSON-RPC requests on Ethereum, Polygon, Optimism, and Arbitrum.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is a batch request?
+
+Batch requests are a single HTTP request that contains multiple API calls nested within it. You can send several request objects together at the same time in an array, and you'll get a corresponding array of response objects from the server.
+
+The server processes all requests of this batch RPC call concurrently, in any order. The response objects returned from a batch RPC can be in any order -- you should match request objects to response objects based on the `id` member of each object.
+
+In several use cases that contain different JSON-RPC endpoints, the batching approach can get complicated.
+
+For these reasons, Alchemy does not recommend using batch requests as they can be less reliable compared to individual API calls.
+
+## What is the batch requests limit over HTTP?
+
+The batch request limit over HTTP for all methods and chains is **1000 requests per batch**, above this limit requests are likely to be less reliable.
+
+## What is the batch request limit over WebSockets?
+
+The maximum size of a JSON-RPC `batch` request that you can send over a WebSocket connection is 20.
+
+## Unsupported batch request APIs
+
+Batch requests are currently not supported on some of the Alchemy's Enhanced APIs and Trace/Debug APIs, this includes the APIs listed below:
+
+* [Transfers API](/docs/reference/transfers-api-quickstart)
+* [Transact APIs](/docs/reference/transact-api-quickstart)
+* [Transaction Receipts API](/docs/data/utility-apis/transactions-receipts-endpoints/alchemy-get-transaction-receipts)
+* [Token APIs](/docs/reference/token-api-quickstart)
+* [Subscription APIs](/docs/reference/subscription-api) (except [`newPendingTransactions`](/docs/reference/newpendingtransactions) [`newHeads`](/docs/reference/newheads) and [`logs`](/docs/reference/logs))
+* [Trace APIs](/docs/reference/trace-api-quickstart)
+* [Debug APIs](/docs/reference/debug-api-quickstart)
+
+## How do you make a batch request?
+
+Batch requests are formatted the same as individual API requests, but the body of the request is an array containing the individual API calls you want to make rather than a single API call. See the example with [eth\_blockNumber](/docs/reference/eth-blocknumber) below:
+
+#### Single eth\_blockNumber request
+
+<CodeGroup>
+  ```curl curl
+  curl https://eth-mainnet.g.alchemy.com/v2/your-api-key \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":0}'
+  ```
+
+  ```javascript Javascript
+  import fetch from 'node-fetch'
+  async function main() {
+
+      const req = {
+              method: 'eth_getBlockByNumber',
+              params: [],
+              id: 0,
+              jsonrpc: '2.0',
+          }
+
+      const res = await fetch('https://eth-mainnet.g.alchemy.com/v2/your-api-key', {method: 'POST', body: JSON.stringify(req), headers: {'Content-Type': 'application/json'}})
+      const data = await res.json()
+  }
+  main().then().catch((err) => console.log(err))
+  ```
+</CodeGroup>
+
+#### Batch eth\_blockNumber request
+
+<CodeGroup>
+  ```curl curl
+  curl https://eth-mainnet.g.alchemy.com/v2/your-api-key \
+  -X POST \
+  -H "Content-Type: application/json" \
+  -d '[{"jsonrpc": "2.0", "id": 1, "method": "eth_blockNumber", "params": []},
+  {"jsonrpc": "2.0", "id": 2, "method": "eth_blockNumber", "params": []},
+  {"jsonrpc": "2.0", "id": 3, "method": "eth_blockNumber", "params": []},
+  {"jsonrpc": "2.0", "id": 4, "method": "eth_blockNumber", "params": []}]'
+  ```
+
+  ```javascript javascript
+  import fetch from 'node-fetch'
+  async function main() {
+      const reqs = []
+      for (let i = parseInt(process.argv[2]); i < parseInt(process.argv[3]); i++) {
+          reqs.push({
+              method: 'eth_getBlockByNumber',
+              params: [`0x${i.toString(16)}`, false],
+              id: i-parseInt(process.argv[2]),
+              jsonrpc: '2.0',
+          })
+      }
+
+      const res = await fetch('https://eth-mainnet.g.alchemy.com/v2/your-api-key', {method: 'POST', body: JSON.stringify(reqs), headers: {'Content-Type': 'application/json'}})
+      const data = await res.json()
+  }
+
+  main().then().catch((err) => console.log(err))
+  ```
+</CodeGroup>
+
+## How do you make batch requests over REST?
+
+Batch Requests are usually for JSON-RPC endpoints, but Alchemy provides support for batch requests over REST as well. It currently only supports one type of REST API for batch requests: [getNFTMetadataBatch](/docs/reference/nft-api-endpoints/nft-api-endpoints/nft-metadata-endpoints/get-nft-metadata-batch-v-3). Check example code below.
+
+<CodeGroup>
+  ```curl curl
+  curl --request POST \
+       --url https://eth-mainnet.g.alchemy.com/nft/v2/demo/getNFTMetadataBatch \
+       --header 'accept: application/json' \
+       --header 'content-type: application/json'
+       --data '[{"0x5180db8F5c931aaE63c74266b211F580155ecac8","1590"},
+       					{"0x5280db8F5c931aaE63c74266b211F580155ecac8","1591"}]'
+  ```
+
+  ```javascript javascript
+  // Simple fetch request for batch NFT metadata
+  const apiKey = "demo"; // Replace with your Alchemy API Key
+  const baseURL = `https://eth-mainnet.g.alchemy.com/nft/v3/${apiKey}/getNFTMetadataBatch`;
+
+  const requestBody = [
+    {
+      contractAddress: "0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D",
+      tokenId: "3"
+    },
+    {
+      contractAddress: "0x8a90CAb2b38dba80c64b7734e58Ee1dB38B8992e",
+      tokenId: "4"
+    }
+  ];
+
+  fetch(baseURL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestBody)
+  })
+  .then(response => response.json())
+  .then(data => console.log(data))
+  .catch(error => console.error('Error:', error));
+  ```
+</CodeGroup>
+
+## Handling errors in batch requests
+
+Batch requests always return a `200` HTTP status code, even if some or all requests within the batch fail. Parse the [JSON-RPC error codes](/docs/reference/error-reference#standard-json-rpc-errors) in the response to determine if the individual requests within the batch succeeded or failed.

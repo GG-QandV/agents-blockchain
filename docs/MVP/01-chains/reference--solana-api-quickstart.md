@@ -1,0 +1,107 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-quickstart](../00-consolidated/api-quickstart.md).
+> Below is the original chain-specific version.
+
+# Solana API Quickstart
+
+> Source: [https://www.alchemy.com/docs/reference/solana-api-quickstart.md](https://www.alchemy.com/docs/reference/solana-api-quickstart.md)
+
+# Solana API Quickstart
+
+> How to get started building on Solana using Alchemy
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+> 📄 **This content also appears in [Choose Your Starting Point](05-tools-resources/get-started.md)** — see there for full details.
+
+## Send your first request on Alchemy
+
+Let's use [`@solana/web3.js`](https://www.npmjs.com/package/@solana/web3.js) package to set up a `Connection` with Alchemy and get the latest slot on Solana!
+
+<CodeGroup>
+  ```text npm
+  npm install --save @solana/web3.js
+  ```
+
+  ```text yarn
+  yarn add @solana/web3.js
+  ```
+</CodeGroup>
+
+## Create a connection to Alchemy
+
+<CodeGroup>
+  ```js
+  import { Connection } from "@solana/web3.js";
+
+  const connection = new Connection(
+    "https://solana-devnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY",
+    "confirmed"
+  );
+
+  const slot = await connection.getSlot();
+  console.log("Current slot:", slot);
+  ```
+</CodeGroup>
+
+Now that you've set up a connection to Alchemy, you can continue with some basics:
+
+## Create a wallet
+
+<CodeGroup>
+  ```js
+  import { Keypair } from "@solana/web3.js";
+
+  const wallet = Keypair.generate();
+  console.log("Public Key:", wallet.publicKey.toBase58());
+  ```
+</CodeGroup>
+
+## Check wallet balance
+
+<CodeGroup>
+  ```js
+  const balance = await connection.getBalance(wallet.publicKey);
+  console.log("Balance:", balance / 1e9, "SOL");
+  ```
+</CodeGroup>
+
+## Fetch account info
+
+<CodeGroup>
+  ```js
+  const info = await connection.getAccountInfo(wallet.publicKey);
+  console.log(info);
+  ```
+</CodeGroup>
+
+## Find Solana methods by category
+
+<CardGroup>
+  <Card title="Current State Methods" icon="clock" href="/docs/solana-api-faq#current-state-methods">
+    Query live blockchain data and network status
+  </Card>
+
+  <Card title="Historical Data (Archival)" icon="box-archive" href="/docs/solana-api-faq#historical-data-archival">
+    Access complete transaction and block history
+  </Card>
+
+  <Card title="Transaction Submission" icon="paper-plane" href="/docs/solana-api-faq#transaction-submission">
+    Send and simulate transactions with fee estimation
+  </Card>
+
+  <Card title="Network & Cluster Info" icon="network-wired" href="/docs/solana-api-faq#network-performance-economics">
+    Monitor validators, epochs and network performance
+  </Card>
+</CardGroup>
+
+# CU Calculator
+
+Want to estimate your Solana Compute Units (CUs) before running transactions?\
+**Try the CU Calculator now:** [Open CU Calculator →](https://solana-demo-sigma.vercel.app/)
+
+# Solana Tutorials
+
+Check out the following tutorials to learn how to build with Solana:
+
+* [Hello World Solana Program](/docs/hello-world-solana-program)
+* [How to Integrate a Solana Program with a Web3 Application](/docs/hello-world-solana-application)

@@ -1,0 +1,48 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Shape API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/shape-api-faq.md](https://www.alchemy.com/docs/reference/shape-api-faq.md)
+
+# Shape API FAQ
+
+> Frequently asked questions about the Shape API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Shape?
+
+Shape is a chain for creators built on top of Ethereum. It provides an open space for creating various forms of digital content, from fine art to experimental projects, while offering unique incentives for creators.
+
+## What is the Shape API?
+
+The Shape API allows developers to interact with the Shape network through a set of JSON-RPC methods. It supports various operations such as smart contract deployment, transaction processing, and data retrieval.
+
+## How can I get started using the Shape API?
+
+Explained in [Shape API Quickstart](/docs/reference/shape-api-quickstart).
+
+## Is Shape EVM compatible?
+
+Shape is EVM equivalent. This means developers can deploy Ethereum-based smart contracts and applications on Shape with minimal modifications, leveraging existing Ethereum development tools and practices.
+
+## What is Gasback?
+
+Gasback is a unique feature of Shape where creators can claim back 80% of sequencer fees users spend interacting with their contracts. This includes self-built contracts, acquired contracts, and contracts deployed through other platforms.
+
+## How does Shape relate to Ethereum?
+
+Shape is built on top of Ethereum and inherits its security. It's designed to be EVM equivalent, allowing for seamless integration with Ethereum-based tools and practices.
+
+## What programming languages work with Shape?
+
+Shape supports Solidity for smart contract development due to its EVM equivalence. For offchain interactions, you can use JavaScript, TypeScript, or other common web development languages.
+
+## Is Shape secure?
+
+Shape inherits its security directly from Ethereum, ensuring a high level of security for the network.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

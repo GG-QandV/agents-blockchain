@@ -1,12 +1,12 @@
-//! M9 mu-human — канал владельца.
+//! M9 mu-human — owner channel.
 //!
-//! RISK-M9-1: PayConfirm приходит из конвейера (тот же объект, что уйдёт в M7a); связка intent_hash.
-//! RISK-M9-2: Approved непроизводим кодом — auth_proof = подпись owner-ключом (auth-required)
-//!            над domain("mu.human.v1") ‖ intent_hash; конвейер верифицирует подпись.
-//! RISK-M9-5: TTL по монотонным часам; поздний Approved после дедлайна не исполняется.
+//! RISK-M9-1: PayConfirm comes from the pipeline (same object that goes to M7a); intent_hash binding.
+//! RISK-M9-2: Approved unforgeable by code — auth_proof = owner-key signature (auth-required)
+//!            over domain("mu.human.v1") ‖ intent_hash; pipeline verifies the signature.
+//! RISK-M9-5: TTL via monotonic clock; late Approved after deadline is not executed.
 //!
-//! Платформенные диалоги (LocalAuthentication/BiometricPrompt/Hello) — за trait Presenter:
-//! реальные реализации — на устройствах; здесь Presenter-мок для логики и тестов.
+//! Platform dialogs (LocalAuthentication/BiometricPrompt/Hello) — behind trait Presenter:
+//! real implementations — on devices; here Presenter mock for logic and tests.
 #![forbid(unsafe_code)]
 
 use mu_common::{Amount, CanonAddress, Hash32};
@@ -16,9 +16,9 @@ use p256::ecdsa::signature::hazmat::PrehashVerifier;
 use p256::ecdsa::{Signature as P256Signature, VerifyingKey as P256Verifying};
 use std::time::{Duration, Instant};
 
-/// Данные диалога платежа. Собираются в M6 из intent'а, прошедшего Ω/Δ (RISK-M9-1).
-/// purpose агента здесь ОТСУТСТВУЕТ by design — вместо него wl_label из Δ.
-/// Sui gasless: gas_est видалено, total = amount.
+/// Payment dialog data. Collected in M6 from intent that passed Ω/Δ (RISK-M9-1).
+/// agent purpose is ABSENT here by design — instead wl_label from Δ.
+/// Sui gasless: gas_est removed, total = amount.
 #[derive(Clone, Debug)]
 pub struct PayConfirm {
     pub recipient: CanonAddress,
@@ -27,11 +27,11 @@ pub struct PayConfirm {
     pub agent_id: String,
     pub remaining_window: Amount,
     pub intent_hash: Hash32,
-    /// бейдж «ПЕРВЫЙ ПЛАТЁЖ» (RISK-M9-4)
+    /// "FIRST PAYMENT" badge (RISK-M9-4)
     pub first_payment_to_recipient: bool,
 }
 
-/// Криптодоказательство решения (RISK-M9-2). Не булев флаг.
+/// Cryptographic proof of decision (RISK-M9-2). Not a boolean flag.
 #[derive(Clone, Debug)]
 pub struct AuthProof {
     pub sig: P256Sig,
@@ -45,11 +45,11 @@ pub enum HumanDecision {
     Timeout,
 }
 
-/// Платформенный слой показа диалога. Возвращает лишь намерение владельца;
-/// криптографию делает confirm_payment через vault.
+/// Platform dialog presentation layer. Returns only the owner's intent;
+/// cryptography is done by confirm_payment via vault.
 pub trait Presenter: Send + Sync {
-    /// Показать диалог, вернуть выбор владельца (или None при закрытии/таймауте UI).
-    /// elapsed_budget — сколько времени осталось (для отображения таймера).
+    /// Show dialog, return owner's choice (or None on close/UI timeout).
+    /// elapsed_budget — remaining time (for displaying a timer).
     fn present(&self, req: &PayConfirm, budget: Duration) -> PresenterChoice;
 }
 
@@ -60,8 +60,8 @@ pub enum PresenterChoice {
     NoResponse,
 }
 
-/// Полный цикл подтверждения платежа.
-/// deadline рассчитан в M6; монотонные часы (RISK-X-2 / RISK-M9-5).
+/// Full payment confirmation cycle.
+/// deadline calculated in M6; monotonic clock (RISK-X-2 / RISK-M9-5).
 pub fn confirm_payment(
     req: &PayConfirm,
     presenter: &dyn Presenter,
@@ -77,12 +77,12 @@ pub fn confirm_payment(
         PresenterChoice::Deny => HumanDecision::Denied,
         PresenterChoice::NoResponse => HumanDecision::Timeout,
         PresenterChoice::Approve => {
-            // RISK-M9-5: поздний тап после дедлайна не превращается в Approved
+            // RISK-M9-5: late tap after deadline does not become Approved
             if Instant::now() >= deadline {
                 return HumanDecision::Timeout;
             }
-            // RISK-M9-2: Approved = подпись owner-ключом над intent_hash.
-            // owner_sign сам требует свежей платформенной аутентификации (RISK-M4-3).
+            // RISK-M9-2: Approved = owner-key signature over intent_hash.
+            // owner_sign itself requires fresh platform authentication (RISK-M4-3).
             match vault.owner_sign(DomainTag::MuHuman, &req.intent_hash) {
                 Ok(sig) => HumanDecision::Approved(AuthProof { sig, intent_hash: req.intent_hash }),
                 Err(VaultErr::UserAuthRequired) | Err(VaultErr::UserAuthFailed) => HumanDecision::Denied,
@@ -92,8 +92,8 @@ pub fn confirm_payment(
     }
 }
 
-/// Верификация auth_proof на стороне конвейера (RISK-M9-2):
-/// даже полностью скомпрометированный M9 не породит валидный Approved.
+/// Auth_proof verification on the pipeline side (RISK-M9-2):
+/// even a fully compromised M9 cannot produce a valid Approved.
 pub fn verify_auth_proof(proof: &AuthProof, expected_intent: &Hash32, owner_pubkey: &[u8]) -> bool {
     if proof.intent_hash != *expected_intent {
         return false;
@@ -104,7 +104,7 @@ pub fn verify_auth_proof(proof: &AuthProof, expected_intent: &Hash32, owner_pubk
     vk.verify_prehash(&tagged.0, &sig).is_ok()
 }
 
-/// Строка диалога: label ВСЕГДА сопровождается усечённым адресом (RISK-M9-3).
+/// Dialog line: label ALWAYS accompanied by truncated address (RISK-M9-3).
 pub fn render_recipient_line(req: &PayConfirm) -> String {
     match &req.wl_label {
         Some(l) => format!("{} ({})", l, req.recipient.redacted()),
@@ -134,7 +134,7 @@ mod tests {
         }
     }
     fn owner_pubkey(v: &SoftVault) -> Vec<u8> {
-        // SoftVault owner key = [2;32]; получаем pubkey из p256
+        // SoftVault owner key = [2;32]; get pubkey from p256
         use p256::ecdsa::SigningKey;
         let sk = SigningKey::from_bytes((&[2u8; 32]).into()).unwrap();
         sk.verifying_key().to_encoded_point(true).as_bytes().to_vec()
@@ -153,7 +153,7 @@ mod tests {
 
     #[test]
     fn garbage_proof_rejected() {
-        // RISK-M9-2: мусорный proof (мок скомпрометированного M9) не проходит верификацию
+        // RISK-M9-2: garbage proof (mock compromised M9) fails verification
         let v = SoftVault::for_test([1; 32], [2; 32], [3; 32]);
         let fake = AuthProof { sig: mu_vault::P256Sig([0u8; 64]), intent_hash: Hash32([0xCC; 32]) };
         assert!(!verify_auth_proof(&fake, &Hash32([0xCC; 32]), &owner_pubkey(&v)));
@@ -161,7 +161,7 @@ mod tests {
 
     #[test]
     fn proof_bound_to_intent_hash() {
-        // подпись под intent A не проходит для intent B (RISK-M9-1 связка)
+        // signature over intent A does not pass for intent B (RISK-M9-1 binding)
         let v = SoftVault::for_test([1; 32], [2; 32], [3; 32]);
         let r = req();
         let d = confirm_payment(&r, &FixedPresenter(PresenterChoice::Approve), &v,
@@ -173,7 +173,7 @@ mod tests {
 
     #[test]
     fn no_biometry_means_denied_not_approved() {
-        // RISK-M4-3 → M9: отказ биометрии не может дать Approved
+        // RISK-M4-3 → M9: biometric rejection cannot yield Approved
         let mut v = SoftVault::for_test([1; 32], [2; 32], [3; 32]);
         v.set_owner_auth(false);
         let d = confirm_payment(&req(), &FixedPresenter(PresenterChoice::Approve), &v,
@@ -192,9 +192,9 @@ mod tests {
 
     #[test]
     fn label_always_with_address() {
-        // RISK-M9-3: label не может скрыть адрес
+        // RISK-M9-3: label cannot hide the address
         let line = render_recipient_line(&req());
         assert!(line.contains("API Service"));
-        assert!(line.contains("0xabcdef")); // усечённый адрес присутствует
+        assert!(line.contains("0xabcdef")); // truncated address is present
     }
 }

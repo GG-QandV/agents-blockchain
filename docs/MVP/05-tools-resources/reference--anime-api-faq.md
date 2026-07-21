@@ -1,0 +1,61 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Anime API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/anime-api-faq.md](https://www.alchemy.com/docs/reference/anime-api-faq.md)
+
+# Anime API FAQ
+
+> Frequently asked questions about the Anime API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Anime?
+Anime is a fast and secure blockchain built on Arbitrum, designed to support anime content and digital assets.
+
+## What is the Anime API?
+
+The Anime API allows you to interface with the Anime mainnet and testnet nodes. With this API, you can execute transactions, query onchain data, and interact with the Anime network, relying on a JSON-RPC standard.
+
+## How can I get started using the Anime API?
+
+Explained in [Anime API Quickstart](/docs/reference/anime-api-quickstart)
+
+## Is Anime EVM compatible?
+
+Yes. Anime supports any Ethereum Virtual Machine (EVM) codebase. This allows you to deploy and migrate assets from Ethereum L1 and other interoperable chains to Anime.
+
+## What API does Anime use?
+
+Anime uses the JSON-RPC API standard. This API is crucial for any blockchain interaction on the Anime network, allowing you to read block/transaction data, query chain information, execute smart contracts, and store data onchain.
+
+## What is a Anime API key?
+
+When accessing the Anime network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network.
+
+For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup).
+
+## Which libraries support Anime?
+
+Common Ethereum libraries like [ethers.js](https://docs.ethers.org/v5/) and [web3.js](https://web3js.readthedocs.io/en/v1.8.2/) should be compatible with Anime, given its EVM nature.
+
+## What programming languages work with Anime?
+
+Languages that work with Ethereum, such as JavaScript, Solidity, TypeScript, and Shell, should also be compatible with Anime. Solidity remains the primary choice for smart contract development, while JavaScript is ideal for offchain interactions.
+
+## What does Anime use for gas?
+
+The native cryptocurrency for Animechain is the ANIME token, which is used for transactions, governance, and rewards on the chain.
+
+## What testnet should I use for Anime?
+
+Use the **Anime Sepolia** testnet for Anime. This testnet provides an environment to deploy smart contracts, execute transactions, and test applications.
+
+## What methods does Alchemy support for the Anime API?
+
+You can find the list of all the methods Alchemy supports for the Anime API on the [Anime API Endpoints](/docs/chains#anime-apis) page.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

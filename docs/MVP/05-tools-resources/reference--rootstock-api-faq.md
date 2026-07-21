@@ -1,0 +1,60 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Rootstock API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/rootstock-api-faq.md](https://www.alchemy.com/docs/reference/rootstock-api-faq.md)
+
+# Rootstock API FAQ
+
+> Frequently asked questions about the Rootstock API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Rootstock?
+
+Rootstock is the first and longest-lasting Bitcoin sidechain. It combines the security of Bitcoin's proof of work with Ethereum's smart contract capabilities, offering an open-source, EVM-compatible platform secured by over 60% of Bitcoin's hashing power.
+
+## What is the Rootstock API?
+
+The Rootstock API allows developers to interact with the Rootstock network through a set of JSON-RPC methods. It supports various operations such as smart contract deployment, transaction processing, and data retrieval, enabling developers to integrate Rootstock's functionality into their applications.
+
+## How can I get started using the Rootstock API?
+
+Explained in [Rootstock API Quickstart](/docs/reference/rootstock-api-quickstart).
+
+## Is Rootstock EVM compatible?
+
+Yes, Rootstock is fully EVM-compatible. This allows developers to deploy Ethereum-based smart contracts and applications on the Rootstock network with minimal modifications, leveraging existing Ethereum development tools and practices.
+
+## What API does Rootstock use?
+
+Rootstock utilizes the JSON-RPC API standard, which is widely used in the Ethereum ecosystem. This provides a familiar and efficient interface for blockchain interactions.
+
+## What is an Rootstock API key?
+
+When accessing the Rootstock network via a service provider, you need an API key to send transactions and retrieve data. An API key ensures secure and authenticated access to the network.
+
+## Which libraries support Rootstock?
+
+As an EVM-compatible blockchain, Rootstock supports popular Ethereum libraries such as Web3.js and Ethers.js. This allows developers to leverage existing tools and knowledge when building on Rootstock.
+
+## What programming languages work with Rootstock?
+
+Rootstock supports Solidity for smart contract development due to its EVM compatibility. For offchain interactions, you can use JavaScript, TypeScript, or other common web development languages.
+
+## What does Rootstock use for gas?
+
+Rootstock uses RBTC (Rootstock Bitcoin) as its native token for gas fees. RBTC is pegged 1:1 with Bitcoin, allowing users to leverage Bitcoin's value within the Rootstock ecosystem.
+
+## How does Rootstock relate to Bitcoin?
+
+Rootstock is a sidechain of Bitcoin that uses merge mining, allowing Bitcoin miners to simultaneously mine both chains. This provides Rootstock with a high level of security by leveraging Bitcoin's extensive mining network.
+
+## What is the Powpeg mechanism?
+
+The Powpeg is Rootstock's security mechanism based on a layered "defence-in-depth" model. It facilitates the transfer of bitcoins between the Bitcoin and Rootstock blockchains.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

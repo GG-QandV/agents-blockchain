@@ -1,4 +1,4 @@
-//! Тесты RISK-M1-1/2/3/4 + сквозная интеграция с M5 (rollback-атака).
+//! Tests for RISK-M1-1/2/3/4 + end-to-end integration with M5 (rollback attack).
 use mu_common::{Amount, CanonAddress, Hash32};
 use mu_core::{CoreErr, Mu};
 use mu_core::object::Omega;
@@ -57,19 +57,19 @@ fn roundtrip_save_load_verify() {
 
 #[test]
 fn bit_flip_anywhere_breaks_verify() {
-    // RISK-M1-4 + подписи: порча ЛЮБОГО байта → verify Err (или decode Err)
+    // RISK-M1-4 + signatures: corrupting ANY byte → verify Err (or decode Err)
     let v = vault();
     let dir = tempfile::tempdir().unwrap();
     let p = dir.path().join("mu.bin");
     issue(&v, 500, Hash32([0; 32])).save(&p).unwrap();
     let orig = std::fs::read(&p).unwrap();
-    let step = (orig.len() / 24).max(1); // выборка позиций по всему файлу
+    let step = (orig.len() / 24).max(1); // sample positions across the whole file
     for pos in (0..orig.len()).step_by(step) {
         let mut bad = orig.clone();
         bad[pos] ^= 0xFF;
         let ok = match mu_core::format::decode_mu(&bad) {
-            Err(_) => true,                                  // decode поймал
-            Ok(m) => m.verify(&mu_pubkey()).is_err(),        // или подпись поймала
+            Err(_) => true,                                  // decode caught
+            Ok(m) => m.verify(&mu_pubkey()).is_err(),        // or signature caught
         };
         assert!(ok, "bit-flip at {pos} not detected");
     }
@@ -77,15 +77,15 @@ fn bit_flip_anywhere_breaks_verify() {
 
 #[test]
 fn omega_immutable_via_apply_delta() {
-    // RISK-M1-1: apply_delta не может тронуть Ω (поле приватно — меняем только Δ);
-    // и подпись Δ чужим ключом отвергается ДО пересборки.
+    // RISK-M1-1: apply_delta cannot touch Ω (field is private — only Δ changes);
+    // and Δ signature by foreign key is rejected BEFORE rebuild.
     let v = vault();
     let mu = issue(&v, 500, Hash32([0; 32]));
     let d2 = delta(700);
-    // мусорная подпись владельца → SigOwner
+    // garbage owner signature → SigOwner
     let bad = mu.apply_delta(d2.clone(), [0u8; 64], Hash32([1; 32]), &v);
     assert!(matches!(bad, Err(CoreErr::SigOwner)));
-    // валидная подпись → применяется, Ω тот же
+    // valid signature → applied, Ω unchanged
     let sig = sign_delta(&v, &d2);
     let next = mu.apply_delta(d2, sig, Hash32([1; 32]), &v).unwrap();
     assert_eq!(next.omega(), mu.omega());
@@ -106,18 +106,18 @@ fn reissue_changes_id_and_version() {
 
 #[test]
 fn rollback_attack_caught_by_log_head() {
-    // RISK-M1-2, сквозной с M5: подмена μ на старую копию (большой лимит) ловится.
+    // RISK-M1-2, end-to-end with M5: replacing μ with old copy (high limit) is caught.
     let v = vault();
     let dir = tempfile::tempdir().unwrap();
     let mu_path = dir.path().join("mu.bin");
     let log_path = dir.path().join("log.mulog");
 
     let mut log = Log::open(&log_path, &v).unwrap();
-    // v1: лимит 900 (атакующему выгодна эта версия)
+    // v1: limit 900 (attacker prefers this version)
     let mu_v1 = issue(&v, 900, log.last_hash());
     mu_v1.save(&mu_path).unwrap();
 
-    // владелец ужесточает: Δ 100; в лог пишется DeltaChanged, μ.log_head обновляется
+    // owner tightens: Δ 100; DeltaChanged is written to log, μ.log_head updated
     let d2 = delta(100);
     let sig2 = sign_delta(&v, &d2);
     let old_h = delta_hash(mu_v1.delta());
@@ -126,41 +126,41 @@ fn rollback_attack_caught_by_log_head() {
     let mu_v2 = mu_v1.apply_delta(d2, sig2, head, &v).unwrap();
     mu_v2.save(&mu_path).unwrap();
 
-    // АТАКА: возвращаем на диск старый μ (валидно подписанный!)
+    // ATTACK: write old μ back to disk (validly signed!)
     mu_v1.save(&mu_path).unwrap();
 
-    // boot демона: подписи сходятся…
+    // daemon boot: signatures match…
     let loaded = Mu::load(&mu_path).unwrap();
     loaded.verify(&mu_pubkey()).unwrap();
-    // …но связка с логом ловит откат
+    // …but log binding catches the rollback
     assert!(matches!(
         loaded.verify_against_log(log.last_hash()),
         Err(CoreErr::LogHeadMismatch)
     ));
-    // легитимный v2 проходит
+    // legitimate v2 passes
     mu_v2.verify_against_log(log.last_hash()).unwrap();
 }
 
 #[test]
 fn crash_during_save_leaves_valid_file() {
-    // RISK-M1-3: эмуляция крэша — мусорный tmp рядом не мешает load читать mu.bin
+    // RISK-M1-3: crash simulation — garbage tmp nearby does not prevent load from reading mu.bin
     let v = vault();
     let dir = tempfile::tempdir().unwrap();
     let p = dir.path().join("mu.bin");
     issue(&v, 500, Hash32([0; 32])).save(&p).unwrap();
     std::fs::write(p.with_extension("tmp"), b"partial garbage from crash").unwrap();
     let loaded = Mu::load(&p).unwrap();
-    loaded.verify(&mu_pubkey()).unwrap(); // старая валидная версия на месте
+    loaded.verify(&mu_pubkey()).unwrap(); // old valid version is in place
 }
 
 #[test]
 fn trailing_byte_rejected() {
-    // RISK-M1-4: строгая схема
+    // RISK-M1-4: strict schema
     let v = vault();
     let dir = tempfile::tempdir().unwrap();
     let p = dir.path().join("mu.bin");
     issue(&v, 500, Hash32([0; 32])).save(&p).unwrap();
     let mut bytes = std::fs::read(&p).unwrap();
-    bytes.insert(bytes.len() - 64, 0x00); // байт внутрь payload
+    bytes.insert(bytes.len() - 64, 0x00); // byte inside payload
     assert!(mu_core::format::decode_mu(&bytes).is_err());
 }

@@ -3,7 +3,7 @@ use mu_common::{Amount, CanonAddress};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WlEntry {
     pub address: CanonAddress,
-    pub label: String, // ≤64, без управляющих/bidi (E-LBL-01)
+    pub label: String, // ≤64, no control/bidi chars (E-LBL-01)
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -13,7 +13,7 @@ pub struct Delta {
     pub confirm_threshold: Amount,
 }
 
-/// Read-only срез Ω для валидации (демон отдаёт по GetPolicy).
+/// Read-only Ω slice for validation (daemon serves via GetPolicy).
 #[derive(Clone, Debug)]
 pub struct OmegaView {
     pub max_ceiling: Amount,

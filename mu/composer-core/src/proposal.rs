@@ -1,6 +1,6 @@
-//! DeltaProposal — неподписанное предложение Δ (спека §5.1).
-//! Формат: тот же hardened-TLV-стиль, что mu-wire (одно семейство парсеров на все входы демона).
-//! Отклонение от спеки: TLV вместо CBOR — зафиксировано в Ограничениях выполнения README.
+//! DeltaProposal — unsigned Δ proposal (spec §5.1).
+//! Format: same hardened-TLV style as mu-wire (single parser family for all daemon inputs).
+//! Deviation from spec: TLV instead of CBOR — documented in README implementation constraints.
 use mu_common::{Amount, CanonAddress, Hash32};
 use mu_policy::{Delta, WlEntry};
 
@@ -73,7 +73,7 @@ pub fn decode_proposal(buf: &[u8]) -> Result<DeltaProposal, ProposalErr> {
     let mut base = [0u8; 32];
     base.copy_from_slice(bh);
     let ts = c.u64()?;
-    if c.remaining() != 0 { return Err(ProposalErr::Malformed); } // строгая схема
+    if c.remaining() != 0 { return Err(ProposalErr::Malformed); } // strict schema
     Ok(DeltaProposal {
         new_delta: Delta { daily_limit: daily, whitelist: wl, confirm_threshold: thr },
         base_delta_hash: Hash32(base),

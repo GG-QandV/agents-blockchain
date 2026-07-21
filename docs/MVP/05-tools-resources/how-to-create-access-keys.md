@@ -1,0 +1,69 @@
+# How to Create Access Keys
+
+> Source: [https://www.alchemy.com/docs/how-to-create-access-keys.md](https://www.alchemy.com/docs/how-to-create-access-keys.md)
+
+# How to Create Access Keys
+
+> Learn how to create access keys and use them to make requests to Alchemy APIs
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## Introduction to Access Keys
+
+<Warning>
+You must be a billing or team admin to create and manage access keys. If you don't have the required permissions, contact your team admin to request access.
+</Warning>
+
+Access keys serve as authentication tokens needed to interact with a subset of Alchemy's suite of APIs. They enable you to access JSON-RPC APIs, NFT API and Gas Manager Admin API. Unlike API keys, access keys can be used in the [authentication header](/docs/how-to-use-api-keys-in-http-headers) of API requests for added security.
+
+## Generating Access Keys
+
+Follow these steps to create a new access key:
+
+1. Log in to your [Alchemy Dashboard](https://dashboard.alchemy.com/signup).
+
+2. Click the `Security` option in the sidebar. This will take you to the access keys menu where you can see all your existing access keys and create new ones.
+
+   ![](https://alchemyapi-res.cloudinary.com/image/upload/v1758911257/docs/Screenshot_2025-09-26_at_11.27.33_AM_qwjave.png)
+
+3. Click on "Create Access Key" to initiate the process.
+
+   ![](https://alchemyapi-res.cloudinary.com/image/upload/v1764180207/docs/tutorials/getting-started/api-security-and-authentication/cc05340-image.png)
+
+4. Fill out the form:
+
+   1. **Name**: Choose a unique identifier for your access key, limited to 50 characters.
+
+   2. **Permissions**: Select the permissions for your access key. If you plan to make JSON-RPC & NFT API requests using this key, select that option and associate it with an Alchemy app. Select the Gas Manager permissions as required (Read or Read & Write).
+
+   3. **Expiry Date**: Optionally, specify when the access key should expire. After this date, the key will become invalid.
+
+      ![](https://alchemyapi-res.cloudinary.com/image/upload/v1758911257/docs/Screenshot_2025-09-26_at_11.27.33_AM_qwjave.png)
+
+5. Once the details are filled in, click "Create".
+
+6. After creation, the access key will be displayed. Be sure to save it securely — it's only shown once.
+
+   ![](https://alchemyapi-res.cloudinary.com/image/upload/v1764180208/docs/tutorials/getting-started/api-security-and-authentication/9ad941c-image.png)
+
+7. Your access key will then be displayed in the access keys menu from where you can delete it if required.
+
+   ![](https://alchemyapi-res.cloudinary.com/image/upload/v1764180209/docs/tutorials/getting-started/api-security-and-authentication/7557f3d-image.png)
+
+## Using Access Keys
+
+### Using as Path Param
+
+When making requests to the APIs, you can use your access key similar to how you would use an API key (as path params), for example:
+
+![](https://alchemyapi-res.cloudinary.com/image/upload/v1764180209/docs/tutorials/getting-started/api-security-and-authentication/96820cf-image.png)
+
+### Using as Auth Header
+
+In addition to using access keys as path params, you also have the option to use them in authentication header of API requests for added security, for example:
+
+![](https://alchemyapi-res.cloudinary.com/image/upload/v1764180211/docs/tutorials/getting-started/api-security-and-authentication/efc9927-image.png)
+
+Refer to the guide on [HTTP Header-Based API Requests](/docs/how-to-use-api-keys-in-http-headers) for detailed information on this approach and why this is more secure than using access keys as path params.
+
+That concludes this tutorial! With these steps, you can now successfully create and use access keys for making requests to Alchemy APIs!

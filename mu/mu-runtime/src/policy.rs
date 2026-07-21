@@ -1,10 +1,10 @@
-//! Минимальные Ω/Δ для работы конвейера.
-//! NB: по модульной карте это M2/M3 (отдельные крейты mu-omega/mu-delta);
-//! здесь встроены в runtime как временное размещение — интерфейсы совпадают со спеками.
+//! Minimal Ω/Δ for pipeline operation.
+//! NB: per module map these are M2/M3 (separate crates mu-omega/mu-delta);
+//! here they are embedded in runtime as temporary placement — interfaces match the specs.
 use mu_common::{Amount, CanonAddress, ConnectorId};
 use mu_log::Log;
 
-// ── Ω (M2): статичный фильтр возможностей ─────────────────────────────────
+// ── Ω (M2): static capability filter ─────────────────────────────────
 pub struct Omega {
     pub connectors: Vec<ConnectorId>,
     pub max_ceiling: Amount,
@@ -16,7 +16,7 @@ pub enum OmegaDeny {
     CeilingExceeded,
 }
 
-/// Sui gasless: total = amount (без gas_estimate).
+/// Sui gasless: total = amount (no gas_estimate).
 pub fn omega_check(
     amount: Amount,
     connector: ConnectorId,
@@ -31,7 +31,7 @@ pub fn omega_check(
     Ok(amount)
 }
 
-// ── Δ (M3): политики момента ──────────────────────────────────────────────
+// ── Δ (M3): moment policies ──────────────────────────────────────────────
 pub struct Delta {
     pub daily_limit: Amount,
     pub whitelist: Vec<CanonAddress>,
@@ -44,8 +44,8 @@ pub enum DeltaDeny {
     WindowExceeded,
 }
 
-/// RISK-M3-2: membership только над CanonAddress (строк здесь нет по типам).
-/// RISK-M5-4: окно считает ТОЛЬКО лог.
+/// RISK-M3-2: membership only over CanonAddress (no strings here by type).
+/// RISK-M5-4: window counts ONLY the log.
 pub fn delta_check(
     recipient: &CanonAddress,
     amount_total: Amount,
@@ -64,7 +64,7 @@ pub fn delta_check(
     Ok(())
 }
 
-/// RISK-M3-3: порог сравнивается с той же величиной total, что и резерв.
+/// RISK-M3-3: threshold compared against the same total value as the reserve.
 pub fn needs_human(amount_total: Amount, d: &Delta) -> bool {
     amount_total > d.confirm_threshold
 }

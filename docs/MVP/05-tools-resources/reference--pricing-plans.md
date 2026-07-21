@@ -1,0 +1,63 @@
+# Pricing Plans
+
+> Source: [https://www.alchemy.com/docs/reference/pricing-plans.md](https://www.alchemy.com/docs/reference/pricing-plans.md)
+
+# Pricing Plans
+
+> A guide to understand Alchemy's pricing plans.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+# Plans overview
+
+## Feature comparison
+
+| Feature                          | Free Tier   | PAYG       | Enterprise Tier |
+| -------------------------------- | ----------- | ---------- | --------------- |
+| Base Compute Units               | 30,000,000  | -          | Custom          |
+| Up to 300M CU rate               | -           | $0.45/M CU | Custom          |
+| 300M+ CU rate                    | -           | $0.40/M CU | Custom          |
+| Base Throughput (CUs/second)     | 500         | 10,000     | Custom          |
+| # of apps                        | 5           | 30         | Unlimited       |
+| webhooks                         | 5           | 100        | 500             |
+| Full Archive Data                | ✓           | ✓          | ✓               |
+| Node API                         | ✓           | ✓          | ✓               |
+| Debug API                        | ✗           | ✓          | ✓               |
+| Trace API                        | ✗           | ✓          | ✓               |
+| NFT API                          | ✓           | ✓          | ✓               |
+| Transfers API                    | ✓           | ✓          | ✓               |
+| Token API                        | ✓           | ✓          | ✓               |
+| Transaction Simulation           | ✓           | ✓          | ✓               |
+| Gas-optimized Transactions       | ✗           | ✓          | ✓               |
+| Smart WebSockets                 | ✓           | ✓          | ✓               |
+| JavaScript SDK                   | ✓           | ✓          | ✓               |
+| Analytics & Reporting            | ✓           | ✓          | ✓               |
+| Email Support                    | ✓           | ✓          | ✓               |
+| Devoted Support Channels         | ✗           | ✗          | ✓               |
+| Access to Engineering & PM Teams | ✗           | ✗          | ✓               |
+| Custom SLAs                      | ✗           | ✗          | ✓               |
+| Priority on Product Roadmaps     | ✗           | ✗          | ✓               |
+| High Volume Discounts            | ✗           | ✗          | ✓               |
+
+## Account Abstraction (AA) Pricing
+
+| Feature                    | Free Tier        | PAYG                                   | Enterprise Tier  |
+| -------------------------- | ---------------- | -------------------------------------- | ---------------- |
+| Gas Manager                | Free on testnets | 8% admin fee                           | Custom admin fee |
+| Gas Sponsorship Base Limit | -                | $0/mo (Contact us for Custom limits)   | Custom           |
+| Account Kit SDK            | ✓                | ✓                                      | ✓                |
+| Bundler API                | ✓                | ✓                                      | ✓                |
+| Gas Manager Coverage API   | ✓                | ✓                                      | ✓                |
+| Gas Manager Admin API      | ✗                | ✓                                      | ✓                |
+
+## Throughput (CUPS)
+
+Each application has reserved dedicated throughput, measured in Compute Units per Second (CUPS). Your app can exceed these limits based on elastic demand in our system.
+
+| Tier       | Base CUPS |
+| ---------- | --------- |
+| Free       | 1,000     |
+| PAYG       | 10,000    |
+| Enterprise | Custom    |
+
+*Note: Even if your application limit is lower, the system may allow higher throughput based on available capacity. For a more robust experience, we recommend implementing retries when experiencing throughput errors.*

@@ -1,6 +1,6 @@
-//! mu-policy — единственный источник правды о правилах Δ.
-//! Линкуется в демон (валидация proposal) и в Composer (C2) — ноль расхождений.
-//! Спека: SPEC_Delta-Composer_v1 §4.2, §7.
+//! mu-policy — single source of truth for Δ rules.
+//! Linked into the daemon (proposal validation) and into Composer (C2) — zero divergence.
+//! Spec: SPEC_Delta-Composer_v1 §4.2, §7.
 #![forbid(unsafe_code)]
 
 pub mod types;

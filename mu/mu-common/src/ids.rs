@@ -1,6 +1,6 @@
-//! Ідентифікатори. RISK-M2-3/M3-2: ConnectorId і CanonAddress — закриті типи.
+//! Identifiers. RISK-M2-3/M3-2: ConnectorId and CanonAddress — closed types.
 
-/// Закритий набір коннекторів. Рядків нема: невідомий id неможливий by design.
+/// Closed set of connectors. No strings: unknown id is impossible by design.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[non_exhaustive]
 pub enum ConnectorId {
@@ -9,8 +9,8 @@ pub enum ConnectorId {
     CardStub,
 }
 
-/// Канонічна форма адреси: 32 байти + chain_id.
-/// Sui: 0x + 64 hex, без чексумми регістра (EIP-55 видалено).
+/// Canonical address form: 32 bytes + chain_id.
+/// Sui: 0x + 64 hex, without register checksum (EIP-55 removed).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct CanonAddress {
     addr: [u8; 32],
@@ -27,8 +27,8 @@ impl CanonAddress {
     pub fn bytes(&self) -> &[u8; 32] { &self.addr }
     pub fn chain_id(&self) -> u64 { self.chain_id }
 
-    /// Єдиний конструктор. Приймає hex (з/без 0x), довжина 64 символи,
-    /// без чексумми регістра (Sui не має EIP-55).
+    /// Single constructor. Accepts hex (with/without 0x), length 64 characters,
+    /// without register checksum (Sui does not have EIP-55).
     pub fn canon(input: &str, chain_id: u64) -> Result<Self, AddrErr> {
         let s = input.strip_prefix("0x").unwrap_or(input);
         if s.len() != 64 { return Err(AddrErr::BadLength); }
@@ -41,7 +41,7 @@ impl CanonAddress {
         Ok(CanonAddress { addr, chain_id })
     }
 
-    /// Усічений показ для UI/логів: 0xAbC…123.
+    /// Truncated display for UI/logs: 0xAbC…123.
     pub fn redacted(&self) -> String {
         let hex = self.to_hex();
         format!("0x{}…{}", &hex[..6], &hex[hex.len() - 4..])
@@ -64,11 +64,11 @@ fn hexval(b: u8) -> Option<u8> {
     }
 }
 
-/// 32-байтний хеш (SHA-256 або blake2b).
+/// 32-byte hash (SHA-256 or blake2b).
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct Hash32(pub [u8; 32]);
 
-/// 16-байтний тикет операції.
+/// 16-byte operation ticket.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Hash)]
 pub struct Ticket(pub [u8; 16]);
 

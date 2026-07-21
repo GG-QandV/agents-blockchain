@@ -1,0 +1,44 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Abstract API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/abstract-api-faq.md](https://www.alchemy.com/docs/reference/abstract-api-faq.md)
+
+# Abstract API FAQ
+
+> Frequently asked questions about the Abstract API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Abstract?
+
+Abstract is a blockchain platform designed to lead the next generation of consumer crypto. It focuses on providing a developer-friendly environment for building smart contracts and applications with native account abstraction.
+
+## What is the Abstract API?
+
+The Abstract API allows interaction with the Abstract network through a set of JSON-RPC methods. Its design is familiar to developers who have worked with Ethereum's JSON-RPC APIs, making it intuitive and straightforward to use.
+
+## How can I get started using Abstract?
+
+Explained in [Abstract API Quickstart](/docs/reference/abstract-api-quickstart).
+
+## Is Abstract EVM compatible?
+
+Abstract is EVM compatible, meaning it looks and feels like Ethereum, but with lower gas fees and higher transaction throughput. Most existing smart contracts built for Ethereum work out of the box on Abstract (with some differences), meaning you can port applications to Abstract with minimal changes.
+
+## What unique features does Abstract offer?
+
+Abstract offers native account abstraction, which is a key feature of its architecture. It also provides the Abstract Global Wallet, a smart contract wallet powering the Abstract ecosystem.
+
+## How does Abstract's architecture work?
+
+Abstract's architecture includes system contracts and native account abstraction. You can learn more about the components that make up Abstract through their documentation.
+
+## How does Abstract ensure scalability and security?
+
+Built on top of the ZK Stack, Abstract is a zero-knowledge (ZK) rollup built to be a more scalable alternative to Ethereum; it achieves this scalability by executing transactions offchain, batching them together, and verifying batches of transactions on Ethereum using (ZK) proofs.
+
+## My question isn't here, where can I get help?
+
+Don't worry, we got you. If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

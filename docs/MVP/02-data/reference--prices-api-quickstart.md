@@ -1,0 +1,328 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-quickstart](../00-consolidated/api-quickstart.md).
+> Below is the original chain-specific version.
+
+# Prices API Quickstart
+
+> Source: [https://www.alchemy.com/docs/reference/prices-api-quickstart.md](https://www.alchemy.com/docs/reference/prices-api-quickstart.md)
+
+# Prices API Quickstart
+
+> A new developer's guide to fetching current and historical token prices via the Prices API.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+![](https://alchemyapi-res.cloudinary.com/image/upload/v1764179972/docs/api-reference/data/prices-api/44545db89e0d47c5d2a6d59273c05912afc0b0f965deb6119550e15218bfbc28-token-prices-api-banner.png)
+
+This guide will help you fetch token prices via the Prices API.
+
+Whether you're building a DeFi protocol, portfolio tracker, or analytics tool, the Prices API provides simple endpoints for current and historical prices.
+
+***
+
+# Endpoints
+
+The Prices API includes the following REST endpoints:
+
+| **Endpoint**                                                                     | **How It Works**                                                                          | **When to Use**                                                                                       |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| [Token Prices By Symbol](/docs/data/prices-api/prices-api-endpoints/prices-api-endpoints/get-token-prices-by-symbol)                  | Combines prices from centralized (CEX) and decentralized (DEX) exchanges for each symbol. | Use this when you need a current price overview of a token across all supported chains and exchanges. |
+| [Token Prices By Address](/docs/data/prices-api/prices-api-endpoints/prices-api-endpoints/get-token-prices-by-address)                | Combines prices from DEXes for each contract address and network.                         | Use this when you need the current price of a specific token on a particular blockchain network.      |
+| [Historical Prices By Symbol Or Address](/docs/data/prices-api/prices-api-endpoints/prices-api-endpoints/get-historical-token-prices) | Fetches past price data by symbol or address.                                             | Use this when you require historical price data for creating charts or performing analysis.           |
+
+***
+
+# Getting started
+
+## Via HTTP requests
+
+Modern web development uses fetch for HTTP requests. You can access the Prices API using native fetch or any HTTP client library.
+
+### No additional installation required
+
+The fetch API is available in all modern browsers and Node.js (18+). For older Node.js versions, you can install `node-fetch`:
+
+<CodeGroup>
+  ```shell Node.js 18+ (Built-in)
+  # No installation needed - fetch is built-in
+  ```
+
+  ```shell Node.js < 18
+  npm install node-fetch
+  ```
+</CodeGroup>
+
+### Usage
+
+Create a new JavaScript file (e.g., `prices-fetch-script.js`) and add one of the following snippets depending on which endpoint you want to call.
+
+<CodeGroup>
+  ```js By Symbol
+  // prices-fetch-script.js
+
+  // Replace with your Alchemy API key:
+  const apiKey = "demo";
+
+  // Define the symbols you want to fetch prices for.
+  const symbols = ["ETH", "BTC", "USDT"];
+
+  async function getTokenPricesBySymbol() {
+    try {
+      const symbolsParam = symbols.join(',');
+      const response = await fetch(`https://api.g.alchemy.com/prices/v1/tokens/by-symbol?symbols=${symbolsParam}`, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`
+        }
+      });
+
+      const data = await response.json();
+      console.log("Token Prices By Symbol:");
+      console.log(JSON.stringify(data, null, 2));
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  }
+
+  getTokenPricesBySymbol();
+  ```
+
+  ```js By Address
+  // prices-fetch-script.js
+
+  // Replace with your Alchemy API key:
+  const apiKey = "demo";
+
+  // Define the network and contract addresses you want to fetch prices for.
+  const addresses = [
+    {
+      network: "eth-mainnet",
+      address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48" // USDC
+    },
+    {
+      network: "eth-mainnet",
+      address: "0xdac17f958d2ee523a2206206994597c13d831ec7" // USDT
+    }
+  ];
+
+  async function getTokenPricesByAddress() {
+    try {
+      const response = await fetch('https://api.g.alchemy.com/prices/v1/tokens/by-address', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({ addresses })
+      });
+
+      const data = await response.json();
+      console.log("Token Prices By Address:");
+      console.log(JSON.stringify(data, null, 2));
+    } catch (error) {
+      console.error("Error:", error);
+    }
+  }
+
+  getTokenPricesByAddress();
+  ```
+</CodeGroup>
+
+### Running the script
+
+Execute the script from your command line:
+
+<CodeGroup>
+  ```bash bash
+  node prices-fetch-script.js
+  ```
+</CodeGroup>
+
+**Expected Output:**
+
+<CodeGroup>
+  ```json json
+  {
+    "data": [
+      {
+        "symbol": "ETH",
+        "prices": [
+          {
+            "currency": "USD",
+            "value": "3000.00",
+            "lastUpdatedAt": "2024-04-27T12:34:56Z"
+          }
+        ],
+        "error": null
+      },
+      {
+        "symbol": "BTC",
+        "prices": [
+          {
+            "currency": "USD",
+            "value": "45000.00",
+            "lastUpdatedAt": "2024-04-27T12:34:56Z"
+          }
+        ],
+        "error": null
+      },
+      {
+        "symbol": "USDT",
+        "prices": [
+          {
+            "currency": "USD",
+            "value": "1.00",
+            "lastUpdatedAt": "2024-04-27T12:34:56Z"
+          }
+        ],
+        "error": null
+      }
+    ]
+  }
+  ```
+</CodeGroup>
+
+## Via Node Fetch
+
+`node-fetch` is a lightweight option for making HTTP requests with JavaScript.
+
+### Installation
+
+Install the `node-fetch` package using `npm` or `yarn`:
+
+<CodeGroup>
+  ```shell npm
+  npm install node-fetch
+  ```
+
+  ```shell yarn
+  yarn add node-fetch
+  ```
+</CodeGroup>
+
+### Usage
+
+Create a new JavaScript file (e.g., `prices-fetch-script.js`) and add the following code.
+
+<CodeGroup>
+  ```js By Symbol
+  // prices-fetch-script.js
+  
+
+  // Replace with your Alchemy API key:
+  const apiKey = "YOUR_ALCHEMY_API_KEY";
+  const fetchURL = `https://api.g.alchemy.com/prices/v1/${apiKey}/tokens/by-symbol`;
+
+  // Define the symbols you want to fetch prices for.
+  const symbols = ["ETH", "BTC", "USDT"];
+
+  const params = new URLSearchParams();
+  symbols.forEach(symbol => params.append('symbols', symbol));
+
+  const urlWithParams = `${fetchURL}?${params.toString()}`;
+
+  const requestOptions = {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+  };
+
+  fetch(urlWithParams, requestOptions)
+    .then(response => response.json())
+    .then(data => {
+      console.log("Token Prices By Symbol:");
+      console.log(JSON.stringify(data, null, 2));
+    })
+    .catch(error => console.error('Error:', error));
+  ```
+
+  ```js By Address
+  // prices-fetch-script.js
+  
+
+  // Replace with your Alchemy API key:
+  const apiKey = "YOUR_ALCHEMY_API_KEY";
+  const fetchURL = `https://api.g.alchemy.com/prices/v1/${apiKey}/tokens/by-address`;
+
+  // Define the network and contract addresses you want to fetch prices for.
+  const requestBody = {
+    addresses: [
+      {
+        network: "eth-mainnet",
+        address: "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48" // USDC
+      },
+      {
+        network: "eth-mainnet",
+        address: "0xdac17f958d2ee523a2206206994597c13d831ec7" // USDT
+      }
+    ]
+  };
+
+  const requestOptions = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(requestBody),
+  };
+
+  fetch(fetchURL, requestOptions)
+    .then(response => response.json())
+    .then(data => {
+      console.log("Token Prices By Address:");
+      console.log(JSON.stringify(data, null, 2));
+    })
+    .catch(error => console.error('Error:', error));
+  ```
+</CodeGroup>
+
+### Running the script
+
+Execute the script from your command line:
+
+<CodeGroup>
+  ```bash bash
+  node prices-fetch-script.js
+  ```
+</CodeGroup>
+
+**Expected Output:**
+
+<CodeGroup>
+  ```json json
+  {
+    "data": [
+      {
+        "symbol": "ETH",
+        "prices": [
+          {
+            "currency": "USD",
+            "value": "3000.00",
+            "lastUpdatedAt": "2024-04-27T12:34:56Z"
+          }
+        ],
+        "error": null},
+      {
+        "symbol": "BTC",
+        "prices": [
+          {
+            "currency": "USD",
+            "value": "45000.00",
+            "lastUpdatedAt": "2024-04-27T12:34:56Z"
+          }
+        ],
+        "error": null},
+      {
+        "symbol": "USDT",
+        "prices": [
+          {
+            "currency": "USD",
+            "value": "1.00",
+            "lastUpdatedAt": "2024-04-27T12:34:56Z"
+          }
+        ],
+        "error": null}
+    ]
+  }
+  ```
+</CodeGroup>

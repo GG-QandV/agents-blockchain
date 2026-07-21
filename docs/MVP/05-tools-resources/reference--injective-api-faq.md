@@ -1,0 +1,39 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Injective API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/injective-api-faq.md](https://www.alchemy.com/docs/reference/injective-api-faq.md)
+
+# Injective API FAQ
+
+> Frequently asked questions about the Injective API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Injective?
+Injective is a high-performance Layer 1 blockchain built on the Cosmos SDK, purpose-built for decentralized finance (DeFi) applications such as decentralized exchanges, prediction markets, and lending protocols. It features full EVM compatibility, allowing developers to deploy Ethereum-based smart contracts while benefiting from fast finality and low transaction costs.
+
+## How do I get started with Injective?
+See the [Injective API quickstart guide](/docs/reference/injective-api-quickstart) to start building on Injective.
+
+## What is the Injective API?
+The Injective API lets you interact with Injective Mainnet and Injective Testnet. You can execute transactions, query onchain data, and interact with the network using the JSON-RPC standard.
+
+## Is Injective EVM compatible?
+Yes, Injective is EVM compatible.
+
+## What API does Injective use?
+Injective uses the JSON-RPC API standard. This API enables blockchain interaction on the Injective network, letting you read block and transaction data, query chain information, execute smart contracts, and store data onchain.
+
+## What methods are supported on Injective?
+Injective supports the standard Ethereum JSON-RPC surface for both mainnet and testnet. A few methods (`eth_getBlockReceipts`, `eth_syncing`, and `net_listening`) are enabled on **Injective Testnet only**; each of those method reference pages calls that out in its description. For **`debug_*`** methods, use the separate [Debug API](/docs/reference/debug-api-quickstart) documentation (its OpenRPC spec is not the Injective chain spec). See the [Injective API overview](/docs/injective/injective-api-overview) for chain IDs and the full Node API method list.
+
+## What is an Injective API key?
+When you access the Injective network through a node provider like Alchemy, you use an API key to send transactions and retrieve data. We recommend you [sign up for a free API key](https://dashboard.alchemy.com/signup).
+
+## Which libraries support Injective?
+Common Ethereum libraries like [ethers.js](https://docs.ethers.org/v5/) are compatible with Injective, given its EVM nature.
+
+## Where can I get more help?
+If you have questions or feedback, contact us at support@alchemy.com or open a ticket in the [Alchemy Dashboard](https://dashboard.alchemy.com).

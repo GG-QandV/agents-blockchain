@@ -1,0 +1,38 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Jovay API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/jovay-api-faq.md](https://www.alchemy.com/docs/reference/jovay-api-faq.md)
+
+# Jovay API FAQ
+
+> Frequently asked questions about the Jovay API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Jovay?
+Jovay is a high-performance Ethereum Layer 2 blockchain built by Ant Digital Technologies, designed for real-world asset (RWA) tokenization. It uses a dual-prover architecture combining Trusted Execution Environments (TEE) and Zero-Knowledge Proofs (ZKP) for cross-verified security, achieving sub-second response times and throughput of up to 22,000 TPS.
+
+## How do I get started with Jovay?
+See the [Jovay API quickstart guide](/docs/reference/jovay-api-quickstart) to start building on Jovay.
+
+## What is the Jovay API?
+The Jovay API lets you interact with the Jovay mainnet. You can execute transactions, query onchain data, and interact with the Jovay network using the JSON-RPC standard.
+
+## Is Jovay EVM compatible?
+Yes, Jovay is EVM compatible.
+
+## What API does Jovay use?
+Jovay uses the JSON-RPC API standard. This API enables blockchain interaction on the Jovay network, letting you read block and transaction data, query chain information, execute smart contracts, and store data onchain.
+
+## What methods are supported on Jovay?
+Jovay supports standard Ethereum JSON-RPC methods. Some chain-specific methods may vary. Check the Jovay API endpoints documentation for a complete list.
+
+## What is a Jovay API key?
+When you access the Jovay network through a node provider like Alchemy, you use an API key to send transactions and retrieve data. We recommend you [sign up for a free API key](https://dashboard.alchemy.com/signup).
+
+## Which libraries support Jovay?
+Common Ethereum libraries like [ethers.js](https://docs.ethers.org/v5/) are compatible with Jovay, given its EVM nature.
+
+> 📄 **This content also appears in [Injective API FAQ](05-tools-resources/reference--injective-api-faq.md)** — see there for full details.

@@ -1,0 +1,20 @@
+# On-chain Events
+
+> Source: [https://www.alchemy.com/docs/on-chain-events.md](https://www.alchemy.com/docs/on-chain-events.md)
+
+# On-chain Events
+
+> List of articles related to on-chain events
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+# What are onchain events?
+
+Onchain events represent a permanent and unchangeable record of what happened on the blockchain. They provide trust and transparency that is crucial for many use cases, such as financial transactions and voting systems. By recording events on the blockchain, you can verify the authenticity and integrity of the data and ensure that it cannot be tampered with or altered. This makes onchain events a valuable tool for building secure and reliable applications on the blockchain.
+
+# Related articles
+
+The following articles cover onchain events in more detail:
+
+* [How to Get On-chain Events on Ethereum](/docs/how-to-get-on-chain-events)
+* [Understanding Logs: Deep Dive into eth\_getLogs](/docs/deep-dive-into-eth_getlogs)

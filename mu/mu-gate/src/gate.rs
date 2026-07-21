@@ -1,9 +1,9 @@
-//! M8 конвейер проверки: строгий порядок, ранний выход, единый deny{code}.
+//! M8 verification pipeline: strict order, early exit, single deny{code}.
 use crate::wire::{parse_wire, WireIntent};
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
 use std::collections::HashMap;
 
-/// Коды отказа. RISK-M8-5: наружу уходит только код, без деталей Δ/Ω.
+/// Denial codes. RISK-M8-5: only the code is exposed, no Δ/Ω details.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DenyCode {
     Parse = 0x00,
@@ -15,7 +15,7 @@ pub enum DenyCode {
     Busy = 0x06,
 }
 
-/// Реестр разрешённых агентов: agent_id → ed25519 pubkey.
+/// Registry of allowed agents: agent_id → ed25519 pubkey.
 pub struct AllowList {
     keys: HashMap<String, VerifyingKey>,
 }
@@ -31,7 +31,7 @@ impl AllowList {
 }
 impl Default for AllowList { fn default() -> Self { Self::new() } }
 
-/// Аутентифицированный, свежий, неповторённый intent — единственный выход Gate наружу.
+/// Authenticated, fresh, non-replayed intent — the only way out of Gate.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct VerifiedIntent {
     pub recipient: String,
@@ -41,12 +41,12 @@ pub struct VerifiedIntent {
     pub nonce: u64,
 }
 
-/// Токен-бакет на агента.
+/// Token bucket per agent.
 struct Bucket { tokens: u32, cap: u32 }
 
 pub struct Gate {
     allow: AllowList,
-    /// RISK-M8-1: последний принятый nonce на агента (переживает рестарт — грузится из лога).
+    /// RISK-M8-1: last accepted nonce per agent (survives restart — loaded from log).
     last_nonce: HashMap<String, u64>,
     buckets: HashMap<String, Bucket>,
     bucket_cap: u32,
@@ -64,31 +64,31 @@ impl Gate {
         }
     }
 
-    /// RISK-M8-1: восстановление nonce-окон из лога при старте демона.
+    /// RISK-M8-1: restore nonce windows from log on daemon startup.
     pub fn restore_nonce(&mut self, agent_id: &str, nonce: u64) {
         let e = self.last_nonce.entry(agent_id.to_string()).or_insert(0);
         *e = (*e).max(nonce);
     }
 
-    /// Полный конвейер проверки одного кадра. now — из Clock демона.
+    /// Full verification pipeline for a single frame. now — from daemon Clock.
     pub fn accept(&mut self, frame: &[u8], now: u64) -> Result<VerifiedIntent, DenyCode> {
-        // 1-3: hardened-парсер
+        // 1-3: hardened parser
         let w: WireIntent = parse_wire(frame).map_err(|_| DenyCode::Parse)?;
 
-        // 4: agent ∈ allowlist → pubkey (RISK-M8-2: ключ из реестра, не из кадра)
+        // 4: agent ∈ allowlist → pubkey (RISK-M8-2: key from registry, not from frame)
         let vk = self.allow.get(&w.agent_id).ok_or(DenyCode::UnknownAgent)?;
 
-        // 5: подпись покрывает весь payload включая agent_id (RISK-M8-2)
+        // 5: signature covers entire payload including agent_id (RISK-M8-2)
         let sig = Signature::from_bytes(&w.sig);
         vk.verify(&w.signed_bytes, &sig).map_err(|_| DenyCode::BadSignature)?;
 
-        // 6: свежесть ts (после verify — чтобы код 0x03 нельзя было получить неаутентифицированно)
+        // 6: timestamp freshness (after verify — so code 0x03 cannot be obtained unauthenticated)
         let diff = now.abs_diff(w.ts);
         if diff > self.ts_window_secs {
             return Err(DenyCode::StaleTimestamp);
         }
 
-        // 7: монотонный nonce (RISK-M8-1)
+        // 7: monotonic nonce (RISK-M8-1)
         let last = self.last_nonce.get(&w.agent_id).copied().unwrap_or(0);
         if w.nonce <= last {
             return Err(DenyCode::ReplayNonce);
@@ -102,7 +102,7 @@ impl Gate {
         }
         bucket.tokens = bucket.tokens.saturating_sub(1);
 
-        // приняли → фиксируем nonce
+        // accepted → persist nonce
         self.last_nonce.insert(w.agent_id.clone(), w.nonce);
 
         Ok(VerifiedIntent {
@@ -114,7 +114,7 @@ impl Gate {
         })
     }
 
-    /// Пополнение бакетов (вызывается тикером раз в период).
+    /// Refill buckets (called by ticker periodically).
     pub fn refill(&mut self) {
         for b in self.buckets.values_mut() {
             b.tokens = b.cap;
@@ -169,7 +169,7 @@ mod tests {
 
     #[test]
     fn nonce_survives_restart() {
-        // RISK-M8-1: после restore старый nonce отвергается
+        // RISK-M8-1: after restore, old nonce is rejected
         let (mut g, sk) = setup();
         g.restore_nonce("agent-1", 100);
         let old = frame_signed(&sk, "agent-1", 50, 1000);
@@ -180,7 +180,7 @@ mod tests {
 
     #[test]
     fn wrong_key_denied() {
-        // RISK-M8-2: подпись чужим ключом
+        // RISK-M8-2: signature with foreign key
         let (mut g, _sk) = setup();
         let other = SigningKey::from_bytes(&[7u8; 32]);
         let f = frame_signed(&other, "agent-1", 1, 1000);
@@ -189,14 +189,14 @@ mod tests {
 
     #[test]
     fn agent_id_spoof_breaks_signature() {
-        // RISK-M8-2: подпись валидна для agent-1, но кадр помечен agent-1 (в allowlist)
-        // подменим id внутри payload → подпись не сойдётся
+        // RISK-M8-2: signature is valid for agent-1, but frame is tagged agent-1 (in allowlist)
+        // spoof id inside payload → signature won't match
         let (mut g, sk) = setup();
         let mut f = frame_signed(&sk, "agent-1", 1, 1000);
-        // agent_id начинается после v(2)+rlen(1)+recipient(5)+amount(16)+chain(8)+alen(1)
+        // agent_id starts after v(2)+rlen(1)+recipient(5)+amount(16)+chain(8)+alen(1)
         let off = 2 + 1 + 5 + 16 + 8 + 1;
-        f[off] = b'X'; // портим первый символ agent_id
-        // теперь id "Xgent-1" не в allowlist ИЛИ подпись не сойдётся
+        f[off] = b'X'; // corrupt first char of agent_id
+        // now id "Xgent-1" is not in allowlist OR signature won't match
         let r = g.accept(&f, 1000);
         assert!(matches!(r, Err(DenyCode::UnknownAgent) | Err(DenyCode::BadSignature)));
     }

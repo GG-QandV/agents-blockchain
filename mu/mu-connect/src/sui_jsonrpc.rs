@@ -1,19 +1,19 @@
-//! Транспортная реализация SuiRpc поверх JSON-RPC (HTTP POST).
-//! Минимальный клиент без тяжёлых SDK: сериализация запросов руками, ответы —
-//! узкий парсинг только нужных полей (та же дисциплина hardened-парсеров).
+//! Transport implementation of SuiRpc over JSON-RPC (HTTP POST).
+//! Minimal client without heavy SDKs: manual request serialization, responses —
+//! narrow parsing of only needed fields (same discipline as hardened parsers).
 //!
-//! ВНИМАНИЕ (граница честности): имена методов заданы КОНФИГОМ (SuiRpcConfig),
-//! дефолты — стабильные документированные endpoints; метод сборки gasless-перевода
-//! Address Balances — пост-cutoff фича, имя ОБЯЗАН сверить агент по официальной
-//! документации (источники в ETAP2-инструкции) перед живым прогоном.
+//! WARNING (honesty boundary): method names are SET BY CONFIG (SuiRpcConfig),
+//! defaults are stable documented endpoints; the gasless transfer build method
+//! Address Balances — post-cutoff feature, the name MUST be verified by the agent against official
+//! documentation (sources in ETAP2-instruction) before live execution.
 use crate::sui::{BuiltTx, DryRun, SuiRpc, SuiSend, SuiTxLookup};
 use crate::{ConnErr, RejectReason};
 use base64::Engine;
 
 pub struct SuiRpcConfig {
     pub url: String,
-    /// сборка перевода стейблкоина; дефолт-кандидат сверяется агентом с docs
-    pub m_build: String,     // напр. "unsafe_pay" | gasless-метод из docs
+    /// stablecoin transfer build; default candidate verified by agent against docs
+    pub m_build: String,     // e.g. "unsafe_pay" | gasless method from docs
     pub m_dry: String,       // "sui_dryRunTransactionBlock"
     pub m_exec: String,      // "sui_executeTransactionBlock"
     pub m_get: String,       // "sui_getTransactionBlock"
@@ -22,7 +22,7 @@ pub struct SuiRpcConfig {
 
 pub struct JsonRpcClient {
     pub cfg: SuiRpcConfig,
-    /// HTTP-транспорт инжектится (тесты/окружения без сети); прод: reqwest/ureq у агента.
+    /// HTTP transport is injected (tests/offline environments); prod: reqwest/ureq by agent.
     pub post: fn(url: &str, body: &str, timeout_ms: u64) -> Result<String, String>,
 }
 
@@ -41,8 +41,8 @@ fn addr_hex(a: &[u8; 32]) -> String {
     s
 }
 
-/// Узкий JSON-экстрактор: значение строкового поля "key":"..." (без полного парсера —
-/// достаточно для известных ответов нод; злонамеренная нода и так покрыта dry-run/консенсусом).
+/// Narrow JSON extractor: value of string field "key":"..." (without full parser —
+/// sufficient for known node responses; a malicious node is already covered by dry-run/consensus).
 fn jstr<'a>(json: &'a str, key: &str) -> Option<&'a str> {
     let pat = format!("\"{key}\":\"");
     let i = json.find(&pat)? + pat.len();
@@ -51,7 +51,7 @@ fn jstr<'a>(json: &'a str, key: &str) -> Option<&'a str> {
     Some(&rest[..j])
 }
 fn jnum(json: &str, key: &str) -> Option<u64> {
-    // поддержка и числа, и строки-числа ("checkpoint":"123")
+    // supports both number and string-number ("checkpoint":"123")
     if let Some(s) = jstr(json, key) { return s.parse().ok(); }
     let pat = format!("\"{key}\":");
     let i = json.find(&pat)? + pat.len();
@@ -89,12 +89,12 @@ impl SuiRpc for JsonRpcClient {
         let Ok(resp) = self.call(&self.cfg.m_dry, &params) else { return DryRun::Unreachable };
         match jstr(&resp, "status") {
             Some("success") => {
-                // recipient/amount из balanceChanges — узкий разбор
+                // recipient/amount from balanceChanges — narrow parse
                 let rec = jstr(&resp, "recipient_owner").or_else(|| jstr(&resp, "AddressOwner"));
                 let amt = jstr(&resp, "amount").and_then(|s| s.parse::<i128>().ok());
                 match (rec.and_then(hex32), amt) {
                     (Some(r), Some(a)) if a > 0 => DryRun::Ok { recipient: r, amount: a as u128 },
-                    _ => DryRun::Unreachable, // не смогли верифицировать = не доверяем
+                    _ => DryRun::Unreachable, // could not verify = do not trust
                 }
             }
             Some("failure") => DryRun::WouldFail(
@@ -120,7 +120,7 @@ impl SuiRpc for JsonRpcClient {
             }
         }
         if err.contains("locked") || err.contains("reserved") {
-            return SuiSend::ObjectLocked; // эквивокация → Unknown выше
+            return SuiSend::ObjectLocked; // equivocation → Unknown above
         }
         if err.contains("Insufficient") || err.contains("balance") {
             return SuiSend::DeterministicReject(RejectReason::InsufficientFunds);
@@ -128,7 +128,7 @@ impl SuiRpc for JsonRpcClient {
         if err.contains("signature") || err.contains("serializ") {
             return SuiSend::DeterministicReject(RejectReason::InvalidRecipient);
         }
-        SuiSend::Unreachable // неклассифицированная ошибка = неизвестность, не отказ
+        SuiSend::Unreachable // unclassified error = unknown, not refusal
     }
 
     fn lookup(&self, digest: &[u8; 32]) -> SuiTxLookup {
@@ -145,7 +145,7 @@ impl SuiRpc for JsonRpcClient {
     }
 }
 
-// ── base58 (digest Sui в base58) — минимальная реализация ────────────────
+// ── base58 (Sui digest in base58) — minimal implementation ────────────────
 const B58: &[u8] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 fn to_bs58(bytes: &[u8; 32]) -> String {
     let mut num = bytes.to_vec();

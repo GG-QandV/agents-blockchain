@@ -1,0 +1,63 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-overview](../00-consolidated/api-overview.md).
+> Below is the original chain-specific version.
+
+# Lens API Overview
+
+> Source: [https://www.alchemy.com/docs/lens/lens-api-overview.md](https://www.alchemy.com/docs/lens/lens-api-overview.md)
+
+# Lens API Overview
+
+> Overview of available Lens API methods
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## Lens APIs
+
+📙 Get started with our [Lens API Quickstart Guide](/docs/reference/lens-api-quickstart).
+
+|                                                                                                 |                                                                                             |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [`eth_accounts`](/docs/chains/lens/lens-api-endpoints/eth-accounts)                             | [`eth_blockNumber`](/docs/chains/lens/lens-api-endpoints/eth-block-number)                  |
+| [`eth_call`](/docs/chains/lens/lens-api-endpoints/eth-call)                                     | [`eth_chainId`](/docs/chains/lens/lens-api-endpoints/eth-chain-id)                          |
+| [`eth_estimateGas`](/docs/chains/lens/lens-api-endpoints/eth-estimate-gas)                      | [`eth_feeHistory`](/docs/chains/lens/lens-api-endpoints/eth-fee-history)                    |
+| [`eth_fillTransaction`](/docs/chains/lens/lens-api-endpoints/eth-fill-transaction)              | [`eth_gasPrice`](/docs/chains/lens/lens-api-endpoints/eth-gas-price)                        |
+| [`eth_getAccount`](/docs/chains/lens/lens-api-endpoints/eth-get-account)                        | [`eth_getAccountInfo`](/docs/chains/lens/lens-api-endpoints/eth-get-account-info)           |
+| [`eth_getBalance`](/docs/chains/lens/lens-api-endpoints/eth-get-balance)                        | [`eth_getBlockByHash`](/docs/chains/lens/lens-api-endpoints/eth-get-block-by-hash)          |
+| [`eth_getBlockByNumber`](/docs/chains/lens/lens-api-endpoints/eth-get-block-by-number)          | [`eth_getBlockReceipts`](/docs/chains/lens/lens-api-endpoints/eth-get-block-receipts)       |
+| [`eth_getBlockTransactionCountByHash`](/docs/chains/lens/lens-api-endpoints/eth-get-block-transaction-count-by-hash) | [`eth_getBlockTransactionCountByNumber`](/docs/chains/lens/lens-api-endpoints/eth-get-block-transaction-count-by-number) |
+| [`eth_getCode`](/docs/chains/lens/lens-api-endpoints/eth-get-code)                              | [`eth_getFilterChanges`](/docs/chains/lens/lens-api-endpoints/eth-get-filter-changes)       |
+| [`eth_getFilterLogs`](/docs/chains/lens/lens-api-endpoints/eth-get-filter-logs)                 | [`eth_getLogs`](/docs/chains/lens/lens-api-endpoints/eth-get-logs)                          |
+| [`eth_getRawTransactionByHash`](/docs/chains/lens/lens-api-endpoints/eth-get-raw-transaction-by-hash) | [`eth_getStorageAt`](/docs/chains/lens/lens-api-endpoints/eth-get-storage-at)               |
+| [`eth_getTransactionByBlockHashAndIndex`](/docs/chains/lens/lens-api-endpoints/eth-get-transaction-by-block-hash-and-index) | [`eth_getTransactionByBlockNumberAndIndex`](/docs/chains/lens/lens-api-endpoints/eth-get-transaction-by-block-number-and-index) |
+| [`eth_getTransactionByHash`](/docs/chains/lens/lens-api-endpoints/eth-get-transaction-by-hash)  | [`eth_getTransactionCount`](/docs/chains/lens/lens-api-endpoints/eth-get-transaction-count) |
+| [`eth_getTransactionReceipt`](/docs/chains/lens/lens-api-endpoints/eth-get-transaction-receipt) | [`eth_getUncleCountByBlockHash`](/docs/chains/lens/lens-api-endpoints/eth-get-uncle-count-by-block-hash) |
+| [`eth_getUncleCountByBlockNumber`](/docs/chains/lens/lens-api-endpoints/eth-get-uncle-count-by-block-number) | [`eth_maxPriorityFeePerGas`](/docs/chains/lens/lens-api-endpoints/eth-max-priority-fee-per-gas) |
+| [`eth_newBlockFilter`](/docs/chains/lens/lens-api-endpoints/eth-new-block-filter)               | [`eth_newFilter`](/docs/chains/lens/lens-api-endpoints/eth-new-filter)                      |
+| [`eth_newPendingTransactionFilter`](/docs/chains/lens/lens-api-endpoints/eth-new-pending-transaction-filter) | [`eth_protocolVersion`](/docs/chains/lens/lens-api-endpoints/eth-protocol-version)          |
+| [`eth_sendRawTransaction`](/docs/chains/lens/lens-api-endpoints/eth-send-raw-transaction)       | [`eth_submitWork`](/docs/chains/lens/lens-api-endpoints/eth-submit-work)                    |
+| [`eth_subscribe`](/docs/chains/lens/lens-api-endpoints/eth-subscribe)                           | [`eth_syncing`](/docs/chains/lens/lens-api-endpoints/eth-syncing)                           |
+| [`eth_uninstallFilter`](/docs/chains/lens/lens-api-endpoints/eth-uninstall-filter)              | [`eth_unsubscribe`](/docs/chains/lens/lens-api-endpoints/eth-unsubscribe)                   |
+| [`net_listening`](/docs/chains/lens/lens-api-endpoints/net-listening)                           | [`net_peerCount`](/docs/chains/lens/lens-api-endpoints/net-peer-count)                      |
+| [`net_version`](/docs/chains/lens/lens-api-endpoints/net-version)                               | [`web3_clientVersion`](/docs/chains/lens/lens-api-endpoints/web-3-client-version)           |
+| [`web3_sha3`](/docs/chains/lens/lens-api-endpoints/web-3-sha-3)                                 | [`zks_estimateFee`](/docs/chains/lens/lens-api-endpoints/zks-estimate-fee)                  |
+| [`zks_estimateGasL1ToL2`](/docs/chains/lens/lens-api-endpoints/zks-estimate-gas-l-1-to-l-2)     | [`zks_gasPerPubdata`](/docs/chains/lens/lens-api-endpoints/zks-gas-per-pubdata)             |
+| [`zks_getAllAccountBalances`](/docs/chains/lens/lens-api-endpoints/zks-get-all-account-balances) | [`zks_getBaseTokenL1Address`](/docs/chains/lens/lens-api-endpoints/zks-get-base-token-l-1-address) |
+| [`zks_getBlockDetails`](/docs/chains/lens/lens-api-endpoints/zks-get-block-details)             | [`zks_getBridgeContracts`](/docs/chains/lens/lens-api-endpoints/zks-get-bridge-contracts)   |
+| [`zks_getBridgehubContract`](/docs/chains/lens/lens-api-endpoints/zks-get-bridgehub-contract)   | [`zks_getBytecodeByHash`](/docs/chains/lens/lens-api-endpoints/zks-get-bytecode-by-hash)    |
+| [`zks_getConfirmedTokens`](/docs/chains/lens/lens-api-endpoints/zks-get-confirmed-tokens)       | [`zks_getFeeParams`](/docs/chains/lens/lens-api-endpoints/zks-get-fee-params)               |
+| [`zks_getL1BatchBlockRange`](/docs/chains/lens/lens-api-endpoints/zks-get-l-1-batch-block-range) | [`zks_getL1BatchDetails`](/docs/chains/lens/lens-api-endpoints/zks-get-l-1-batch-details)   |
+| [`zks_getL1GasPrice`](/docs/chains/lens/lens-api-endpoints/zks-get-l-1-gas-price)               | [`zks_getL2ToL1LogProof`](/docs/chains/lens/lens-api-endpoints/zks-get-l-2-to-l-1-log-proof) |
+| [`zks_getL2ToL1MsgProof`](/docs/chains/lens/lens-api-endpoints/zks-get-l-2-to-l-1-msg-proof)    | [`zks_getMainContract`](/docs/chains/lens/lens-api-endpoints/zks-get-main-contract)         |
+| [`zks_getProof`](/docs/chains/lens/lens-api-endpoints/zks-get-proof)                            | [`zks_getProtocolVersion`](/docs/chains/lens/lens-api-endpoints/zks-get-protocol-version)   |
+| [`zks_getRawBlockTransactions`](/docs/chains/lens/lens-api-endpoints/zks-get-raw-block-transactions) | [`zks_getTestnetPaymaster`](/docs/chains/lens/lens-api-endpoints/zks-get-testnet-paymaster) |
+| [`zks_getTransactionDetails`](/docs/chains/lens/lens-api-endpoints/zks-get-transaction-details) | [`zks_L1BatchNumber`](/docs/chains/lens/lens-api-endpoints/zks-l-1-batch-number)            |
+| [`zks_L1ChainId`](/docs/chains/lens/lens-api-endpoints/zks-l-1-chain-id)                        | [`zks_sendRawTransactionWithDetailedOutput`](/docs/chains/lens/lens-api-endpoints/zks-send-raw-transaction-with-detailed-output) |
+
+## Related APIs
+
+The following Alchemy APIs are also supported on Lens:
+
+* [Token API](/docs/reference/token-api-overview)
+* [Transfers API](/docs/reference/transfers-api-quickstart)
+* [Debug API](/docs/reference/debug-api-quickstart)
+* [NFT API](/docs/reference/nft-api-overview)

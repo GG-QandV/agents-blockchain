@@ -1,5 +1,5 @@
-//! C3: черновики. Δ не секрет — plaintext-файл; encrypt_drafts — опция фазы 2.
-//! Атомарная запись tmp+rename (та же дисциплина, что M1).
+//! C3: drafts. Δ is not secret — plaintext file; encrypt_drafts is phase 2 option.
+//! Atomic write via tmp+rename (same discipline as M1).
 use crate::proposal::{decode_proposal, encode_proposal, DeltaProposal, ProposalErr};
 use std::fs;
 use std::io::Write;
@@ -29,14 +29,14 @@ pub fn save_draft(p: &DeltaProposal, path: &Path) -> Result<(), DraftErr> {
     Ok(())
 }
 
-/// Повреждённый черновик отбрасывается (спека §10), не роняет приложение.
+/// Corrupted draft is discarded (spec §10), does not crash the application.
 pub fn load_draft(path: &Path) -> Result<Option<DeltaProposal>, DraftErr> {
     match fs::read(path) {
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(e) => Err(DraftErr::Io(e)),
         Ok(bytes) => match decode_proposal(&bytes) {
             Ok(p) => Ok(Some(p)),
-            Err(_) => Ok(None), // corrupt → отбросить с None, вызвавший покажет сообщение
+            Err(_) => Ok(None), // corrupt → discard with None, caller will show a message
         },
     }
 }

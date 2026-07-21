@@ -1,19 +1,19 @@
-//! RISK-M5-3: таблична résolution для Pending при рекавери.
-//! default = Keep. Вітки «else → Failed» в коді НЕТУ.
+//! RISK-M5-3: tabular resolution for Pending during recovery.
+//! default = Keep. There is NO "else → Failed" branch in code.
 //! Sui semantics for NonceState:
-//! - ConsumedByOther: coin-об'єкт витрачено іншою tx (версія зросла), digest не знайдено
-//! - NotReached: версія об'єкта не змінилась (tx не могла виконатись)
-//! - Unknown: не вдалось визначити
+//! - ConsumedByOther: coin object spent by another tx (version increased), digest not found
+//! - NotReached: object version unchanged (tx could not have executed)
+//! - Unknown: could not determine
 use mu_connect::crypto::RpcReceipt;
 
-/// Ответы обеих нод по tx_hash + состояние nonce аккаунта относительно chain_nonce записи.
+/// Responses from both nodes by tx_hash + account nonce state relative to the entry's chain_nonce.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NonceState {
-    /// nonce аккаунта > chain_nonce записи И receipt нашей tx нет → потрачен ДРУГОЙ транзакцией
+    /// account nonce > entry's chain_nonce AND no receipt for our tx → spent by ANOTHER transaction
     ConsumedByOther,
-    /// nonce аккаунта <= chain_nonce записи → наша tx не могла исполниться
+    /// account nonce <= entry's chain_nonce → our tx could not have executed
     NotReached,
-    /// не удалось надёжно определить
+    /// could not reliably determine
     Unknown,
 }
 
@@ -24,20 +24,20 @@ pub enum Resolution {
     Keep,
 }
 
-/// Чистая решающая функция (RISK-M5-3). Полный перебор входов закреплён тестами.
+/// Pure resolving function (RISK-M5-3). Full input coverage is verified by tests.
 pub fn resolve(rc1: &RpcReceipt, rc2: &RpcReceipt, nonce: NonceState) -> Resolution {
     use RpcReceipt::*;
     match (rc1, rc2) {
-        // обе ноды видят успех в одном блоке → Settled
+        // both nodes see success in the same block → Settled
         (Success { block: b1, gas_used }, Success { block: b2, .. }) if b1 == b2 => {
             Resolution::ToSettled { block: *b1, gas: *gas_used }
         }
-        // обе видят revert → исполнена и провалилась on-chain: закрываем Failed
+        // both see revert → executed and failed on-chain: close as Failed
         (Reverted { .. }, Reverted { .. }) => Resolution::ToFailed,
-        // receipt нет у ОБЕИХ нод И nonce доказуемо ушёл другой tx → Failed
+        // no receipt at BOTH nodes AND nonce provably consumed by another tx → Failed
         (None, None) if nonce == NonceState::ConsumedByOther => Resolution::ToFailed,
-        // receipt нет у обеих И nonce не достигнут → tx не в сети → Failed безопасен?
-        // НЕТ: tx может лежать в mempool. Failed только при ConsumedByOther. Иначе Keep.
+        // no receipt at both AND nonce not reached → tx not on-chain → Failed safe?
+        // NO: tx may be in mempool. Failed only with ConsumedByOther. Otherwise Keep.
         _ => Resolution::Keep,
     }
 }
@@ -59,24 +59,24 @@ mod tests {
         [NonceState::ConsumedByOther, NonceState::NotReached, NonceState::Unknown]
     }
 
-    /// Полный перебор 4×4×3 = 48 комбинаций: проверяем строгие свойства.
+    /// Full enumeration 4×4×3 = 48 combinations: verify strict properties.
     #[test]
     fn exhaustive_table_properties() {
         for r1 in all_receipts() {
             for r2 in all_receipts() {
                 for n in all_nonce() {
                     let res = resolve(&r1, &r2, n);
-                    // Свойство 1: ToSettled только при согласии Success+Success (RISK-M7-3)
+                    // Property 1: ToSettled only when both agree Success+Success (RISK-M7-3)
                     if let Resolution::ToSettled { .. } = res {
                         assert!(matches!((&r1, &r2), (Success { .. }, Success { .. })));
                     }
-                    // Свойство 2: ToFailed только при (Reverted,Reverted) или (None,None,ConsumedByOther)
+                    // Property 2: ToFailed only with (Reverted,Reverted) or (None,None,ConsumedByOther)
                     if res == Resolution::ToFailed {
                         let legal = matches!((&r1, &r2), (Reverted { .. }, Reverted { .. }))
                             || (matches!((&r1, &r2), (None, None)) && n == NonceState::ConsumedByOther);
                         assert!(legal, "illegal ToFailed for {r1:?},{r2:?},{n:?}");
                     }
-                    // Свойство 3: Unreachable в любой позиции НИКОГДА не даёт ToFailed
+                    // Property 3: Unreachable in any position NEVER yields ToFailed
                     if matches!(r1, Unreachable) || matches!(r2, Unreachable) {
                         assert_ne!(res, Resolution::ToFailed);
                     }
@@ -87,7 +87,7 @@ mod tests {
 
     #[test]
     fn mempool_tx_is_kept() {
-        // receipt нет, nonce не достигнут → tx может быть в mempool → Keep, не Failed
+        // no receipt, nonce not reached → tx may be in mempool → Keep, not Failed
         assert_eq!(resolve(&None, &None, NonceState::NotReached), Resolution::Keep);
     }
     #[test]

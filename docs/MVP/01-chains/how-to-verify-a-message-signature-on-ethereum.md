@@ -1,0 +1,486 @@
+# How to Verify a Message Signature on Ethereum
+
+> Source: [https://www.alchemy.com/docs/how-to-verify-a-message-signature-on-ethereum.md](https://www.alchemy.com/docs/how-to-verify-a-message-signature-on-ethereum.md)
+
+# How to Verify a Message Signature on Ethereum
+
+> This tutorial will teach you how to sign and verify a message signature using Web3.js and Ethers.js
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+Message signatures can be generated with any arbitrary message and an Ethereum wallet’s private key. Message signatures can be used to create a verification system for any application requiring a user to prove their identity. For example, you might consider using this tutorial to create an application allowing users to e-sign documents or pdfs. Creating and verifying signatures does not require a connection to the Ethereum network because it utilizes a message, wallet address, and private key to generate a [signature hash](/docs/web3-glossary#hash). This means the entire process can occur off-chain and does not cost any gas to execute.
+
+In part one of this tutorial, we will explore how a signature can be generated and verified using Viem, Ethers.js, or Web3.js libraries.
+
+In part two, we will build upon what we learned in part one to build a full-stack signature generation DApp using ReactJS. With Ethers.js, we will use the provided starter files to create a frontend UI that lets you connect to a MetaMask wallet to sign/verify messages.
+
+<Warning>
+  Part two of this tutorial will not cover ReactJS. We will only focus on the functionality necessary to connect the frontend UI to MetaMask. Therefore, you should have an understanding of React and React hooks such as `useState` and `useEffect`.
+</Warning>
+
+***
+
+## Prerequisites
+
+Before you continue in this tutorial, please ensure that you have accomplished the following:
+
+* Install [Node.js](https://nodejs.org/).
+* Install a [MetaMask](https://metamask.io/download/) browser wallet.
+* Install an IDE (such as VS Code).
+* Create an Alchemy account.
+
+### Install Node.js
+
+Head to [Node.js](https://nodejs.org/en/) and download the LTS version.
+
+> 📄 **This content also appears in [How to Get a Contract's First Transfer Event](05-tools-resources/how-to-get-a-contracts-first-transfer-event.md)** — see there for full details.
+
+<CodeGroup>
+  ```shell shell
+  6.4.1
+  ```
+</CodeGroup>
+
+### Install MetaMask
+
+Install [MetaMask](https://metamask.io/download/), a virtual wallet extension used to manage your Ethereum address and [private key](/docs/web3-glossary#private-secret-key).
+
+### Install an IDE
+
+A development environment makes editing code in our project much easier to navigate. If you would like to follow along with exactly what I am using for this tutorial go ahead and install [Visual Studio Code](https://code.visualstudio.com/download). However, feel free to use whatever development environment you prefer.
+
+### Connect to Alchemy
+
+Although we are not sending any transactions on-chain, we will still use an Alchemy API key so we may monitor on-chain functionality if we so choose to add it in the future.
+
+1. Create a free Alchemy account.
+2. From the Alchemy Dashboard, hover over **Apps** then click **+Create App**.
+3. Name your app **Signature-Generator**.
+4. Select **Ethereum** as your chain and **Sepolia** as your network.
+   * **Note:** Because this tutorial does not perform any on-chain activity, you could use any testnet.
+5. Click **Create app**.
+
+![3816](https://alchemyapi-res.cloudinary.com/image/upload/v1764192941/docs/tutorials/learning-solidity/how-to-verify-a-message-signature-on-ethereum/3c5ef62-Alchemy-Dashboard1.png "Alchemy-Dashboard1.PNG")
+
+Your dashboard should look like this
+
+***
+
+## Setup Project Environment
+
+Open VS Code (or your preferred IDE) and enter the following in the terminal:
+
+<CodeGroup>
+  ```shell shell
+  mkdir my verify-msg-signature
+  cd verify-msg-signature
+  ```
+</CodeGroup>
+
+Once inside our project directory, initialize npm (node package manager) with the following command:
+
+<CodeGroup>
+  ```shell shell
+  npm init
+  ```
+</CodeGroup>
+
+Press enter and answer the project prompt as follows:
+
+<CodeGroup>
+  ```json json
+  package name: (signature-generator)
+  version: (1.0.0)
+  description: 
+  entry point: (index.js)
+  test command: 
+  git repository: 
+  keywords: 
+  author: 
+  license: (ISC)
+  ```
+</CodeGroup>
+
+Press enter again to complete the prompt. If successful, a `package.json` file will have been created in your directory.
+
+***
+
+## Install environment tools
+
+The tools you will need to complete this tutorial are:
+
+* [Viem](https://viem.sh/) (recommended) or [Ethers.js](https://docs.ethers.org/v6/) to utilize their cryptographic functions and create unique signatures.
+* [dotenv](https://www.npmjs.com/package/dotenv) so that you can store your private key and API key safely.
+
+To install the above tools, ensure you are still inside your root folder and type the following commands in your terminal:
+
+**Viem (Recommended):**
+
+<CodeGroup>
+  ```shell shell
+  npm install viem
+  ```
+</CodeGroup>
+
+**Ethers.js:**
+
+<CodeGroup>
+  ```shell shell
+  npm install --save ethers
+  ```
+</CodeGroup>
+
+**Dotenv:**
+
+<CodeGroup>
+  ```shell shell
+  npm install dotenv --save
+  ```
+</CodeGroup>
+
+### Create a Dotenv File
+
+Create an `.env` file in your root folder. The file must be named `.env` or it will not be recognized.
+
+In the `.env` file, we will store all of our sensitive information (i.e., our Alchemy API key and MetaMask private key).
+
+Copy the following into your `.env` file:
+
+<CodeGroup>
+  ```text .env
+  API_URL = "https://eth-sepolia.g.alchemy.com/v2/{YOUR_ALCHEMY_API_KEY}"
+  PRIVATE_KEY = "{YOUR_PRIVATE_KEY}"
+  ```
+</CodeGroup>
+
+* Replace `{YOUR_ALCHEMY_API_KEY}` with your Alchemy API key found in your app’s dashboard, under **VIEW KEY**:
+
+![1903](https://alchemyapi-res.cloudinary.com/image/upload/v1764192941/docs/tutorials/learning-solidity/how-to-verify-a-message-signature-on-ethereum/97fa06f-Alchemy-Dashboard1_1.png "Alchemy-Dashboard1 (1).PNG")
+
+* Replace `{YOUR_PRIVATE_KEY}`with your MetaMask private key.
+
+***To retrieve your MetaMask private key:***
+
+1. Open the extension, click on the three dots menu, and choose **Account Details**.
+
+![535](https://alchemyapi-res.cloudinary.com/image/upload/v1764192942/docs/tutorials/learning-solidity/how-to-verify-a-message-signature-on-ethereum/3b47d67-Metamask.png "Metamask.png")
+
+2\. Click **Export Private Key** and enter your MetaMask password.
+
+![536](https://alchemyapi-res.cloudinary.com/image/upload/v1764192943/docs/tutorials/learning-solidity/how-to-verify-a-message-signature-on-ethereum/f2bce42-Metamask2.png "Metamask2.PNG")
+
+3\. Replace the Private Key in your `.env` file with your MetaMask Private Key.
+
+***
+
+## Verify Message Signatures
+
+The following section provides two options for verifying message signatures:
+
+* Using Viem (recommended).
+* Using Ethers.js v6.
+
+Depending on your preferred library, feel free to use the appropriate tabs.
+
+In your root folder create a file named `VerifyMsg.js` and add the following lines of code to it:
+
+<CodeGroup>
+  ```javascript Viem (Recommended)
+  import { createWalletClient, http } from 'viem'
+  import { privateKeyToAccount } from 'viem/accounts'
+  import { mainnet } from 'viem/chains'
+
+  const main = async () => {
+    require("dotenv").config();
+    const { API_URL, PRIVATE_KEY } = process.env;
+
+    // Create account from private key
+    const account = privateKeyToAccount(PRIVATE_KEY);
+
+    // Create wallet client
+    const walletClient = createWalletClient({
+      account,
+      chain: mainnet,
+      transport: http(API_URL)
+    });
+
+    console.log('Wallet address:', account.address);
+  };
+
+  main();
+  ```
+
+  ```javascript Ethers.js
+  import { JsonRpcProvider, Wallet } from "ethers";
+
+  const main = async () => {
+    require("dotenv").config();
+    const { API_URL, PRIVATE_KEY } = process.env;
+
+    // Create provider
+    const provider = new JsonRpcProvider(API_URL);
+
+    // Create wallet instance
+    const wallet = new Wallet(PRIVATE_KEY, provider);
+
+    console.log('Wallet address:', wallet.address);
+  };
+
+  main();
+  ```
+</CodeGroup>
+
+The code above creates an asynchronous function that contains the necessary variables to start using Alchemy's provider with Ethers. Below, you can see the same code with commented explanations at each step:
+
+<CodeGroup>
+  ```javascript EthersJS-VerifyMsg.js
+  const main = async () => {
+      require("dotenv").config();
+      // Imports the secret .env file where our Private Key and API are stored
+      const { API_URL, PRIVATE_KEY } = process.env;
+      // We can now use these aliases instead of using our actual keys.
+      const { ethers } = require("ethers");
+      // Importing Ethers library
+      const { hashMessage } = require("@ethersproject/hash");
+      // Importing the hashMessage function which takes a string and converts it to a hash
+      // We need this because the Ethers sign function takes a message hash
+      // Note: We do not need this when using the Web3 library because the sign function automatically converts the message into a hash
+      // Creates a new provider instance with Alchemy using Ethers.js
+      const ethersAlchemyProvider = new ethers.JsonRpcProvider(API_URL);
+    };
+    
+    main();
+  ```
+
+  ```javascript Alchemy-web3.js
+  const main = () => {
+    require("dotenv").config();
+    const { API_URL, PRIVATE_KEY } = process.env;
+    const { createAlchemyWeb3 } = require("@alch/alchemy-web3");
+    // Imports Alchemy's Web3 library
+    const web3 = createAlchemyWeb3(API_URL);
+    // creates a provider instance using our API that we may now call with the web3 const to make requests.
+    };
+  ```
+
+  ```javascript Ethers.js
+  const main = async () => {
+    require("dotenv").config();
+    const { API_URL, PRIVATE_KEY } = process.env;
+    const { ethers } = require("ethers");
+    // Importing Ethers library
+    const { hashMessage } = require("@ethersproject/hash");
+    // Importing the hashMessage function which takes a string and converts it to a hash
+    // We need this because the Ethers sign function takes a message hash 
+    const provider = new ethers.JsonRpcProvider(API_URL);
+    // Creating Ethers provider instance
+  };
+
+  main();
+  ```
+</CodeGroup>
+
+In the same function, create a message to sign and a wallet instance, then use the wallet to both:
+
+1. Sign our message with the library's `signMessage` function.
+2. Verify it with the verification utilities.
+
+The following code accomplishes the above and describes each action with commented notes:
+
+<CodeGroup>
+  ```javascript Viem (Recommended)
+  import { createWalletClient, http } from 'viem'
+  import { privateKeyToAccount } from 'viem/accounts'
+  import { mainnet } from 'viem/chains'
+  import { verifyMessage } from 'viem'
+
+  const main = async () => {
+    require("dotenv").config();
+    const { API_URL, PRIVATE_KEY } = process.env;
+
+    // Create account from private key
+    const account = privateKeyToAccount(PRIVATE_KEY);
+
+    // Create wallet client
+    const walletClient = createWalletClient({
+      account,
+      chain: mainnet,
+      transport: http(API_URL)
+    });
+
+    const message = "Let's verify the signature of this message!";
+    console.log('Wallet address:', account.address);
+
+    // Sign the message
+    const signature = await walletClient.signMessage({
+      account,
+      message
+    });
+
+    // Verify the signature
+    const isValid = await verifyMessage({
+      address: account.address,
+      message,
+      signature
+    });
+
+    console.log('Signature:', signature);
+    console.log('Is valid signature:', isValid);
+  };
+
+  main();
+  ```
+
+  ```javascript Ethers.js
+  import { JsonRpcProvider, Wallet } from "ethers";
+  import { verifyMessage } from "ethers";
+
+  const main = async () => {
+    require("dotenv").config();
+    const { API_URL, PRIVATE_KEY } = process.env;
+
+    // Create provider
+    const provider = new JsonRpcProvider(API_URL);
+
+    // Create wallet instance
+    const wallet = new Wallet(PRIVATE_KEY, provider);
+
+    const message = "Let's verify the signature of this message!";
+    console.log('Wallet address:', wallet.address);
+
+    // Sign the message
+    const signature = await wallet.signMessage(message);
+
+    // Verify the signature by recovering the address
+    const recoveredAddress = verifyMessage(message, signature);
+
+    console.log('Signature:', signature);
+    console.log('Recovered address:', recoveredAddress);
+    console.log('Matches wallet:', recoveredAddress === wallet.address);
+  };
+
+  main();
+  ```
+</CodeGroup>
+
+<Info>
+  When using web3.js you can alternatively use the following to verify a message signature:
+</Info>
+
+<CodeGroup>
+  ```javascript Web3.js Sign Alternative
+  const messageSigner = web3.eth.accounts.recover(message, signMessage.v, signMessage.r, signMessage.s);
+  ```
+</CodeGroup>
+
+Great! Now, we should add tests to check whether our message was signed and verified correctly.
+
+The following code is the entire script with the checks:
+
+<CodeGroup>
+  ```javascript Viem (Recommended)
+  import { createWalletClient, http } from 'viem'
+  import { privateKeyToAccount } from 'viem/accounts'
+  import { mainnet } from 'viem/chains'
+  import { verifyMessage } from 'viem'
+
+  const main = async () => {
+    require("dotenv").config();
+    const { API_URL, PRIVATE_KEY } = process.env;
+
+    try {
+      // Create account from private key
+      const account = privateKeyToAccount(PRIVATE_KEY);
+
+      // Create wallet client
+      const walletClient = createWalletClient({
+        account,
+        chain: mainnet,
+        transport: http(API_URL)
+      });
+
+      const message = "Let's verify the signature of this message!";
+
+      // Sign the message
+      const signature = await walletClient.signMessage({
+        account,
+        message
+      });
+
+      // Verify the signature
+      const isValid = await verifyMessage({
+        address: account.address,
+        message,
+        signature
+      });
+
+      console.log("Success! The message: " + message + " was signed with the signature: " + signature);
+      console.log("The signer was: " + account.address);
+      console.log("Signature verification result: " + (isValid ? "Valid" : "Invalid"));
+
+    } catch (err) {
+      console.log("Something went wrong while verifying your message signature: " + err);
+    }
+  };
+
+  main();
+  ```
+
+  ```javascript Ethers.js
+  import { JsonRpcProvider, Wallet } from "ethers";
+  import { verifyMessage } from "ethers";
+
+  const main = async () => {
+    require("dotenv").config();
+    const { API_URL, PRIVATE_KEY } = process.env;
+
+    try {
+      // Create provider
+      const provider = new JsonRpcProvider(API_URL);
+
+      // Create wallet instance
+      const wallet = new Wallet(PRIVATE_KEY, provider);
+
+      const message = "Let's verify the signature of this message!";
+
+      // Sign the message
+      const signature = await wallet.signMessage(message);
+
+      // Verify the signature by recovering the address
+      const recoveredAddress = verifyMessage(message, signature);
+
+      console.log("Success! The message: " + message + " was signed with the signature: " + signature);
+      console.log("The signer was: " + wallet.address);
+      console.log("Recovered address: " + recoveredAddress);
+      console.log("Verification result: " + (recoveredAddress === wallet.address ? "Valid" : "Invalid"));
+
+    } catch (err) {
+      console.log("Something went wrong while verifying your message signature: " + err);
+    }
+  };
+
+  main();
+  ```
+</CodeGroup>
+
+To use your script, type the following command in your terminal:
+
+<CodeGroup>
+  ```shell shell
+  node VerifyMsg.js
+  ```
+</CodeGroup>
+
+If successful, the message signature hash and signer address should return something like the following:
+
+<CodeGroup>
+  ```shell shell
+  Success! The message: Let's verify the signature of this message! was signed with the signature: 0x16a08da8a50dc4ec2abf080528440821fc749323c69b6d38d88b8dedc03961772a7da6a2c74fcbde325085e552fcb197673e2a4741189bd6f9d9e1d07236c37c1b
+  The signer was: 0x5DAAC14781a5C4AF2B0673467364Cba46Da935dB
+  Signature verification result: Valid
+  ```
+</CodeGroup>
+
+Awesome! You successfully signed a message and verified its signature!
+
+You now know how to verify message signatures using Viem and Ethers.js. Check out part two to learn how to create a signature generator DApp and verify signatures using MetaMask!

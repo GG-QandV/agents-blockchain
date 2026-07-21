@@ -1,0 +1,374 @@
+# How to Subscribe to Mined Transactions via WebSocket Endpoints
+
+> Source: [https://www.alchemy.com/docs/how-to-subscribe-to-pending-transactions-via-websocket-endpoints.md](https://www.alchemy.com/docs/how-to-subscribe-to-pending-transactions-via-websocket-endpoints.md)
+
+# How to Subscribe to Mined Transactions via WebSocket Endpoints
+
+> Learn how to subscribe to mined transactions via WebSockets, and view the full transactions objects or hashes mined on the network based on specified filters and block tags.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+<Info>
+  This tutorial uses the **[alchemy\_minedTransactions](/docs/reference/alchemy-minedtransactions)** subscription endpoint.
+</Info>
+
+Alchemy provides the most effective method to subscribe to mined transactions, log events, and new blocks using WebSockets on Ethereum, Polygon, Arbitrum, and Optimism. You can access direct subscription types by connecting to WebSocket endpoints using modern Web3 libraries.
+
+In this tutorial, we will test and create a sample project using the [`alchemy_minedTransactions`](/docs/reference/alchemy-minedtransactions) method with Viem and Ethers.js.
+
+**What relevance does the `alchemy_minedTransactions` provide to users?**
+
+* Tracking transactions being mined and notify users via SMS - [Alchemy Notify API](/docs/reference/notify-api-quickstart)
+* Display all transactions within the Ethereum network on a rolling basis
+
+**How does `alchemy_minedTransactions` compare to `[alchemy_pendingTransactions](ref:alchemy-pendingTransactions)`?** Although both these Subscription API endpoints emit full transaction objects or hashes and filter based on specified parameters, they serve two different objectives. The `alchemy_minedTransactions` returns entire transactions that are **mined** on the network whereas `alchemy_pendingTransactions` returns transactions that are **sent** to the network and marked as **pending**.
+
+Developers can enhance the requests with specific parameters including:
+
+* `addresses`(optional): Singular address or array of addresses **to** receive pending transactions sent from this address.
+* `includeRemoved`(optional): Singular address or array of addresses **from** receive pending transactions sent from this address.
+* `hashesOnly`(optional - default set to `false`): The response matches the payload of [eth\_getTransactionByHash](/docs/reference/eth-gettransactionbyhash). This is information about a transaction by the transaction hash including `blockHash`, `blockNumber` and `transactionIndex`. If set to `true`, the payload will return only the hashes of the mined transactions. For a lighter-weight starting point, keep this set to `true` unless you need full transaction objects immediately.
+
+## Step 0: Configure your developer environment
+
+1\. Install [Node.js ](https://nodejs.org/en/)(> 14) on your local machine
+
+2\. Install [npm](https://www.npmjs.com/) on your local machine
+
+3\. Install [wscat](https://www.npmjs.com/package/wscat) on your local machine
+
+To check your Node version, run the following command in your terminal:
+
+<CodeGroup>
+  ```bash bash
+  node -v
+  ```
+</CodeGroup>
+
+4\. [Create a free Alchemy account](https://dashboard.alchemy.com/signup)
+
+## Step 1: Open your Alchemy App
+
+Once your Alchemy account is created, there will also be a default app that is also created.
+
+To create another Alchemy app, check out [this video](https://www.youtube.com/watch?time_continue=1\&v=tfggWxfG9o0\&feature=emb_logo).
+
+## Step 2: Get WebSocket URL from Alchemy App
+
+Once you have created your app, get your WebSocket URL that we will use later in this tutorial.
+
+1. Click on your app's **View Key** button in the dashboard
+2. Copy and save the **WebSocket URL**
+
+## Step 3: Output Mined Transactions Using wscat
+
+**Wscat** is a terminal or shell tool used to connect to the WebSockets server. Each Alchemy application will provide a WebSocket URL that can be used directly with the wscat command.
+
+1. Initiate the WebSocket stream
+2. Enter the specific call command
+
+The following example will use the `demo` key, but should be replaced with your key from Step 2.
+
+From your terminal, run the following commands:
+
+<CodeGroup>
+  ```shell wscat
+  // initiate websocket stream first and replace demo with your key
+  wscat -c wss://eth-mainnet.g.alchemy.com/v2/demo 
+
+  // to and from filters, hashesOnly = true
+  {"jsonrpc": "2.0", "method": "eth_subscribe","params": ["alchemy_minedTransactions", {"addresses": [{"to": "0x9f3ce0ad29b767d809642a53c2bccc9a130659d7", "from": "0x228f108fd09450d083bb33fe0cc50ae449bc7e11"}, {"to": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"}],"includeRemoved": false,  "hashesOnly": true}],"id": 1}
+  ```
+</CodeGroup>
+
+If successful, you should see output that looks something like this:
+
+<CodeGroup>
+  ```json Results
+  {"id":1,"result":"0xf13f7073ddef66a8c1b0c9c9f0e543c3","jsonrpc":"2.0"}
+
+  {
+    "jsonrpc": "2.0",
+    "method": "eth_subscription",
+    "params": {
+      "result": {
+              "removed": false
+              "transaction": {
+                  "hash":"0xa8f2cf69e302da6c8100b80298ed77c37b6e75eed1177ca22acd5772c9fb9876",
+              }
+      },
+      "subscription": "0xf13f7073ddef66a8c1b0c9c9f0e543c3"
+    }
+  }
+  ```
+</CodeGroup>
+
+By using **wscat**, you are able to verify the transaction immediately via the computer's terminal or shell.
+
+## Step 4: Create a Node project
+
+Let's create an empty repository and install the necessary dependencies for WebSocket connections. We can use either Viem or Ethers.js to manage WebSocket subscriptions.
+
+From your terminal, run the following commands:
+
+<CodeGroup>
+  ```shell Viem
+  mkdir mined-transactions && cd mined-transactions
+  npm init -y
+  npm install viem
+  touch main.js
+  ```
+
+  ```shell Ethers.js
+  mkdir mined-transactions && cd mined-transactions
+  npm init -y
+  npm install ethers
+  touch main.js
+  ```
+</CodeGroup>
+
+This will create a repository named `mined-transactions` that holds all the files and dependencies we need.
+
+Open this repo in your preferred code editor, where we'll write our code in the `main.js` file.
+
+## Step 5: Output Mined Transactions using WebSocket libraries
+
+Next, we'll demonstrate how to use Viem or Ethers.js to subscribe to mined transactions.
+
+To make requests using Alchemy's minedTransactions API, we recommend reviewing the [alchemy\_minedTransactions docs](/docs/reference/alchemy-minedtransactions).
+
+Next, add the following code to the `main.js` file, using your Alchemy API key:
+
+<CodeGroup>
+  ```javascript Viem
+  import { createPublicClient, webSocket } from 'viem'
+  import { mainnet } from 'viem/chains'
+
+  const client = createPublicClient({
+    chain: mainnet,
+    transport: webSocket('wss://eth-mainnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->')
+  })
+
+  // Subscribe to new blocks to get mined transactions
+  const unsubscribe = client.watchBlocks({
+    onBlock: async (block) => {
+      console.log('New block:', block.number)
+
+      // Get all transactions in the block
+      const blockWithTxs = await client.getBlock({
+        blockNumber: block.number,
+        includeTransactions: true
+      })
+
+      console.log(`Block ${block.number} has ${blockWithTxs.transactions.length} transactions`)
+      blockWithTxs.transactions.forEach((tx, index) => {
+        if (index < 3) { // Show first 3 transactions for brevity
+          console.log('Mined transaction:', tx.hash)
+        }
+      })
+    }
+  })
+
+  console.log('Listening for mined transactions...')
+  ```
+
+  ```javascript Ethers.js
+  import { WebSocketProvider } from 'ethers'
+
+  const provider = new WebSocketProvider('wss://eth-mainnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->')
+
+  // Listen for new blocks to get mined transactions
+  provider.on('block', async (blockNumber) => {
+    try {
+      const block = await provider.getBlock(blockNumber, true) // true = include transactions
+
+      if (block && block.transactions) {
+        console.log(`Block ${blockNumber} has ${block.transactions.length} transactions`)
+
+        // Show first 3 transactions for brevity
+        block.transactions.slice(0, 3).forEach((tx) => {
+          console.log('Mined transaction:', {
+            hash: tx.hash,
+            from: tx.from,
+            to: tx.to,
+            value: tx.value?.toString()
+          })
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching block:', error)
+    }
+  })
+
+  console.log('Listening for mined transactions...')
+  ```
+</CodeGroup>
+
+Run this script by running the following command in your terminal:
+
+`node main.js`
+
+It should look something like this:
+
+<Warning>
+  If successful, you should see a stream of transactions as the result. This stream of output indicates the **all transactions** that are mined on the Ethereum Mainnet.
+</Warning>
+
+<CodeGroup>
+  ```json Results
+  {
+    removed: false,
+    transaction: {
+      blockHash: '0x1a6adfef39de127f52cd451af2352a97c06cccdd6afe3a30bfa26c45165de74d',
+      blockNumber: '0xf25e13',
+      from: '0x30d762b88f9e4cd6aca5ee47da31538d3d02ebae',
+      gas: '0x5208',
+      gasPrice: '0x4486199b4',
+      hash: '0x2a35069462e8ff5ae44579cce690116b0520e2c190fa75a452b50190bfec862c',
+      input: '0x',
+      nonce: '0x4',
+      to: '0x974caa59e49682cda0ad2bbe82983419a2ecc400',
+      transactionIndex: '0xae',
+      value: '0x32e997e5e977820',
+      type: '0x0',
+      chainId: '0x1',
+      v: '0x25',
+      r: '0x89b952803c6e94e4caaaaa3c82d426d40fdc5471019a9ff550fc006a546a8537',
+      s: '0x1d5180386250c53f7073a06d2dd02790a410e03cf1d8184cc861456bdefb2325'
+    }
+  }
+  {
+    removed: false,
+    transaction: {
+      blockHash: '0x1a6adfef39de127f52cd451af2352a97c06cccdd6afe3a30bfa26c45165de74d',
+      blockNumber: '0xf25e13',
+      from: '0xaccbbf7a2189a56c0dfd10bb37d8316d300dbcd4',
+      gas: '0x15f90',
+      gasPrice: '0x4486199b4',
+      maxFeePerGas: '0x4486199b4',
+      maxPriorityFeePerGas: '0x4486199b4',
+      hash: '0x1c22aee60a6121ce29073a1771155216ccee54962cb235c0ec8d71b6449dd708',
+      input: '0x2d2da806000000000000000000000000accbbf7a2189a56c0dfd10bb37d8316d300dbcd4',
+      nonce: '0x4',
+      to: '0xabea9132b05a70803a4e85094fd0e1800777fbef',
+      transactionIndex: '0xaf',
+      value: '0x38866cac3c00',
+      type: '0x2',
+      accessList: [],
+      chainId: '0x1',
+      v: '0x1',
+      r: '0x7a7a294c5844a2b16f8b2cd5ddc3b748e3ab89215f6974f82910d95d5707b47a',
+      s: '0x79f17cec79d3a66b89780345831408288c9a2c535548c5df35fd9df0692ab5a3'
+    }
+  }
+  ```
+</CodeGroup>
+
+## Step 6: Filter Mined Transactions
+
+Next, we'll demonstrate how to filter mined transactions based on addresses. While standard WebSocket subscriptions don't offer built-in filtering, we can implement filtering logic in our application.
+
+<Warning>
+  Note: The Alchemy-enhanced `alchemy_minedTransactions` API provides native filtering by addresses, `includeRemoved`, and `hashesOnly`. For standard WebSocket subscriptions, we need to implement filtering manually as shown below.
+</Warning>
+
+Add the following code to the `main.js` file, using your Alchemy API key:
+
+<CodeGroup>
+  ```javascript Viem with Filtering
+  import { createPublicClient, webSocket } from 'viem'
+  import { mainnet } from 'viem/chains'
+
+  const client = createPublicClient({
+    chain: mainnet,
+    transport: webSocket('wss://eth-mainnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->')
+  })
+
+  // Address to filter for
+  const targetAddress = "0x473780deaf4a2ac070bbba936b0cdefe7f267dfc"
+
+  // Subscribe to new blocks and filter transactions
+  const unsubscribe = client.watchBlocks({
+    onBlock: async (block) => {
+      try {
+        const blockWithTxs = await client.getBlock({
+          blockNumber: block.number,
+          includeTransactions: true
+        })
+
+        // Filter transactions by from/to address
+        const filteredTxs = blockWithTxs.transactions.filter(tx =>
+          tx.from?.toLowerCase() === targetAddress.toLowerCase() ||
+          tx.to?.toLowerCase() === targetAddress.toLowerCase()
+        )
+
+        if (filteredTxs.length > 0) {
+          console.log(`Block ${block.number}: Found ${filteredTxs.length} filtered transactions`)
+          filteredTxs.forEach(tx => {
+            console.log('Filtered mined transaction:', {
+              hash: tx.hash,
+              from: tx.from,
+              to: tx.to,
+              value: tx.value?.toString()
+            })
+          })
+        }
+      } catch (error) {
+        console.error('Error processing block:', error)
+      }
+    }
+  })
+
+  console.log(`Listening for mined transactions involving ${targetAddress}...`)
+  ```
+
+  ```javascript Ethers.js with Filtering
+  import { WebSocketProvider } from 'ethers'
+
+  const provider = new WebSocketProvider('wss://eth-mainnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->')
+
+  // Address to filter for
+  const targetAddress = "0x473780deaf4a2ac070bbba936b0cdefe7f267dfc"
+
+  // Listen for new blocks and filter transactions
+  provider.on('block', async (blockNumber) => {
+    try {
+      const block = await provider.getBlock(blockNumber, true)
+
+      if (block && block.transactions) {
+        // Filter transactions by from/to address
+        const filteredTxs = block.transactions.filter(tx =>
+          tx.from?.toLowerCase() === targetAddress.toLowerCase() ||
+          tx.to?.toLowerCase() === targetAddress.toLowerCase()
+        )
+
+        if (filteredTxs.length > 0) {
+          console.log(`Block ${blockNumber}: Found ${filteredTxs.length} filtered transactions`)
+          filteredTxs.forEach(tx => {
+            console.log('Filtered mined transaction:', {
+              hash: tx.hash,
+              from: tx.from,
+              to: tx.to,
+              value: tx.value?.toString()
+            })
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error processing block:', error)
+    }
+  })
+
+  console.log(`Listening for mined transactions involving ${targetAddress}...`)
+  ```
+</CodeGroup>
+
+# Conclusion
+
+You now know how to use WebSocket connections with Viem and Ethers.js to [subscribe to mined transactions](/docs/reference/alchemy-minedtransactions) and filter them based on addresses.
+
+For more advanced filtering capabilities, consider using Alchemy's enhanced `alchemy_minedTransactions` API which provides native filtering by addresses, `includeRemoved`, and `hashesOnly` parameters.
+
+If you enjoyed this tutorial, tweet us at **@Alchemy**.
+
+If you have any questions or feedback, please contact us at support@alchemy.com or open a ticket in the dashboard.

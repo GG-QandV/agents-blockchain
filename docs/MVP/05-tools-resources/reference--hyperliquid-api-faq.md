@@ -1,0 +1,58 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Hyperevm API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/hyperliquid-api-faq.md](https://www.alchemy.com/docs/reference/hyperliquid-api-faq.md)
+
+# Hyperevm API FAQ
+
+> Frequently asked questions about the Hyperevm API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is HyperEVM?
+
+HyperEVM is a high-performance, Ethereum-compatible execution layer developed by HyperLiquid that enables smart contracts to run natively alongside its decentralized trading engine, combining low-latency performance with full EVM compatibility.
+
+## How do I get started with HyperEVM?
+
+Check out our [HyperEVM API Quickstart guide](/docs/reference/hyperliquid-api-quickstart) to get started building on HyperEVM.
+
+## What is the HyperEVM API?
+
+The HyperEVM API lets you interface with the HyperEVM mainnet. You can execute transactions, query onchain data, and interact with the HyperEVM network using the JSON-RPC standard.
+
+## Is HyperEVM EVM compatible?
+
+Yes, HyperEVM is EVM compatible.
+
+## What API does HyperEVM use?
+
+HyperEVM uses the JSON-RPC API standard. This API handles all blockchain interaction on the HyperEVM network, letting you read block/transaction data, query chain information, execute smart contracts, and store data onchain.
+
+## What is a HyperEVM API key?
+
+When you access the HyperEVM network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network.
+
+For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup)!
+
+## Which libraries support HyperEVM?
+
+Common Ethereum libraries like [ethers.js](https://docs.ethers.org/v5/) and [web3.js](https://web3js.readthedocs.io/en/v1.8.2/) should be compatible with HyperEVM, given its EVM nature.
+
+## What programming languages work with HyperEVM?
+
+Languages that work with Ethereum, such as JavaScript, Solidity, TypeScript, and Shell, should also be compatible with HyperEVM. Solidity remains the primary choice for smart contract development, while JavaScript is ideal for offchain interactions.
+
+## What does HyperEVM use for gas?
+
+The native currency of the HyperEVM blockchain is HYPE. It serves as the primary gas token for transactions and smart contract executions within the Hyperliquid ecosystem.
+
+## What methods does Alchemy support for the HyperEVM API?
+
+You can find the list of all the methods Alchemy supports for the HyperEVM API on the [HyperEVM API Endpoints](/docs/chains#hyperliquid-apis) page.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

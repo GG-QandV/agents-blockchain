@@ -1,0 +1,58 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Avalanche C-Chain API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/avalanche-api-faq.md](https://www.alchemy.com/docs/reference/avalanche-api-faq.md)
+
+# Avalanche C-Chain API FAQ
+
+> Frequently asked questions about the Avalanche Chain
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Avalanche?
+
+Avalanche is a high-performance blockchain platform designed to enable decentralized applications (dApps) and custom blockchain networks. It aims to deliver scalable and efficient transactions with a focus on speed, low costs, and environmental sustainability.
+
+## What is the Avalanche API?
+
+The Avalanche API facilitates interaction with the Avalanche network through a collection of JSON-RPC methods. It provides developers with tools to interact with the blockchain, enabling functionalities such as transactions, smart contract deployment, and data retrieval.
+
+## How can I get started using the Avalanche API?
+
+Explained in [Avalanche Chain API Quickstart](/docs/reference/avalanche-api-quickstart).
+
+## Is Avalanche EVM compatible?
+
+Yes, Avalanche is fully compatible with the Ethereum Virtual Machine (EVM). This compatibility allows Ethereum developers to port their projects to Avalanche with minimal changes, taking advantage of the chain's high throughput and low transaction fees.
+
+## What API does Avalanche use?
+
+Avalanche uses the JSON-RPC API standard for blockchain interactions. This is the same standard used by Ethereum.
+
+## What is an Avalanche API key?
+
+When accessing the Avalanche network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network.
+
+For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup)!
+
+## Which libraries support Avalanche?
+
+Given Avalanche's EVM compatibility, popular Ethereum libraries like ethers.js and web3.js are fully compatible with Avalanche. This allows for seamless development and integration for those familiar with Ethereum's development ecosystem.
+
+## What programming languages work with Avalanche?
+
+Similar to Ethereum, Avalanche supports a range of programming languages for blockchain interaction and smart contract development, including Solidity for smart contracts, as well as JavaScript and TypeScript for dApp development and offchain interactions.
+
+## What does Avalanche use for gas?
+
+Avalanche uses AVAX, its native cryptocurrency, for transaction fees, gas, and other network activities.
+
+## What methods does Alchemy support for the Avalanche API?
+
+You can find the list of all the methods Alchemy supports for the Avalanche API on the [Avalanche API Endpoints](/docs/chains#avalanche-apis) page.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, please contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

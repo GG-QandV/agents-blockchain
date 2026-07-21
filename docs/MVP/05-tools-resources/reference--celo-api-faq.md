@@ -1,0 +1,61 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Celo Chain API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/celo-api-faq.md](https://www.alchemy.com/docs/reference/celo-api-faq.md)
+
+# Celo Chain API FAQ
+
+> Frequently asked questions about the Celo Chain API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Celo Chain?
+
+Celo Chain is a mobile-first blockchain platform designed to provide accessible financial services to anyone with a mobile phone. It focuses on enabling fast, low-cost transactions and aims to create a decentralized financial system that benefits users and developers alike.
+
+## What is the Celo Chain API?
+
+The Celo Chain API lets you interact with the Celo Chain network through a collection of JSON-RPC methods. It provides tools, including the Celo Sepolia testnet, to interact with the blockchain, enabling transactions, smart contract deployment, and data retrieval.
+
+## How can I get started using the Celo Chain API?
+
+Explained in [Celo Chain API Quickstart](/docs/reference/celo-chain-api-quickstart).
+
+## Is Celo Chain EVM compatible?
+
+Yes, Celo Chain is fully compatible with the Ethereum Virtual Machine (EVM). This compatibility lets you port your Ethereum projects to Celo Chain with minimal changes, benefiting from the chain's mobile-first approach and low transaction fees.
+
+## What API does Celo Chain use?
+
+Celo Chain uses the JSON-RPC API standard for blockchain interactions. This is the same standard used by Ethereum.
+
+## What is a Celo Chain API key?
+
+When accessing the Celo Chain network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network.
+
+For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup).
+
+## What testnet should I use for Celo?
+Use the Celo Sepolia testnet for Celo. This testnet provides an environment to deploy and test applications. You can obtain tokens from the [Celo Sepolia Faucet](https://faucet.celo.org/celo-sepolia).
+
+## Which libraries support Celo Chain?
+
+Given Celo Chain's EVM compatibility, popular Ethereum libraries like ethers.js and web3.js are fully compatible with Celo Chain. You can develop and integrate seamlessly if you're familiar with Ethereum's development ecosystem.
+
+## What programming languages work with Celo Chain?
+
+Similar to Ethereum, Celo Chain supports a range of programming languages for blockchain interaction and smart contract development, including Solidity for smart contracts, as well as JavaScript and TypeScript for dApp development and offchain interactions.
+
+## What does Celo Chain use for gas?
+
+Celo Chain uses CELO, its native cryptocurrency, for transaction fees, gas, and other network activities.
+
+## What methods does Alchemy support for the Celo Chain API?
+
+You can find the list of all the methods Alchemy supports for the Celo Chain API on the [Celo API Endpoints](/docs/chains#celo-apis) page.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

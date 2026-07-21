@@ -1,0 +1,38 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Humanity API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/humanity-api-faq.md](https://www.alchemy.com/docs/reference/humanity-api-faq.md)
+
+# Humanity API FAQ
+
+> Frequently asked questions about the Humanity API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Humanity?
+Humanity Protocol is a zkEVM Layer-2 for decentralized identity that uses palm-biometric Proof-of-Humanity and zero-knowledge proofs to issue privacy-preserving, Sybil-resistant credentials.
+
+## How do I get started with Humanity?
+Check out our [Humanity API Quickstart guide](/docs/reference/humanity-api-quickstart) to get started building on Humanity.
+
+## What is the Humanity API?
+The Humanity API lets you interface with the Humanity mainnet. You can execute transactions, query onchain data, and interact with the Humanity network using the JSON-RPC standard.
+
+## Is Humanity EVM compatible?
+Yes, Humanity is EVM compatible.
+
+## What API does Humanity use?
+Humanity uses the JSON-RPC API standard. This API handles all blockchain interaction on the Humanity network, letting you read block/transaction data, query chain information, execute smart contracts, and store data onchain.
+
+## What methods are supported on Humanity?
+Humanity supports standard Ethereum JSON-RPC methods. Some chain-specific methods may vary. Please check the [Humanity API Endpoints](/docs/chains#humanity-apis) for a complete list.
+
+## What is a Humanity API key?
+When you access the Humanity network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network. For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup)!
+
+## Which libraries support Humanity?
+Common Ethereum libraries like [ethers.js](https://docs.ethers.org/v5/) should be compatible with Humanity, given its EVM nature.
+
+> 📄 **This content also appears in [ADI API FAQ](05-tools-resources/reference--adi-api-faq.md)** — see there for full details.

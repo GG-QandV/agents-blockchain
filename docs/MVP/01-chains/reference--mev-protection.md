@@ -1,0 +1,47 @@
+# MEV Protection
+
+> Source: [https://www.alchemy.com/docs/reference/mev-protection.md](https://www.alchemy.com/docs/reference/mev-protection.md)
+
+# MEV Protection
+
+> Alchemy's RPC endpoints now come with built-in MEV protection on supported chains
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+Alchemy's RPC endpoints now come with built-in MEV protection on supported chains. This feature helps prevent frontrunning, sandwich attacks, and other forms of transaction manipulation with no additional code changes or tooling required.
+
+## Why it matters
+
+By default, most blockchain transactions are broadcast to the public mempool. This exposes them to MEV (Maximal Extractable Value) risks, where bots insert transactions to extract profit at the user’s expense.
+
+MEV protection mitigates this risk by routing transactions through private infrastructure. This improves transaction privacy, protects ordering, and reduces block inclusion time.
+
+## How MEV protection works
+
+Transactions sent through Alchemy’s MEV-protected RPC endpoints are:
+
+* Routed through private mempools — not broadcast publicly.  
+* Hidden until block inclusion — keeping sensitive trade details private.  
+* Ordered fairly — processed in the original sequence without manipulation.
+* Shielded from frontrunning and sandwiching — keeping transaction intent intact.
+
+This protection is powered through trusted Order Flow Auction (OFA) partners like Merkle and Blink.
+
+## Supported networks
+
+MEV protection is automatically enabled on:
+
+* [Ethereum](/docs/reference/ethereum-api-endpoints)
+* [Arbitrum](/docs/reference/arbitrum-api-endpoints)
+* [BNB Smart Chain (BSC)](/docs/reference/bnb-smart-chain-api-quickstart)
+* [Base](/docs/reference/base-api-quickstart)
+* [Solana](/docs/reference/solana-api-endpoints)
+
+No configuration changes are required. Just send transactions to the standard RPC endpoint.
+
+## Key benefits
+
+✅ Automatically protects transactions from MEV\
+✅ Faster block inclusion through private routing\
+✅ No changes required in your dApp logic\
+✅ Included at no additional cost

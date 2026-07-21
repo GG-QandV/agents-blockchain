@@ -1,0 +1,75 @@
+# Create an Alchemy API key
+
+> Source: [https://www.alchemy.com/docs/create-an-api-key.md](https://www.alchemy.com/docs/create-an-api-key.md)
+
+# Create an Alchemy API key
+
+> Create an app in the Alchemy Dashboard and copy its API key.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+This guide shows you how to create an app in the Alchemy Dashboard, copy its
+API key, and find the endpoint URLs you will use in requests.
+
+<Note>
+  If you recently created your Alchemy account, you already have a default app and
+  API key. Use that unless you need a separate app for a new project or
+  environment.
+</Note>
+
+## Prerequisites
+
+* An [Alchemy account](https://dashboard.alchemy.com/signup)
+
+<Steps>
+  <Step title="Open Team Overview">
+    Sign in to the [Alchemy Dashboard](https://dashboard.alchemy.com/) and open
+    **Team Overview** from your team menu.
+
+    ![](https://alchemyapi-res.cloudinary.com/image/upload/v1758730581/navigate-overview_fwgrbb.png)
+  </Step>
+
+  <Step title="Create a new app">
+    Open the **Apps** tab, then select **Create new app**.
+
+    ![](https://alchemyapi-res.cloudinary.com/image/upload/v1758730226/create-new-app_fiqujs.png)
+  </Step>
+
+  <Step title="Choose your app settings">
+    Add an app name, an optional description, and the chains you want this app
+    to support. Then choose the services you want enabled and select
+    **Create App**.
+
+    ![](https://alchemyapi-res.cloudinary.com/image/upload/v1758730227/Screenshot_2025-09-24_at_11.48.08_AM_cyn4tx.png)
+
+    ![](https://alchemyapi-res.cloudinary.com/image/upload/v1758730226/Screenshot_2025-09-24_at_11.52.11_AM_xdtahy.png)
+
+    ![](https://alchemyapi-res.cloudinary.com/image/upload/v1758730227/Screenshot_2025-09-24_at_11.51.22_AM_lx3qcu.png)
+  </Step>
+
+  <Step title="Copy your API key">
+    After the app is created, you will land on the app details page. Copy the
+    API key shown in the top-right corner.
+
+    ![](https://alchemyapi-res.cloudinary.com/image/upload/v1758730225/get-api-key_bn8zua.png)
+  </Step>
+
+  <Step title="Find your endpoint URLs">
+    Open the **Endpoints** tab to view the HTTP and WebSocket URLs for the
+    chains enabled on this app.
+
+    ![](https://alchemyapi-res.cloudinary.com/image/upload/v1758730224/endpoints_gjlfrb.png)
+  </Step>
+</Steps>
+
+## Verify it works
+
+You are done when both of these are true:
+
+* You can see an API key on the app details page
+* You can see at least one HTTP or WebSocket endpoint URL in the **Endpoints** tab
+
+## Next steps
+
+* [Make your first request](/docs/make-your-first-request)
+* [Use API keys in HTTP headers](/docs/how-to-use-api-keys-in-http-headers)

@@ -1,10 +1,10 @@
-//! M6 mu-runtime — оркестратор конвейера.
+//! M6 mu-runtime — pipeline orchestrator.
 //!
-//! RISK-M6-1: типовое принуждение «WAL до денег» — connector.execute доступен только
-//!   через exec_after_wal(WalWritten, ...), а WalWritten порождается ТОЛЬКО write_wal().
-//! RISK-M6-2: commit ⇐ Settled-консенсус; rollback ⇐ доказанный неуход (RollbackCause без Unknown).
-//! RISK-M6-3: сериализация — обработка по одному intent (метод process — &mut self).
-//! RISK-M6-5: Unknown/таймаут → ReconcilePending, резерв ДЕРЖИТСЯ (Pending остаётся в логе).
+//! RISK-M6-1: type-level enforcement "WAL before money" — connector.execute is accessible only
+//!   through exec_after_wal(WalWritten, ...), and WalWritten is produced ONLY by write_wal().
+//! RISK-M6-2: commit ⇐ Settled-consensus; rollback ⇐ proven non-delivery (RollbackCause without Unknown).
+//! RISK-M6-3: serialization — one intent at a time (method process — &mut self).
+//! RISK-M6-5: Unknown/timeout → ReconcilePending, reserve is HELD (Pending remains in log).
 #![forbid(unsafe_code)]
 
 pub mod policy;

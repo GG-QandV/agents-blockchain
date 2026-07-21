@@ -1,0 +1,45 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-overview](../00-consolidated/api-overview.md).
+> Below is the original chain-specific version.
+
+# ADI API Overview
+
+> Source: [https://www.alchemy.com/docs/adi/adi-api-overview.md](https://www.alchemy.com/docs/adi/adi-api-overview.md)
+
+# ADI API Overview
+
+> Overview of available ADI API methods
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## ADI APIs
+
+📙 Get started with our [ADI API Quickstart Guide](/docs/reference/adi-api-quickstart).
+
+|                                                                                                 |                                                                                             |
+| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| [`eth_accounts`](/docs/chains/adi/adi-api-endpoints/eth-accounts)                               | [`eth_blockNumber`](/docs/chains/adi/adi-api-endpoints/eth-block-number)                    |
+| [`eth_call`](/docs/chains/adi/adi-api-endpoints/eth-call)                                       | [`eth_chainId`](/docs/chains/adi/adi-api-endpoints/eth-chain-id)                            |
+| [`eth_estimateGas`](/docs/chains/adi/adi-api-endpoints/eth-estimate-gas)                        | [`eth_feeHistory`](/docs/chains/adi/adi-api-endpoints/eth-fee-history)                      |
+| [`eth_gasPrice`](/docs/chains/adi/adi-api-endpoints/eth-gas-price)                              | [`eth_getAccount`](/docs/chains/adi/adi-api-endpoints/eth-get-account)                      |
+| [`eth_getBalance`](/docs/chains/adi/adi-api-endpoints/eth-get-balance)                          | [`eth_getBlockByHash`](/docs/chains/adi/adi-api-endpoints/eth-get-block-by-hash)            |
+| [`eth_getBlockByNumber`](/docs/chains/adi/adi-api-endpoints/eth-get-block-by-number)            | [`eth_getBlockTransactionCountByHash`](/docs/chains/adi/adi-api-endpoints/eth-get-block-transaction-count-by-hash) |
+| [`eth_getBlockTransactionCountByNumber`](/docs/chains/adi/adi-api-endpoints/eth-get-block-transaction-count-by-number) | [`eth_getCode`](/docs/chains/adi/adi-api-endpoints/eth-get-code)                            |
+| [`eth_getFilterChanges`](/docs/chains/adi/adi-api-endpoints/eth-get-filter-changes)             | [`eth_getFilterLogs`](/docs/chains/adi/adi-api-endpoints/eth-get-filter-logs)               |
+| [`eth_getLogs`](/docs/chains/adi/adi-api-endpoints/eth-get-logs)                                | [`eth_getRawTransactionByHash`](/docs/chains/adi/adi-api-endpoints/eth-get-raw-transaction-by-hash) |
+| [`eth_getStorageAt`](/docs/chains/adi/adi-api-endpoints/eth-get-storage-at)                     | [`eth_getTransactionByBlockHashAndIndex`](/docs/chains/adi/adi-api-endpoints/eth-get-transaction-by-block-hash-and-index) |
+| [`eth_getTransactionByBlockNumberAndIndex`](/docs/chains/adi/adi-api-endpoints/eth-get-transaction-by-block-number-and-index) | [`eth_getTransactionByHash`](/docs/chains/adi/adi-api-endpoints/eth-get-transaction-by-hash) |
+| [`eth_getTransactionCount`](/docs/chains/adi/adi-api-endpoints/eth-get-transaction-count)       | [`eth_getTransactionReceipt`](/docs/chains/adi/adi-api-endpoints/eth-get-transaction-receipt) |
+| [`eth_getUncleCountByBlockHash`](/docs/chains/adi/adi-api-endpoints/eth-get-uncle-count-by-block-hash) | [`eth_getUncleCountByBlockNumber`](/docs/chains/adi/adi-api-endpoints/eth-get-uncle-count-by-block-number) |
+| [`eth_maxPriorityFeePerGas`](/docs/chains/adi/adi-api-endpoints/eth-max-priority-fee-per-gas)   | [`eth_newBlockFilter`](/docs/chains/adi/adi-api-endpoints/eth-new-block-filter)             |
+| [`eth_newFilter`](/docs/chains/adi/adi-api-endpoints/eth-new-filter)                            | [`eth_newPendingTransactionFilter`](/docs/chains/adi/adi-api-endpoints/eth-new-pending-transaction-filter) |
+| [`eth_sendRawTransaction`](/docs/chains/adi/adi-api-endpoints/eth-send-raw-transaction)         | [`eth_submitWork`](/docs/chains/adi/adi-api-endpoints/eth-submit-work)                      |
+| [`eth_subscribe`](/docs/chains/adi/adi-api-endpoints/eth-subscribe)                             | [`eth_syncing`](/docs/chains/adi/adi-api-endpoints/eth-syncing)                             |
+| [`eth_uninstallFilter`](/docs/chains/adi/adi-api-endpoints/eth-uninstall-filter)                | [`eth_unsubscribe`](/docs/chains/adi/adi-api-endpoints/eth-unsubscribe)                     |
+| [`net_listening`](/docs/chains/adi/adi-api-endpoints/net-listening)                             | [`net_version`](/docs/chains/adi/adi-api-endpoints/net-version)                             |
+| [`web3_clientVersion`](/docs/chains/adi/adi-api-endpoints/web-3-client-version)                 | [`web3_sha3`](/docs/chains/adi/adi-api-endpoints/web-3-sha-3)                               |
+
+## Related APIs
+
+The following Alchemy APIs are also supported on ADI:
+
+* [Debug API](/docs/reference/debug-api-quickstart)

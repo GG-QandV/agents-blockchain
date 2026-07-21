@@ -1,5 +1,5 @@
-//! RISK-X-1: деньги — только u128 минорных единиц, только checked-арифметика.
-//! Никаких impl Add/Sub: `a + b` на Amount не компилируется by design.
+//! RISK-X-1: money — u128 minor units only, only checked arithmetic.
+//! No impl Add/Sub: `a + b` on Amount does not compile by design.
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug, Default)]
 pub struct Amount(u128);
@@ -35,7 +35,7 @@ impl Amount {
     }
 }
 
-/// Парсинг десятичной строки в минорные единицы БЕЗ float.
+/// Parse decimal string to minor units WITHOUT float.
 pub fn parse_decimal(s: &str, decimals: u8) -> Result<Amount, AmtErr> {
     let mut acc: u128 = 0;
     let mut frac_digits: u8 = 0;
@@ -68,7 +68,7 @@ pub fn parse_decimal(s: &str, decimals: u8) -> Result<Amount, AmtErr> {
     Ok(Amount(acc))
 }
 
-/// Человекочитаемый вывод (RISK-X-4: усечение, без float).
+/// Human-readable output (RISK-X-4: truncation, no float).
 pub fn display_minor(a: Amount, decimals: u8) -> String {
     let v = a.minor();
     if decimals == 0 { return v.to_string(); }

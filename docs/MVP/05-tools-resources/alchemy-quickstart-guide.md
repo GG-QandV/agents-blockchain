@@ -1,0 +1,27 @@
+# Alchemy Quickstart Guide
+
+> Source: [https://www.alchemy.com/docs/alchemy-quickstart-guide.md](https://www.alchemy.com/docs/alchemy-quickstart-guide.md)
+
+# Alchemy Quickstart Guide
+
+> Quickstart guide to Alchemy! Learn how to create an Alchemy key, make your first request, setup up Alchemy as your client, and get to building!
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+# Getting Started
+
+👋 *New to Alchemy? Get access to Alchemy for free* ***[here](https://dashboard.alchemy.com/signup)***.
+
+## 📋 Steps to get started with Alchemy
+
+1. [Create an Alchemy API Key](/docs/create-an-api-key)
+2. [Make Your First Request](/docs/make-your-first-request)
+3. [Set up Alchemy with Viem](/docs/set-up-alchemy-with-viem)
+4. [Use Alchemy with any Library via AI](/docs/alchemy-via-libraries)
+
+## 💻 Start Building!
+
+Don't know where to start? Check out the tutorials below to get more familiar, at a deeper level, with Alchemy and blockchain development:
+
+1. Learn [How to Send Transactions on Ethereum](/docs/how-to-send-transactions-on-ethereum)
+2. Try deploying your first [Hello World Smart Contract](/docs/how-to-deploy-a-smart-contract-to-the-sepolia-testnet) and get your hands dirty with some solidity programming!

@@ -1,0 +1,115 @@
+# API Overview
+
+> Source: [https://www.alchemy.com/docs/chains.md](https://www.alchemy.com/docs/chains.md)
+
+# API Overview
+
+> Read and write to every blockchain Alchemy supports through our implementation of the standard JSON-RPC interface, plus WebSockets, gRPC streaming, and trace/debug tooling.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What are the Chain APIs?
+
+Alchemy's Chain APIs are our implementation of the standard JSON-RPC interface (as defined by Ethereum) and compatible equivalents for non-EVM chains (e.g., Solana, Bitcoin). They provide direct, low-level access to blockchain data and functionality across all supported networks: read blockchain state, submit transactions, and build powerful decentralized applications.
+
+> Looking for higher-level building blocks?
+> For indexed, enriched queries use the **[Data APIs](/docs/reference/data-overview)**.
+> For account-abstraction and smart-wallet flows use the **[Wallet APIs](/docs/wallets)**.
+
+## Companion APIs
+
+Use these alongside the standard JSON-RPC methods for streaming, performance, and deeper inspection. Chain coverage varies: check each page for supported networks.
+
+<CardGroup>
+  <Card title="WebSockets" icon="wave-square" href="/docs/reference/subscription-api">
+    Subscribe to pending transactions, log events, new blocks, and more.
+  </Card>
+
+  <Card title="Trace API" icon="magnifying-glass-arrow-right" href="/docs/reference/trace-api-quickstart">
+    Get insights into transaction processing and onchain activity.
+  </Card>
+
+  <Card title="Debug API" icon="bug" href="/docs/reference/debug-api-quickstart">
+    Non-standard RPC methods for inspecting and debugging transactions.
+  </Card>
+
+  <Card title="Yellowstone gRPC" icon="bolt" href="/docs/reference/yellowstone-grpc-overview">
+    High-performance real-time Solana data streaming interface.
+  </Card>
+</CardGroup>
+
+## Key capabilities
+
+* **Read Operations**: Query account balances, smart contract state, transaction history, block data, and more
+* **Write Operations**: Submit transactions to the network and track their status
+* **Event Monitoring**: Subscribe to real-time blockchain events via WebSockets
+* **Gas Management**: Estimate transaction costs and optimize gas usage
+* **Network Information**: Access chain-specific data like network version, block numbers, and protocol details
+
+Most chains use the **same EVM JSON-RPC methods** (e.g., `eth_call`, `eth_getLogs`, `eth_sendRawTransaction`); non-EVM chains provide compatible JSON-RPC or equivalent endpoints, plus **chain-specific methods** where the protocol differs. Each chain's section in the sidebar covers its full method list, endpoint URLs, and chain-specific behavior and limits.
+
+## Supported blockchains
+
+### Ethereum & EVM layer 1s
+
+* [**Ethereum**](/docs/ethereum/ethereum-api-overview) - The leading smart contract platform and home to DeFi, NFTs, and Web3
+* [**BNB Smart Chain**](/docs/bnb-smart-chain/bnb-smart-chain-api-overview) - High-performance blockchain compatible with Ethereum tooling
+* [**Avalanche**](/docs/reference/avalanche-api-quickstart) - Fast, low-cost blockchain with sub-second finality
+* [**Fantom**](/docs/reference/fantom-deprecation-notice) - High-speed, scalable smart contract platform
+* [**Gnosis**](/docs/gnosis/gnosis-api-overview) - Community-owned Ethereum sidechain focused on payments and prediction markets
+* [**Rootstock**](/docs/rootstock/rootstock-api-overview) - Bitcoin-secured smart contract platform
+
+### Layer 2 scaling solutions
+
+#### Optimistic rollups
+
+* [**Arbitrum**](/docs/arbitrum/arbitrum-api-overview) - Leading Ethereum L2 with EVM compatibility and lower fees
+* [**OP Mainnet**](/docs/op-mainnet/op-mainnet-api-overview) - Optimistic rollup from Optimism Collective
+* [**Base**](/docs/base/base-api-overview) - Coinbase's Ethereum L2 built on the OP Stack
+
+#### ZK rollups
+
+* [**Polygon zkEVM**](/docs/reference/polygon-zkevm-api-quickstart) - Zero-knowledge rollup with full EVM equivalence
+* [**zkSync**](/docs/reference/zksync-api-quickstart) - Privacy-preserving and scalable ZK rollup
+* [**Scroll**](/docs/scroll/scroll-api-overview) - Bytecode-level compatible zkEVM
+* [**Linea**](/docs/linea/linea-api-overview) - ConsenSys zkEVM rollup
+* [**Starknet**](/docs/starknet/starknet-api-overview) - Validity rollup using STARK proofs
+
+#### Other L2s & sidechains
+
+* [**Polygon PoS**](/docs/polygon-pos/polygon-pos-api-overview) - High-throughput Ethereum sidechain
+* [**Mantle**](/docs/mantle/mantle-api-overview) - Modular L2 with low fees
+* [**Metis**](/docs/metis/metis-api-overview) - Decentralized optimistic rollup
+* [**Blast**](/docs/blast/blast-api-overview) - L2 with native yield for ETH and stablecoins
+* [**Mode**](/docs/mode/mode-api-overview) - Optimistic L2 focused on DeFi
+* [**Zora**](/docs/zora/zora-api-overview) - Creator-focused Ethereum L2
+* [**Ink**](/docs/ink/ink-api-overview) - L2 solution for decentralized apps
+* [**Shape**](/docs/shape/shape-api-overview) - Scalable L2 network
+* [**Unichain**](/docs/unichain/unichain-api-overview) - Uniswap's L2 solution
+* [**World Chain**](/docs/world-chain/world-chain-api-overview) - Identity-focused L2
+* [**Abstract**](/docs/abstract/abstract-api-overview) - Application-specific L2
+* [**Soneium**](/docs/soneium/soneium-api-overview) - Next-generation L2 platform
+
+### Alternative layer 1 blockchains
+
+* [**Solana**](/docs/solana/solana-api-overview) - High-performance blockchain with fast transactions and low fees
+* [**Aptos**](/docs/reference/aptos-api-quickstart) - Secure, scalable blockchain using the Move language
+* [**Sui**](/docs/reference/sui-api-quickstart) - Fast, private, and secure blockchain built on Move
+* [**Celo**](/docs/celo/celo-api-overview) - Mobile-first blockchain for financial inclusion
+* [**Bitcoin**](/docs/bitcoin/bitcoin-api-overview) - The original cryptocurrency and decentralized network
+* [**Flow**](/docs/reference/flow-api-quickstart) - Blockchain built for NFTs, games, and digital assets
+* [**Berachain**](/docs/berachain/berachain-api-overview) - DeFi-native blockchain with novel consensus
+* [**Monad**](/docs/monad/monad-api-overview) - High-performance EVM-compatible blockchain
+* [**Sei**](/docs/sei/sei-api-overview) - Purpose-built L1 for trading applications
+
+### Emerging networks & testnets
+
+Alchemy also supports many emerging chains and specialized networks including Astar, Hyperliquid, Lens, opBNB, Plasma, Rise, Ronin, Sonic, and many more. Visit our [full chain directory](https://www.alchemy.com/rpc) for a complete list.
+
+## Getting started
+
+1. **Create an Alchemy account** - Sign up for free at [alchemy.com](https://www.alchemy.com/signup)
+2. **Create an app** - Set up a new app for your chosen blockchain
+3. **Get your API key** - Use your unique API endpoint to start making requests
+4. **Choose your chain** - Select a chain from the list above and follow its quickstart guide
+5. **Start building** - Use our SDKs, documentation, and tools to build your dapp

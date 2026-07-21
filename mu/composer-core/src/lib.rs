@@ -1,6 +1,6 @@
-//! composer-core — C2 (реэкспорт mu-policy), C3 drafts, C4 proposal+transport,
-//! плюс приёмный endpoint демона (по спеке живёт в демоне; здесь для сквозных тестов
-//! и как референс: та же mu-policy-валидация с обеих сторон).
+//! composer-core — C2 (reexport mu-policy), C3 drafts, C4 proposal+transport,
+//! plus daemon receiving endpoint (per spec lives in the daemon; here for end-to-end tests
+//! and as reference: the same mu-policy validation on both sides).
 #![forbid(unsafe_code)]
 
 pub mod proposal;

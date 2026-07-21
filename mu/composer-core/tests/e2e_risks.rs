@@ -1,4 +1,4 @@
-//! Сквозные тесты Composer: TOCTOU-гонка, отказ владельца, троян-подмена (критерий приёмки §14.5).
+//! Composer end-to-end tests: TOCTOU race, owner rejection, trojan swap (acceptance criteria §14.5).
 use composer_core::{encode_proposal, handle_propose, DaemonPolicy, DeltaProposal, ProposeOutcome, RejectCode};
 use composer_core::drafts::{load_draft, save_draft};
 use mu_common::{Amount, CanonAddress, Hash32};
@@ -35,13 +35,13 @@ fn happy_path_applied() {
 
 #[test]
 fn toctou_race_one_applied_one_stale() {
-    // Критерий приёмки §14.3: два Composer'а от одной базы → ровно один Applied, второй Stale
+    // Acceptance criteria §14.3: two Composers from the same base → exactly one Applied, second Stale
     let mut st = daemon();
     let p1 = encode_proposal(&proposal_from(&st.current, 600)).unwrap();
-    let p2 = encode_proposal(&proposal_from(&st.current, 800)).unwrap(); // от той же базы
+    let p2 = encode_proposal(&proposal_from(&st.current, 800)).unwrap(); // same base
     assert!(matches!(handle_propose(&mut st, &p1, |_, _| true), ProposeOutcome::Applied { .. }));
     assert_eq!(handle_propose(&mut st, &p2, |_, _| true), ProposeOutcome::Rejected(RejectCode::Stale));
-    assert_eq!(st.current.daily_limit, Amount::from_minor(600)); // вторая не применилась
+    assert_eq!(st.current.daily_limit, Amount::from_minor(600)); // second did not apply
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn human_denied_no_change() {
 
 #[test]
 fn invalid_rejected_by_daemon_side_validation() {
-    // §4.2: даже если UI Composer сломан и пропустил ошибку — демон валидирует тем же mu-policy
+    // §4.2: even if UI Composer is broken and missed an error — daemon validates with the same mu-policy
     let mut st = daemon();
     let mut bad = proposal_from(&st.current, 5000); // > ceiling 1000
     bad.base_delta_hash = delta_hash(&st.current);
@@ -66,8 +66,8 @@ fn invalid_rejected_by_daemon_side_validation() {
 
 #[test]
 fn trojan_composer_swap_visible_in_diff() {
-    // Критерий приёмки §14.5: троян подменяет адрес ПОСЛЕ показа в UI Composer'а.
-    // Демон рендерит diff из proposal → подмена видна владельцу в approve-замыкании.
+    // Acceptance criteria §14.5: trojan swaps address AFTER showing in UI Composer.
+    // Daemon renders diff from proposal → swap is visible to owner in approve closure.
     let mut st = daemon();
     let mut d = st.current.clone();
     d.whitelist.push(WlEntry { address: addr("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"), label: "Evil".into() });
@@ -75,10 +75,10 @@ fn trojan_composer_swap_visible_in_diff() {
     let raw = encode_proposal(&prop).unwrap();
     let mut owner_saw_evil = false;
     let out = handle_propose(&mut st, &raw, |old, new| {
-        // диалог демона строится ИЗ proposal: владелец видит фактический новый адрес
+        // daemon dialogue built FROM proposal: owner sees the actual new address
         owner_saw_evil = new.whitelist.len() > old.whitelist.len()
             && new.whitelist.iter().any(|e| e.label == "Evil");
-        false // владелец, увидев подмену, отклоняет
+        false // owner sees the swap and rejects
     });
     assert!(owner_saw_evil);
     assert_eq!(out, ProposeOutcome::Rejected(RejectCode::HumanDenied));
@@ -91,7 +91,7 @@ fn draft_roundtrip_and_corrupt_dropped() {
     let p = proposal_from(&base_delta(), 700);
     save_draft(&p, &path).unwrap();
     assert_eq!(load_draft(&path).unwrap(), Some(p));
-    // порча файла → None, не паника (§10)
+    // corrupt file → None, no panic (§10)
     std::fs::write(&path, b"garbage").unwrap();
     assert_eq!(load_draft(&path).unwrap(), None);
 }

@@ -1,0 +1,62 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# opBNB Chain API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/opbnb-api-faq.md](https://www.alchemy.com/docs/reference/opbnb-api-faq.md)
+
+# opBNB Chain API FAQ
+
+> Frequently asked questions about the opBNB chain API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is opBNB?
+
+opBNB is a layer 2 scaling solution for the Binance Smart Chain (BSC) designed to provide faster transaction speeds and lower costs. By leveraging optimistic rollups, opBNB aims to enhance the performance and scalability of BSC, making it an attractive platform for developers building decentralized applications (dApps).
+
+## What is the opBNB API?
+
+The opBNB API facilitates interaction with the opBNB network through a collection of JSON-RPC methods. It provides developers with tools to interact with the blockchain, enabling functionalities such as transactions, smart contract deployment, and data retrieval.
+
+## Can I use opBNB on free tier?
+
+No, opBNB is only available on paid tiers (pay as you go, enterprise). If you're on free tier [upgrade](https://dashboard.alchemy.com/settings/billing) your account to use opBNB. If you want Alchemy to support opBNB on free tier, please [request here](https://alchemyapi.typeform.com/to/F0SJX6RU).
+
+## How can I get started using the opBNB API?
+
+Explained in [opBNB API Quickstart](/docs/reference/opbnb-api-quickstart).
+
+## Is opBNB EVM compatible?
+
+Yes, opBNB is fully compatible with the Ethereum Virtual Machine (EVM). This compatibility allows Ethereum developers to port their projects to opBNB with minimal changes, benefiting from the network's scalability and low transaction fees.
+
+## What API does opBNB use?
+
+opBNB uses the JSON-RPC API standard for blockchain interactions. This is the same standard used by Ethereum.
+
+## What is an opBNB API key?
+
+When you access the opBNB network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network.
+
+For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup)!
+
+## Which libraries support opBNB?
+
+Because opBNB is EVM-compatible, popular Ethereum libraries like ethers.js and web3.js work with opBNB. If you're familiar with Ethereum's development ecosystem, you can integrate with minimal changes.
+
+## What programming languages work with opBNB?
+
+Like Ethereum, opBNB supports a range of programming languages for blockchain interaction and smart contract development, including Solidity for smart contracts, as well as JavaScript and TypeScript for dApp development and offchain interactions.
+
+## What does opBNB use for gas?
+
+opBNB uses BNB, Binance Smart Chain's native cryptocurrency, for transaction fees, gas, and other network activities.
+
+## What methods does Alchemy support for the opBNB API?
+
+You can find the list of all the methods Alchemy supports for the opBNB API on the [opBNB API Endpoints](/docs/chains#opbnb-apis) page.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

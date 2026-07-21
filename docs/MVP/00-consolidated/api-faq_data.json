@@ -1,0 +1,450 @@
+{
+  "template_name": "api-faq",
+  "chain_count": 63,
+  "chains": [
+    "Apechain",
+    "Arbitrum",
+    "Base",
+    "Berachain",
+    "Ethereum",
+    "Monad",
+    "Polygon Pos",
+    "Polygon Zkevm",
+    "Robinhood Chain",
+    "Prices",
+    "Abstract",
+    "Adi",
+    "Anime",
+    "Aptos",
+    "Arc",
+    "Astar",
+    "Avalanche",
+    "Avalanche P",
+    "Bitcoin",
+    "Bitcoincash",
+    "Blast",
+    "Bob",
+    "Botanix",
+    "Celo",
+    "Citrea",
+    "Clankermon",
+    "Cronos",
+    "Crossfi",
+    "Data Network",
+    "Degen",
+    "Dogecoin",
+    "Flow Evm",
+    "Frax",
+    "Gensyn",
+    "Gnosis",
+    "Humanity",
+    "Hyperliquid",
+    "Injective",
+    "Ink",
+    "Jovay",
+    "Kaia",
+    "Katana",
+    "Lens",
+    "Linea",
+    "Litecoin",
+    "Mantle",
+    "Megaeth",
+    "Metis",
+    "Mode",
+    "Moonbeam",
+    "Mythos",
+    "Opbnb",
+    "Pharos",
+    "Plasma",
+    "Rise",
+    "Ronin",
+    "Rootstock",
+    "Scroll",
+    "Sei",
+    "Settlus",
+    "Shape",
+    "Soneium",
+    "Sonic"
+  ],
+  "per_chain": {
+    "Apechain": {
+      "title": "ApeChain API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/apechain-api-faq.md](https://www.alchemy.com/docs/reference/apechain-api-faq.md)",
+      "_unique_lines": 7,
+      "_total_lines": 65
+    },
+    "Arbitrum": {
+      "title": "Arbitrum API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/arbitrum-api-faq.md](https://www.alchemy.com/docs/reference/arbitrum-api-faq.md)",
+      "_unique_lines": 11,
+      "_total_lines": 103
+    },
+    "Base": {
+      "title": "Base API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/base-api-faq.md](https://www.alchemy.com/docs/reference/base-api-faq.md)",
+      "_unique_lines": 8,
+      "_total_lines": 70
+    },
+    "Berachain": {
+      "title": "Berachain API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/berachain-api-faq.md](https://www.alchemy.com/docs/reference/berachain-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 58
+    },
+    "Ethereum": {
+      "title": "Ethereum API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/ethereum-api-faq.md](https://www.alchemy.com/docs/reference/ethereum-api-faq.md)",
+      "_unique_lines": 49,
+      "_total_lines": 123
+    },
+    "Monad": {
+      "title": "Monad API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/monad-api-faq.md](https://www.alchemy.com/docs/reference/monad-api-faq.md)",
+      "_unique_lines": 8,
+      "_total_lines": 58
+    },
+    "Polygon Pos": {
+      "title": "Polygon PoS API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/polygon-pos-api-faq.md](https://www.alchemy.com/docs/reference/polygon-pos-api-faq.md)",
+      "_unique_lines": 11,
+      "_total_lines": 100
+    },
+    "Polygon Zkevm": {
+      "title": "Polygon zkEVM API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/polygon-zkevm-api-faq.md](https://www.alchemy.com/docs/reference/polygon-zkevm-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 64
+    },
+    "Robinhood Chain": {
+      "title": "Robinhood Chain API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/robinhood-chain-api-faq.md](https://www.alchemy.com/docs/reference/robinhood-chain-api-faq.md)",
+      "_unique_lines": 3,
+      "_total_lines": 38
+    },
+    "Prices": {
+      "title": "Prices API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/prices-api-faq.md](https://www.alchemy.com/docs/reference/prices-api-faq.md)",
+      "_unique_lines": 37,
+      "_total_lines": 68
+    },
+    "Abstract": {
+      "title": "Abstract API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/abstract-api-faq.md](https://www.alchemy.com/docs/reference/abstract-api-faq.md)",
+      "_unique_lines": 5,
+      "_total_lines": 44
+    },
+    "Adi": {
+      "title": "ADI API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/adi-api-faq.md](https://www.alchemy.com/docs/reference/adi-api-faq.md)",
+      "_unique_lines": 27,
+      "_total_lines": 42
+    },
+    "Anime": {
+      "title": "Anime API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/anime-api-faq.md](https://www.alchemy.com/docs/reference/anime-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 61
+    },
+    "Aptos": {
+      "title": "Aptos API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/aptos-api-faq.md](https://www.alchemy.com/docs/reference/aptos-api-faq.md)",
+      "_unique_lines": 11,
+      "_total_lines": 57
+    },
+    "Arc": {
+      "title": "Arc API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/arc-api-faq.md](https://www.alchemy.com/docs/reference/arc-api-faq.md)",
+      "_unique_lines": 24,
+      "_total_lines": 38
+    },
+    "Astar": {
+      "title": "Astar API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/astar-api-faq.md](https://www.alchemy.com/docs/reference/astar-api-faq.md)",
+      "_unique_lines": 25,
+      "_total_lines": 126
+    },
+    "Avalanche": {
+      "title": "Avalanche C-Chain API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/avalanche-api-faq.md](https://www.alchemy.com/docs/reference/avalanche-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 58
+    },
+    "Avalanche P": {
+      "title": "Avalanche P-Chain API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/avalanche-p-api-faq.md](https://www.alchemy.com/docs/reference/avalanche-p-api-faq.md)",
+      "_unique_lines": 7,
+      "_total_lines": 58
+    },
+    "Bitcoin": {
+      "title": "Bitcoin API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/bitcoin-api-faq.md](https://www.alchemy.com/docs/reference/bitcoin-api-faq.md)",
+      "_unique_lines": 7,
+      "_total_lines": 56
+    },
+    "Bitcoincash": {
+      "title": "Bitcoin Cash API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/bitcoincash-api-faq.md](https://www.alchemy.com/docs/reference/bitcoincash-api-faq.md)",
+      "_unique_lines": 26,
+      "_total_lines": 56
+    },
+    "Blast": {
+      "title": "Blast Chain API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/blast-api-faq.md](https://www.alchemy.com/docs/reference/blast-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 58
+    },
+    "Bob": {
+      "title": "Bob API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/bob-api-faq.md](https://www.alchemy.com/docs/reference/bob-api-faq.md)",
+      "_unique_lines": 24,
+      "_total_lines": 38
+    },
+    "Botanix": {
+      "title": "Botanix API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/botanix-api-faq.md](https://www.alchemy.com/docs/reference/botanix-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 58
+    },
+    "Celo": {
+      "title": "Celo Chain API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/celo-api-faq.md](https://www.alchemy.com/docs/reference/celo-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 61
+    },
+    "Citrea": {
+      "title": "Citrea API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/citrea-api-faq.md](https://www.alchemy.com/docs/reference/citrea-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Clankermon": {
+      "title": "Clankermon API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/clankermon-api-faq.md](https://www.alchemy.com/docs/reference/clankermon-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Cronos": {
+      "title": "Cronos API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/cronos-api-faq.md](https://www.alchemy.com/docs/reference/cronos-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 58
+    },
+    "Crossfi": {
+      "title": "CrossFi API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/crossfi-api-faq.md](https://www.alchemy.com/docs/reference/crossfi-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 58
+    },
+    "Data Network": {
+      "title": "DATA Network API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/data-network-api-faq.md](https://www.alchemy.com/docs/reference/data-network-api-faq.md)",
+      "currency": "DATA",
+      "_unique_lines": 6,
+      "_total_lines": 57
+    },
+    "Degen": {
+      "title": "Degen API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/degen-api-faq.md](https://www.alchemy.com/docs/reference/degen-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Dogecoin": {
+      "title": "Dogecoin API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/dogecoin-api-faq.md](https://www.alchemy.com/docs/reference/dogecoin-api-faq.md)",
+      "_unique_lines": 7,
+      "_total_lines": 56
+    },
+    "Flow Evm": {
+      "title": "Flow API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/flow-evm-api-faq.md](https://www.alchemy.com/docs/reference/flow-evm-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 58
+    },
+    "Frax": {
+      "title": "Frax API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/frax-api-faq.md](https://www.alchemy.com/docs/reference/frax-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Gensyn": {
+      "title": "Gensyn API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/gensyn-api-faq.md](https://www.alchemy.com/docs/reference/gensyn-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Gnosis": {
+      "title": "Gnosis Chain API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/gnosis-api-faq.md](https://www.alchemy.com/docs/reference/gnosis-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 58
+    },
+    "Humanity": {
+      "title": "Humanity API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/humanity-api-faq.md](https://www.alchemy.com/docs/reference/humanity-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Hyperliquid": {
+      "title": "Hyperevm API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/hyperliquid-api-faq.md](https://www.alchemy.com/docs/reference/hyperliquid-api-faq.md)",
+      "_unique_lines": 25,
+      "_total_lines": 58
+    },
+    "Injective": {
+      "title": "Injective API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/injective-api-faq.md](https://www.alchemy.com/docs/reference/injective-api-faq.md)",
+      "_unique_lines": 5,
+      "_total_lines": 39
+    },
+    "Ink": {
+      "title": "Ink API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/ink-api-faq.md](https://www.alchemy.com/docs/reference/ink-api-faq.md)",
+      "_unique_lines": 30,
+      "_total_lines": 58
+    },
+    "Jovay": {
+      "title": "Jovay API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/jovay-api-faq.md](https://www.alchemy.com/docs/reference/jovay-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Kaia": {
+      "title": "Kaia API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/kaia-api-faq.md](https://www.alchemy.com/docs/reference/kaia-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Katana": {
+      "title": "Katana API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/katana-api-faq.md](https://www.alchemy.com/docs/reference/katana-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Lens": {
+      "title": "Lens API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/lens-api-faq.md](https://www.alchemy.com/docs/reference/lens-api-faq.md)",
+      "_unique_lines": 16,
+      "_total_lines": 73
+    },
+    "Linea": {
+      "title": "Linea Chain API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/linea-api-faq.md](https://www.alchemy.com/docs/reference/linea-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 58
+    },
+    "Litecoin": {
+      "title": "Litecoin API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/litecoin-api-faq.md](https://www.alchemy.com/docs/reference/litecoin-api-faq.md)",
+      "_unique_lines": 7,
+      "_total_lines": 56
+    },
+    "Mantle": {
+      "title": "Mantle Chain API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/mantle-api-faq.md](https://www.alchemy.com/docs/reference/mantle-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 58
+    },
+    "Megaeth": {
+      "title": "MegaETH API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/megaeth-api-faq.md](https://www.alchemy.com/docs/reference/megaeth-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Metis": {
+      "title": "Metis Chain API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/metis-api-faq.md](https://www.alchemy.com/docs/reference/metis-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 62
+    },
+    "Mode": {
+      "title": "Mode API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/mode-api-faq.md](https://www.alchemy.com/docs/reference/mode-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Moonbeam": {
+      "title": "Moonbeam API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/moonbeam-api-faq.md](https://www.alchemy.com/docs/reference/moonbeam-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Mythos": {
+      "title": "Mythos API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/mythos-api-faq.md](https://www.alchemy.com/docs/reference/mythos-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Opbnb": {
+      "title": "opBNB Chain API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/opbnb-api-faq.md](https://www.alchemy.com/docs/reference/opbnb-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 62
+    },
+    "Pharos": {
+      "title": "Pharos API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/pharos-api-faq.md](https://www.alchemy.com/docs/reference/pharos-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Plasma": {
+      "title": "Plasma API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/plasma-api-faq.md](https://www.alchemy.com/docs/reference/plasma-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Rise": {
+      "title": "Rise API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/rise-api-faq.md](https://www.alchemy.com/docs/reference/rise-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Ronin": {
+      "title": "Ronin API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/ronin-api-faq.md](https://www.alchemy.com/docs/reference/ronin-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Rootstock": {
+      "title": "Rootstock API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/rootstock-api-faq.md](https://www.alchemy.com/docs/reference/rootstock-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 60
+    },
+    "Scroll": {
+      "title": "Scroll Chain API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/scroll-api-faq.md](https://www.alchemy.com/docs/reference/scroll-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 58
+    },
+    "Sei": {
+      "title": "Sei API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/sei-api-faq.md](https://www.alchemy.com/docs/reference/sei-api-faq.md)",
+      "_unique_lines": 30,
+      "_total_lines": 58
+    },
+    "Settlus": {
+      "title": "Settlus API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/settlus-api-faq.md](https://www.alchemy.com/docs/reference/settlus-api-faq.md)",
+      "_unique_lines": 4,
+      "_total_lines": 38
+    },
+    "Shape": {
+      "title": "Shape API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/shape-api-faq.md](https://www.alchemy.com/docs/reference/shape-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 48
+    },
+    "Soneium": {
+      "title": "Soneium API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/soneium-api-faq.md](https://www.alchemy.com/docs/reference/soneium-api-faq.md)",
+      "_unique_lines": 5,
+      "_total_lines": 58
+    },
+    "Sonic": {
+      "title": "Sonic Chain API FAQ",
+      "rpc_url": "https://www.alchemy.com/docs/reference/sonic-api-faq.md](https://www.alchemy.com/docs/reference/sonic-api-faq.md)",
+      "_unique_lines": 6,
+      "_total_lines": 58
+    }
+  }
+}

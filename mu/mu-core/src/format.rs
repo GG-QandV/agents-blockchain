@@ -1,12 +1,12 @@
-//! Байтовый формат μ (RISK-M1-4): строгий TLV, закрытая схема, лишний байт = ошибка.
-//! Семейство hardened-парсеров mu-wire: bounds-checked курсор, без паник.
+//! Byte format of μ (RISK-M1-4): strict TLV, closed schema, extra byte = error.
+//! Family of hardened parsers mu-wire: bounds-checked cursor, no panics.
 use crate::object::{CoreErr, Mu, Omega};
 use mu_common::{Amount, CanonAddress, Hash32};
 use mu_policy::{Delta, WlEntry};
 
 pub const FORMAT_VERSION: u16 = 2;
 
-/// Ссылочный вид payload для encode (без владения).
+/// Reference view of payload for encode (no ownership).
 pub struct MuPayload<'a> {
     pub core_id: &'a [u8; 16],
     pub owner_pubkey: &'a [u8; 33],
@@ -61,7 +61,7 @@ pub fn encode_payload(p: &MuPayload<'_>) -> Vec<u8> {
     b
 }
 
-/// Файл = payload ‖ mu_sig[64].
+/// File = payload ‖ mu_sig[64].
 pub fn encode_mu(mu: &Mu) -> Vec<u8> {
     let (omega, delta, dsig, vref, lhead, msig, created) = mu.parts();
     let p = MuPayload {
@@ -101,7 +101,7 @@ pub fn decode_mu(buf: &[u8]) -> Result<Mu, CoreErr> {
     let vref = c.take(vlen)?.to_vec();
     let mut lh = [0u8; 32]; lh.copy_from_slice(c.take(32)?);
 
-    if c.remaining() != 0 { return Err(CoreErr::CborMalformed); } // строгая схема (RISK-M1-4)
+    if c.remaining() != 0 { return Err(CoreErr::CborMalformed); } // strict schema (RISK-M1-4)
 
     Ok(Mu::from_parts(core_id, opk, created, ver, omega, delta, dsig, vref, Hash32(lh), msig))
 }

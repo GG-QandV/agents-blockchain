@@ -1,0 +1,58 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Monad API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/monad-api-faq.md](https://www.alchemy.com/docs/reference/monad-api-faq.md)
+
+# Monad API FAQ
+
+> Frequently asked questions about the Monad API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Monad Chain?
+
+Monad Chain is a high-performance, Layer 1 blockchain that fully supports the Ethereum Virtual Machine (EVM). It uses parallel execution and the MonadBFT consensus to achieve 10,000 TPS, 500 ms block times, and 1-second finality—all while keeping node hardware requirements low for greater decentralization.
+
+## What is the Monad Chain API?
+
+The Monad Chain API facilitates interaction with the Monad Chain network through a collection of JSON-RPC methods. It provides developers with tools to interact with the blockchain, enabling functionalities such as transactions, smart contract deployment, and data retrieval.
+
+## How can I get started using the Monad Chain API?
+
+Explained in [Monad Chain API Quickstart](/docs/reference/monad-api-quickstart).
+
+## Is Monad Chain EVM compatible?
+
+Yes. Monad Chain is 100% EVM-compatible at the bytecode level, enabling existing Ethereum smart contracts to run without modifications and work seamlessly with Ethereum’s tooling ecosystem.
+
+## What API does Monad Chain use?
+
+Monad Chain uses the JSON-RPC API standard for blockchain interactions. This is the same standard used by Ethereum.
+
+## What is a Monad Chain API key?
+
+When you access the Monad Chain network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network.
+
+For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup)!
+
+## Which libraries support Monad Chain?
+
+Common Ethereum libraries such as ethers.js, web3.js, and viem are supported, enabling smart contract interaction and wallet management.
+
+## What programming languages work with Monad Chain?
+
+It supports Solidity and Vyper for smart contracts, along with JavaScript and TypeScript for offchain development, ensuring compatibility with projects that compile to EVM bytecode.
+
+## What does Monad Chain use for gas?
+
+The native token, MONAD, is used for transaction fees. The network implements an EIP-1559-like fee mechanism that adjusts base fees dynamically while allowing users to tip for priority.
+
+## What methods does Alchemy support for the Monad Chain API?
+
+You can find the list of all the methods Alchemy supports for the Monad Chain API on the [Monad API Endpoints](/docs/chains#monad-apis) page.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

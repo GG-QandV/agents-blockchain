@@ -1,0 +1,484 @@
+{
+  "template_name": "api-quickstart",
+  "chain_count": 68,
+  "chains": [
+    "Apechain",
+    "Arbitrum",
+    "Base",
+    "Base Flashblocks",
+    "Berachain",
+    "Bnb Smart Chain",
+    "Debug",
+    "Ethereum",
+    "Monad",
+    "Polygon Pos",
+    "Polygon Zkevm",
+    "Robinhood Chain",
+    "Solana",
+    "Prices",
+    "Abstract",
+    "Adi",
+    "Anime",
+    "Aptos",
+    "Arc",
+    "Astar",
+    "Avalanche",
+    "Avalanche P",
+    "Bitcoin",
+    "Bitcoincash",
+    "Blast",
+    "Bob",
+    "Botanix",
+    "Celo",
+    "Citrea",
+    "Clankermon",
+    "Cronos",
+    "Crossfi",
+    "Data Network",
+    "Degen",
+    "Dogecoin",
+    "Flow Evm",
+    "Frax",
+    "Gensyn",
+    "Gnosis",
+    "Humanity",
+    "Hyperliquid",
+    "Injective",
+    "Ink",
+    "Jovay",
+    "Kaia",
+    "Katana",
+    "Lens",
+    "Linea",
+    "Litecoin",
+    "Mantle",
+    "Megaeth",
+    "Metis",
+    "Mode",
+    "Moonbeam",
+    "Mythos",
+    "Op Mainnet Flashblocks",
+    "Opbnb",
+    "Pharos",
+    "Plasma",
+    "Rise",
+    "Ronin",
+    "Rootstock",
+    "Scroll",
+    "Sei",
+    "Settlus",
+    "Shape",
+    "Soneium",
+    "Sonic"
+  ],
+  "per_chain": {
+    "Apechain": {
+      "title": "ApeChain API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/apechain-api-quickstart.md](https://www.alchemy.com/docs/reference/apechain-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 101
+    },
+    "Arbitrum": {
+      "title": "Arbitrum API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/arbitrum-api-quickstart.md](https://www.alchemy.com/docs/reference/arbitrum-api-quickstart.md)",
+      "_unique_lines": 57,
+      "_total_lines": 96
+    },
+    "Base": {
+      "title": "Base API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/base-api-quickstart.md](https://www.alchemy.com/docs/reference/base-api-quickstart.md)",
+      "_unique_lines": 56,
+      "_total_lines": 96
+    },
+    "Base Flashblocks": {
+      "title": "Base Flashblocks API quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/base-flashblocks-api-quickstart.md](https://www.alchemy.com/docs/reference/base-flashblocks-api-quickstart.md)",
+      "_unique_lines": 221,
+      "_total_lines": 333
+    },
+    "Berachain": {
+      "title": "Berachain API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/berachain-api-quickstart.md](https://www.alchemy.com/docs/reference/berachain-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 101
+    },
+    "Bnb Smart Chain": {
+      "title": "BNB Smart Chain Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/bnb-smart-chain-api-quickstart.md](https://www.alchemy.com/docs/reference/bnb-smart-chain-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 101
+    },
+    "Debug": {
+      "title": "Debug API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/debug-api-quickstart.md](https://www.alchemy.com/docs/reference/debug-api-quickstart.md)",
+      "_unique_lines": 122,
+      "_total_lines": 173
+    },
+    "Ethereum": {
+      "title": "Ethereum API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/ethereum-api-quickstart.md](https://www.alchemy.com/docs/reference/ethereum-api-quickstart.md)",
+      "_unique_lines": 62,
+      "_total_lines": 103
+    },
+    "Monad": {
+      "title": "Monad API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/monad-api-quickstart.md](https://www.alchemy.com/docs/reference/monad-api-quickstart.md)",
+      "_unique_lines": 68,
+      "_total_lines": 113
+    },
+    "Polygon Pos": {
+      "title": "Polygon PoS API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/polygon-pos-api-quickstart.md](https://www.alchemy.com/docs/reference/polygon-pos-api-quickstart.md)",
+      "_unique_lines": 62,
+      "_total_lines": 101
+    },
+    "Polygon Zkevm": {
+      "title": "Polygon zkEVM API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/polygon-zkevm-api-quickstart.md](https://www.alchemy.com/docs/reference/polygon-zkevm-api-quickstart.md)",
+      "_unique_lines": 57,
+      "_total_lines": 100
+    },
+    "Robinhood Chain": {
+      "title": "Robinhood Chain API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/robinhood-chain-api-quickstart.md](https://www.alchemy.com/docs/reference/robinhood-chain-api-quickstart.md)",
+      "_unique_lines": 63,
+      "_total_lines": 119
+    },
+    "Solana": {
+      "title": "Solana API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/solana-api-quickstart.md](https://www.alchemy.com/docs/reference/solana-api-quickstart.md)",
+      "_unique_lines": 54,
+      "_total_lines": 107
+    },
+    "Prices": {
+      "title": "Prices API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/prices-api-quickstart.md](https://www.alchemy.com/docs/reference/prices-api-quickstart.md)",
+      "_unique_lines": 220,
+      "_total_lines": 328
+    },
+    "Abstract": {
+      "title": "Abstract API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/abstract-api-quickstart.md](https://www.alchemy.com/docs/reference/abstract-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 101
+    },
+    "Adi": {
+      "title": "ADI API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/adi-api-quickstart.md](https://www.alchemy.com/docs/reference/adi-api-quickstart.md)",
+      "_unique_lines": 75,
+      "_total_lines": 104
+    },
+    "Anime": {
+      "title": "Anime API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/anime-api-quickstart.md](https://www.alchemy.com/docs/reference/anime-api-quickstart.md)",
+      "_unique_lines": 64,
+      "_total_lines": 109
+    },
+    "Aptos": {
+      "title": "Aptos API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/aptos-api-quickstart.md](https://www.alchemy.com/docs/reference/aptos-api-quickstart.md)",
+      "_unique_lines": 69,
+      "_total_lines": 128
+    },
+    "Arc": {
+      "title": "Arc API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/arc-api-quickstart.md](https://www.alchemy.com/docs/reference/arc-api-quickstart.md)",
+      "_unique_lines": 86,
+      "_total_lines": 123
+    },
+    "Astar": {
+      "title": "Astar API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/astar-api-quickstart.md](https://www.alchemy.com/docs/reference/astar-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 101
+    },
+    "Avalanche": {
+      "title": "Avalanche C-Chain API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/avalanche-api-quickstart.md](https://www.alchemy.com/docs/reference/avalanche-api-quickstart.md)",
+      "_unique_lines": 62,
+      "_total_lines": 101
+    },
+    "Avalanche P": {
+      "title": "Avalanche P-Chain API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/avalanche-p-api-quickstart.md](https://www.alchemy.com/docs/reference/avalanche-p-api-quickstart.md)",
+      "_unique_lines": 109,
+      "_total_lines": 158
+    },
+    "Bitcoin": {
+      "title": "Bitcoin API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/bitcoin-api-quickstart.md](https://www.alchemy.com/docs/reference/bitcoin-api-quickstart.md)",
+      "_unique_lines": 64,
+      "_total_lines": 123
+    },
+    "Bitcoincash": {
+      "title": "Bitcoin Cash API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/bitcoincash-api-quickstart.md](https://www.alchemy.com/docs/reference/bitcoincash-api-quickstart.md)",
+      "_unique_lines": 71,
+      "_total_lines": 119
+    },
+    "Blast": {
+      "title": "Blast Chain API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/blast-api-quickstart.md](https://www.alchemy.com/docs/reference/blast-api-quickstart.md)",
+      "_unique_lines": 56,
+      "_total_lines": 96
+    },
+    "Bob": {
+      "title": "BOB API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/bob-api-quickstart.md](https://www.alchemy.com/docs/reference/bob-api-quickstart.md)",
+      "_unique_lines": 68,
+      "_total_lines": 96
+    },
+    "Botanix": {
+      "title": "Botanix API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/botanix-api-quickstart.md](https://www.alchemy.com/docs/reference/botanix-api-quickstart.md)",
+      "_unique_lines": 66,
+      "_total_lines": 109
+    },
+    "Celo": {
+      "title": "Celo Chain API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/celo-api-quickstart.md](https://www.alchemy.com/docs/reference/celo-api-quickstart.md)",
+      "_unique_lines": 60,
+      "_total_lines": 101
+    },
+    "Citrea": {
+      "title": "Citrea API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/citrea-api-quickstart.md](https://www.alchemy.com/docs/reference/citrea-api-quickstart.md)",
+      "_unique_lines": 66,
+      "_total_lines": 109
+    },
+    "Clankermon": {
+      "title": "Clankermon API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/clankermon-api-quickstart.md](https://www.alchemy.com/docs/reference/clankermon-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 104
+    },
+    "Cronos": {
+      "title": "Cronos API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/cronos-api-quickstart.md](https://www.alchemy.com/docs/reference/cronos-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 101
+    },
+    "Crossfi": {
+      "title": "CrossFi API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/crossfi-api-quickstart.md](https://www.alchemy.com/docs/reference/crossfi-api-quickstart.md)",
+      "_unique_lines": 66,
+      "_total_lines": 109
+    },
+    "Data Network": {
+      "title": "DATA Network API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/data-network-api-quickstart.md](https://www.alchemy.com/docs/reference/data-network-api-quickstart.md)",
+      "_unique_lines": 62,
+      "_total_lines": 101
+    },
+    "Degen": {
+      "title": "Degen API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/degen-api-quickstart.md](https://www.alchemy.com/docs/reference/degen-api-quickstart.md)",
+      "_unique_lines": 60,
+      "_total_lines": 101
+    },
+    "Dogecoin": {
+      "title": "Dogecoin API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/dogecoin-api-quickstart.md](https://www.alchemy.com/docs/reference/dogecoin-api-quickstart.md)",
+      "_unique_lines": 53,
+      "_total_lines": 111
+    },
+    "Flow Evm": {
+      "title": "Flow EVM API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/flow-evm-api-quickstart.md](https://www.alchemy.com/docs/reference/flow-evm-api-quickstart.md)",
+      "_unique_lines": 60,
+      "_total_lines": 101
+    },
+    "Frax": {
+      "title": "Fraxtal API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/frax-api-quickstart.md](https://www.alchemy.com/docs/reference/frax-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 101
+    },
+    "Gensyn": {
+      "title": "Gensyn API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/gensyn-api-quickstart.md](https://www.alchemy.com/docs/reference/gensyn-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 104
+    },
+    "Gnosis": {
+      "title": "Gnosis Chain API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/gnosis-api-quickstart.md](https://www.alchemy.com/docs/reference/gnosis-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 101
+    },
+    "Humanity": {
+      "title": "Humanity API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/humanity-api-quickstart.md](https://www.alchemy.com/docs/reference/humanity-api-quickstart.md)",
+      "_unique_lines": 66,
+      "_total_lines": 109
+    },
+    "Hyperliquid": {
+      "title": "HyperEVM API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/hyperliquid-api-quickstart.md](https://www.alchemy.com/docs/reference/hyperliquid-api-quickstart.md)",
+      "_unique_lines": 67,
+      "_total_lines": 103
+    },
+    "Injective": {
+      "title": "Injective API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/injective-api-quickstart.md](https://www.alchemy.com/docs/reference/injective-api-quickstart.md)",
+      "_unique_lines": 63,
+      "_total_lines": 119
+    },
+    "Ink": {
+      "title": "Ink API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/ink-api-quickstart.md](https://www.alchemy.com/docs/reference/ink-api-quickstart.md)",
+      "_unique_lines": 68,
+      "_total_lines": 96
+    },
+    "Jovay": {
+      "title": "Jovay API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/jovay-api-quickstart.md](https://www.alchemy.com/docs/reference/jovay-api-quickstart.md)",
+      "_unique_lines": 64,
+      "_total_lines": 119
+    },
+    "Kaia": {
+      "title": "Kaia API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/kaia-api-quickstart.md](https://www.alchemy.com/docs/reference/kaia-api-quickstart.md)",
+      "_unique_lines": 64,
+      "_total_lines": 119
+    },
+    "Katana": {
+      "title": "Katana API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/katana-api-quickstart.md](https://www.alchemy.com/docs/reference/katana-api-quickstart.md)",
+      "_unique_lines": 64,
+      "_total_lines": 119
+    },
+    "Lens": {
+      "title": "Lens API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/lens-api-quickstart.md](https://www.alchemy.com/docs/reference/lens-api-quickstart.md)",
+      "_unique_lines": 68,
+      "_total_lines": 113
+    },
+    "Linea": {
+      "title": "Linea Chain API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/linea-api-quickstart.md](https://www.alchemy.com/docs/reference/linea-api-quickstart.md)",
+      "_unique_lines": 56,
+      "_total_lines": 96
+    },
+    "Litecoin": {
+      "title": "Litecoin API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/litecoin-api-quickstart.md](https://www.alchemy.com/docs/reference/litecoin-api-quickstart.md)",
+      "_unique_lines": 53,
+      "_total_lines": 111
+    },
+    "Mantle": {
+      "title": "Mantle Chain API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/mantle-api-quickstart.md](https://www.alchemy.com/docs/reference/mantle-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 101
+    },
+    "Megaeth": {
+      "title": "MegaETH API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/megaeth-api-quickstart.md](https://www.alchemy.com/docs/reference/megaeth-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 104
+    },
+    "Metis": {
+      "title": "Metis Chain API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/metis-api-quickstart.md](https://www.alchemy.com/docs/reference/metis-api-quickstart.md)",
+      "_unique_lines": 60,
+      "_total_lines": 101
+    },
+    "Mode": {
+      "title": "Mode API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/mode-api-quickstart.md](https://www.alchemy.com/docs/reference/mode-api-quickstart.md)",
+      "_unique_lines": 56,
+      "_total_lines": 96
+    },
+    "Moonbeam": {
+      "title": "Moonbeam API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/moonbeam-api-quickstart.md](https://www.alchemy.com/docs/reference/moonbeam-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 101
+    },
+    "Mythos": {
+      "title": "Mythos API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/mythos-api-quickstart.md](https://www.alchemy.com/docs/reference/mythos-api-quickstart.md)",
+      "_unique_lines": 64,
+      "_total_lines": 119
+    },
+    "Op Mainnet Flashblocks": {
+      "title": "OP Mainnet Flashblocks API quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/op-mainnet-flashblocks-api-quickstart.md](https://www.alchemy.com/docs/reference/op-mainnet-flashblocks-api-quickstart.md)",
+      "_unique_lines": 145,
+      "_total_lines": 221
+    },
+    "Opbnb": {
+      "title": "opBNB Chain API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/opbnb-api-quickstart.md](https://www.alchemy.com/docs/reference/opbnb-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 101
+    },
+    "Pharos": {
+      "title": "Pharos API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/pharos-api-quickstart.md](https://www.alchemy.com/docs/reference/pharos-api-quickstart.md)",
+      "_unique_lines": 64,
+      "_total_lines": 119
+    },
+    "Plasma": {
+      "title": "Plasma API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/plasma-api-quickstart.md](https://www.alchemy.com/docs/reference/plasma-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 104
+    },
+    "Rise": {
+      "title": "Rise API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/rise-api-quickstart.md](https://www.alchemy.com/docs/reference/rise-api-quickstart.md)",
+      "_unique_lines": 63,
+      "_total_lines": 111
+    },
+    "Ronin": {
+      "title": "Ronin API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/ronin-api-quickstart.md](https://www.alchemy.com/docs/reference/ronin-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 101
+    },
+    "Rootstock": {
+      "title": "Rootstock API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/rootstock-api-quickstart.md](https://www.alchemy.com/docs/reference/rootstock-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 101
+    },
+    "Scroll": {
+      "title": "Scroll Chain API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/scroll-api-quickstart.md](https://www.alchemy.com/docs/reference/scroll-api-quickstart.md)",
+      "_unique_lines": 56,
+      "_total_lines": 96
+    },
+    "Sei": {
+      "title": "Sei API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/sei-api-quickstart.md](https://www.alchemy.com/docs/reference/sei-api-quickstart.md)",
+      "_unique_lines": 73,
+      "_total_lines": 101
+    },
+    "Settlus": {
+      "title": "Settlus API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/settlus-api-quickstart.md](https://www.alchemy.com/docs/reference/settlus-api-quickstart.md)",
+      "_unique_lines": 66,
+      "_total_lines": 109
+    },
+    "Shape": {
+      "title": "Shape API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/shape-api-quickstart.md](https://www.alchemy.com/docs/reference/shape-api-quickstart.md)",
+      "_unique_lines": 56,
+      "_total_lines": 96
+    },
+    "Soneium": {
+      "title": "Soneium API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/soneium-api-quickstart.md](https://www.alchemy.com/docs/reference/soneium-api-quickstart.md)",
+      "_unique_lines": 56,
+      "_total_lines": 96
+    },
+    "Sonic": {
+      "title": "Sonic Chain API Quickstart",
+      "rpc_url": "https://www.alchemy.com/docs/reference/sonic-api-quickstart.md](https://www.alchemy.com/docs/reference/sonic-api-quickstart.md)",
+      "_unique_lines": 61,
+      "_total_lines": 101
+    }
+  }
+}

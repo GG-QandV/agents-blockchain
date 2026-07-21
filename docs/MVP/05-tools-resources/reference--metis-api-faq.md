@@ -1,0 +1,62 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Metis Chain API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/metis-api-faq.md](https://www.alchemy.com/docs/reference/metis-api-faq.md)
+
+# Metis Chain API FAQ
+
+> Frequently asked questions about the Metis Chain API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Metis Chain?
+
+Metis Chain is a high-performance layer 2 scaling solution built on Ethereum. It aims to provide a scalable, low-cost, and user-friendly environment for decentralized applications (dApps) by leveraging optimistic rollups to enhance transaction throughput and reduce fees.
+
+## What is the Metis Chain API?
+
+The Metis Chain API facilitates interaction with the Metis Chain network through a collection of JSON-RPC methods. It provides developers with tools to interact with the blockchain, enabling functionalities such as transactions, smart contract deployment, and data retrieval.
+
+## What networks are supported for Metis Chain?
+
+Currently, we only support Metis Mainnet.
+
+## How can I get started using the Metis Chain API?
+
+Explained in [Metis Chain API Quickstart](/docs/reference/metis-chain-api-quickstart).
+
+## Is Metis Chain EVM compatible?
+
+Yes, Metis Chain is fully compatible with the Ethereum Virtual Machine (EVM). This compatibility allows Ethereum developers to port their projects to Metis Chain with minimal changes, benefiting from the network's scalability and low transaction fees.
+
+## What API does Metis Chain use?
+
+Metis Chain uses the JSON-RPC API standard for blockchain interactions. This is the same standard used by Ethereum.
+
+## What is a Metis Chain API key?
+
+When you access the Metis Chain network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network.
+
+For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup)!
+
+## Which libraries support Metis Chain?
+
+Because Metis Chain is EVM-compatible, popular Ethereum libraries like ethers.js and web3.js work with Metis Chain. If you're familiar with Ethereum's development ecosystem, you can integrate with minimal changes.
+
+## What programming languages work with Metis Chain?
+
+Like Ethereum, Metis Chain supports a range of programming languages for blockchain interaction and smart contract development, including Solidity for smart contracts, as well as JavaScript and TypeScript for dApp development and offchain interactions.
+
+## What does Metis Chain use for gas?
+
+Metis Chain uses METIS, its native cryptocurrency, for transaction fees, gas, and other network activities.
+
+## What methods does Alchemy support for the Metis Chain API?
+
+You can find the list of all the methods Alchemy supports for the Metis Chain API on the [Metis API Endpoints](/docs/chains#metis-apis) page.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

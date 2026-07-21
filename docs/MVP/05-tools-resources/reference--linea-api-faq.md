@@ -1,0 +1,58 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# Linea Chain API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/linea-api-faq.md](https://www.alchemy.com/docs/reference/linea-api-faq.md)
+
+# Linea Chain API FAQ
+
+> Frequently asked questions about the Linea Chain API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is Linea Chain?
+
+Linea Chain is a high-performance blockchain designed to provide a scalable and efficient platform for decentralized applications (dApps). It aims to deliver rapid transaction speeds and low costs, making it an ideal choice for developers looking to build scalable and efficient blockchain solutions.
+
+## What is the Linea Chain API?
+
+The Linea Chain API facilitates interaction with the Linea Chain network through a collection of JSON-RPC methods. It provides developers with tools to interact with the blockchain, enabling functionalities such as transactions, smart contract deployment, and data retrieval.
+
+## How can I get started using the Linea Chain API?
+
+Explained in [Linea Chain API Quickstart](/docs/reference/linea-chain-api-quickstart).
+
+## Is Linea Chain EVM compatible?
+
+Yes, Linea Chain is fully compatible with the Ethereum Virtual Machine (EVM). This compatibility allows Ethereum developers to port their projects to Linea Chain with minimal changes, benefiting from the chain's high throughput and low transaction fees.
+
+## What API does Linea Chain use?
+
+Linea Chain uses the JSON-RPC API standard for blockchain interactions. This is the same standard used by Ethereum.
+
+## What is a Linea Chain API key?
+
+When you access the Linea Chain network via a node provider like Alchemy, you use an API key to send transactions and retrieve data from the network.
+
+For the best development experience, we recommend that you [sign up for a free API key](https://dashboard.alchemy.com/signup)!
+
+## Which libraries support Linea Chain?
+
+Because Linea Chain is EVM-compatible, popular Ethereum libraries like ethers.js and web3.js work with Linea Chain. If you're familiar with Ethereum's development ecosystem, you can integrate with minimal changes.
+
+## What programming languages work with Linea Chain?
+
+Like Ethereum, Linea Chain supports a range of programming languages for blockchain interaction and smart contract development, including Solidity for smart contracts, as well as JavaScript and TypeScript for dApp development and offchain interactions.
+
+## What does Linea Chain use for gas?
+
+Linea Chain uses LINEA, its native cryptocurrency, for transaction fees, gas, and other network activities.
+
+## What methods does Alchemy support for the Linea Chain API?
+
+You can find the list of all the methods Alchemy supports for the Linea Chain API on the [Linea API Endpoints](/docs/chains#linea-apis) page.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

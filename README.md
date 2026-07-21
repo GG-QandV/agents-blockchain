@@ -85,21 +85,21 @@ Agent                    μ Gate (localhost)           Base Network
 
 ### Modules
 
-| Crate | Role |
-|-------|------|
-| `mu-gate` | M8 — unix socket, ed25519 auth, rate-limit, allowlist |
-| `mu-runtime` | M6 — pipeline: Ω → Δ → [human] → WAL → execute |
-| `mu-connect` / `x402` | M7x — x402 client (EIP-712, EIP-3009, self-check) |
-| `mu-connect` / `crypto` | M7a — EVM USDC connector (Base, legacy) |
-| `mu-policy` | M2/M3 — Ω (ceiling) + Δ (whitelist, budget, resources) |
-| `mu-log` | M5 — append-only hash chain WAL, reconcile |
-| `mu-vault` | M4 — k256/P-256 keys, soft vault (dev) / enclave (TBD) |
-| `mu-human` | M9 — owner biometric confirmation dialog |
-| `mu-core` | M1 — μ-object format, CBOR-like serialization |
-| `mu-daemon` | Binary — boot protocol, socket server, Runtime |
-| `mu-license` | Ed25519-signed license check |
-| `composer-core` | C2 — Delta proposal encode/decode (offline policy change) |
-| `composer-cli` | C2 — CLI tool for whitelist/daily-limit management |
+| Crate                   | Role                                                      |
+| ----------------------- | --------------------------------------------------------- |
+| `mu-gate`               | M8 — unix socket, ed25519 auth, rate-limit, allowlist     |
+| `mu-runtime`            | M6 — pipeline: Ω → Δ → [human] → WAL → execute            |
+| `mu-connect` / `x402`   | M7x — x402 client (EIP-712, EIP-3009, self-check)         |
+| `mu-connect` / `crypto` | M7a — EVM USDC connector (Base, legacy)                   |
+| `mu-policy`             | M2/M3 — Ω (ceiling) + Δ (whitelist, budget, resources)    |
+| `mu-log`                | M5 — append-only hash chain WAL, reconcile                |
+| `mu-vault`              | M4 — k256/P-256 keys, soft vault (dev) / enclave (TBD)    |
+| `mu-human`              | M9 — owner biometric confirmation dialog                  |
+| `mu-core`               | M1 — μ-object format, CBOR-like serialization             |
+| `mu-daemon`             | Binary — boot protocol, socket server, Runtime            |
+| `mu-license`            | Ed25519-signed license check                              |
+| `composer-core`         | C2 — Delta proposal encode/decode (offline policy change) |
+| `composer-cli`          | C2 — CLI tool for whitelist/daily-limit management        |
 
 ---
 
@@ -122,6 +122,7 @@ max_price_per_call_minor = 1_000_000     # $1/call
 ```
 
 Templates in `mu/policy-templates/`:
+
 - `approved-recipients-only.toml`
 - `daily-budget.toml`
 - `approval-above-threshold.toml`
@@ -129,12 +130,12 @@ Templates in `mu/policy-templates/`:
 
 ### Environment
 
-| Env var | Default | Description |
-|---------|---------|-------------|
-| `MU_CONNECTOR` | `stub` | `x402` for real payments |
-| `MU_WALLET_ADDR` | — | Wallet address (hex, with or without `0x`) |
-| `MU_HOME` | `/tmp/mu` | Fixtures directory |
-| `MU_POLICY_SOCK` | — | Unix socket path for Composer |
+| Env var          | Default   | Description                                |
+| ---------------- | --------- | ------------------------------------------ |
+| `MU_CONNECTOR`   | `stub`    | `x402` for real payments                   |
+| `MU_WALLET_ADDR` | —         | Wallet address (hex, with or without `0x`) |
+| `MU_HOME`        | `/tmp/mu` | Fixtures directory                         |
+| `MU_POLICY_SOCK` | —         | Unix socket path for Composer              |
 
 ---
 

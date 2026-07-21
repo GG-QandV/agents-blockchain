@@ -1,5 +1,5 @@
-//! delta_hash — детерминированный SHA-256 канонической байтовой формы Δ.
-//! Используется для base_delta_hash (TOCTOU, спека §5.1) и DeltaChanged в логе.
+//! delta_hash — deterministic SHA-256 of canonical byte representation Δ.
+//! Used for base_delta_hash (TOCTOU, spec §5.1) and DeltaChanged in the log.
 use crate::types::Delta;
 use mu_common::Hash32;
 use sha2::{Digest, Sha256};
@@ -8,7 +8,7 @@ pub fn delta_hash(d: &Delta) -> Hash32 {
     let mut h = Sha256::new();
     h.update(d.daily_limit.minor().to_be_bytes());
     h.update((d.whitelist.len() as u32).to_be_bytes());
-    // канонический порядок: сортировка по (chain_id, addr) — порядок ввода не влияет на hash
+    // canonical order: sort by (chain_id, addr) — input order does not affect hash
     let mut wl: Vec<_> = d.whitelist.iter().collect();
     wl.sort_by_key(|e| (e.address.chain_id(), *e.address.bytes()));
     for e in wl {

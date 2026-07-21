@@ -1,0 +1,88 @@
+# Agent Authentication and Payment
+
+> Source: [https://www.alchemy.com/docs/alchemy-for-agents.md](https://www.alchemy.com/docs/alchemy-for-agents.md)
+
+# Agent Authentication and Payment
+
+> Authenticate your AI agent with an EVM wallet instead of an API key using SIWE. Your agent can pay with USDC through the x402 payment protocol.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## How it works
+
+x402 wallet authentication in the Alchemy CLI uses two open standards today:
+
+* **[SIWE (Sign-In With Ethereum)](https://eips.ethereum.org/EIPS/eip-4361):** Your agent authenticates by signing a message with an EVM wallet.
+* **[x402](https://www.x402.org/):** An open protocol for HTTP-native payments. When payment is required, the server responds with HTTP 402, the CLI signs the payment challenge with the same EVM wallet, and retries the request. Zero protocol fees.
+
+The CLI also supports local Solana wallets for Solana transaction signing, but x402 gateway authentication currently uses an EVM wallet and SIWE.
+
+## The flow
+
+When your agent needs to access Alchemy APIs without an API key, it handles the full wallet authentication flow:
+
+1. **Wallet setup:** Your agent creates a local EVM wallet or imports an existing EVM private key.
+2. **Authentication:** Your agent generates a signed SIWE token and includes it in every x402 gateway request.
+3. **Payment:** When payment is required, the server responds with HTTP 402, and your agent signs the requested USDC payment before retrying automatically.
+
+The x402 wallet only determines authentication and payment. Once authenticated, it can query any chain across [all networks Alchemy supports](docs/reference/node-supported-chains).
+
+## What your agent can access
+
+All standard Alchemy APIs are available through the x402 gateway:
+
+* **Node RPC:** Standard Ethereum JSON-RPC methods (`eth_*`) plus Alchemy-enhanced methods, across 100+ chains
+* **Token API:** Token balances, metadata, and allowances
+* **NFT API:** NFT ownership, metadata, sales, and spam detection
+* **Transfers API:** Asset transfer history with filtering
+* **Prices API:** Spot and historical token prices
+* **Portfolio API:** Multi-chain balances and portfolio data
+* **Simulation API:** Transaction simulation and outcome prediction
+
+These are the same APIs available with a standard API key. The only difference is the authentication and payment mechanism.
+
+## CLI wallet roles
+
+| | EVM wallet | Solana wallet |
+|---|---|---|
+| **CLI use** | x402 gateway auth and EVM transaction signing | Solana transaction signing |
+| **Auth standard** | SIWE (EIP-4361) | Not used for x402 in the CLI today |
+| **Signature** | secp256k1 | ed25519 |
+| **Payment** | USDC through x402 payment challenges | Not used for x402 in the CLI today |
+| **Queryable chains through x402** | [All supported networks](docs/reference/node-supported-chains) | Not applicable |
+
+## Install as an agent skill
+
+Install the `agentic-gateway` [agent skill](docs/alchemy-agent-skills) so your AI coding agent learns this flow automatically:
+
+```bash
+npx skills add alchemyplatform/skills --yes
+```
+
+Your agent will walk you through wallet setup and handle authentication and payments from there.
+
+## Use it from the CLI
+
+The [Alchemy CLI](docs/alchemy-cli) ships the x402 flow built in. Create or import a local EVM wallet, opt into x402, and node and data commands can authenticate and pay from that wallet without an API key.
+
+```bash
+alchemy wallet connect --mode local --chain evm
+alchemy config set x402 true
+alchemy evm data balance vitalik.eth
+```
+
+You can also point at an existing EVM private key file with `alchemy config set wallet-key-file <path>`, pass `--wallet-key-file <path>`, or set `ALCHEMY_WALLET_KEY`.
+
+## Watch it in action
+
+<div style={{ position: "relative", paddingBottom: "56.25%", height: 0, overflow: "hidden" }}>
+  <iframe style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", border: "none" }} src="https://player.cloudinary.com/embed/?cloud_name=alchemyapi&private_cdn=true&public_id=docs%2Ftutorials%2Fbuild-with-ai%2Fagent-video_vrudof&profile=cld-default" allow="autoplay; fullscreen; encrypted-media; picture-in-picture" allowFullScreen />
+</div>
+
+## Next steps
+
+* [agents.alchemy.com](https://agents.alchemy.com/)
+* [x402.org](https://www.x402.org/)
+* [EIP-4361: SIWE](https://eips.ethereum.org/EIPS/eip-4361)
+* [Agent Skills](docs/alchemy-agent-skills)
+* [Alchemy CLI](docs/alchemy-cli)

@@ -1,4 +1,4 @@
-//! Таблицы валидации §7 спеки: E-* блокируют, W-* предупреждают.
+//! Validation tables §7 of the spec: E-* block, W-* warn.
 use crate::types::{Delta, OmegaView};
 use mu_common::Amount;
 use std::collections::HashSet;
@@ -30,7 +30,7 @@ impl ValidationReport {
     pub fn ok(&self) -> bool { self.errors.is_empty() }
 }
 
-/// bidi/управляющие в label (E-LBL-01, спуфинг diff — RISK-M9-3).
+/// bidi/control chars in label (E-LBL-01, diff spoofing — RISK-M9-3).
 fn label_ok(l: &str) -> bool {
     if l.chars().count() > 64 { return false; }
     !l.chars().any(|c| {
@@ -42,7 +42,7 @@ fn label_ok(l: &str) -> bool {
 pub fn validate(new: &Delta, omega: &OmegaView) -> ValidationReport {
     let mut r = ValidationReport::default();
 
-    // лимиты
+    // limits
     if new.daily_limit == Amount::ZERO {
         r.errors.push(VErr::ELim01ZeroLimit);
     }
@@ -120,7 +120,7 @@ mod tests {
     #[test]
     fn e_adr_03_04() {
         let mut d = base();
-        d.whitelist.push(wl("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", 1, "Eth")); // chain 1 не поддержан
+        d.whitelist.push(wl("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", 1, "Eth")); // chain 1 not supported
         assert!(matches!(validate(&d, &omega()).errors[0], VErr::EAdr03ChainUnsupported { chain_id: 1 }));
         let mut d = base();
         d.whitelist.push(wl("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 8453, "Dup"));

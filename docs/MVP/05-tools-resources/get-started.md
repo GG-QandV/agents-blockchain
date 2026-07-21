@@ -1,0 +1,132 @@
+# Choose Your Starting Point
+
+> Source: [https://www.alchemy.com/docs/get-started.md](https://www.alchemy.com/docs/get-started.md)
+
+# Choose Your Starting Point
+
+> Overview of our product offerings
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+<CardGroup cols={4}>
+  <Card title="Chain APIs" icon="diagram-project" href="/docs/chains">
+    Low-level JSON-RPC for reading & writing blockchain data.
+  </Card>
+
+  <Card title="Data APIs" icon="database" href="/docs/reference/data-overview">
+    Structured, indexed data for balances, NFTs, prices, and more.
+  </Card>
+
+  <Card title="Wallet APIs" icon="wallet" href="/docs/wallets">
+    Account abstraction infrastructure for smart wallets.
+  </Card>
+
+  <Card title="Rollups" icon="layer-group" href="/docs/reference/rollups-quickstart">
+    Launch dedicated rollups with full control over your L2.
+  </Card>
+</CardGroup>
+
+<Tip title="Don't have an API key?" icon="star">
+  Build faster with production-ready APIs, smart wallets and rollup infrastructure across 70+ chains. Create your free Alchemy API key and{" "}
+  <a href="https://dashboard.alchemy.com/signup">get started today</a>.
+</Tip>
+
+***
+
+## 1. Chain APIs
+
+The [Chain APIs](/docs/chains) give you low-level access to standard JSON-RPC methods for interacting with blockchains.
+
+Use them for sending transactions, querying blocks and logs, and accessing state. They support multiple chains; see the [API Overview](/docs/chains) page for the full list.
+
+<CardGroup cols={3}>
+  <Card title="Chain APIs" icon="diagram-project" href="/docs/chains">
+    Read & write interface for all blockchains supported by us.
+  </Card>
+
+  <Card title="WebSockets" icon="wave-square" href="/docs/reference/subscription-api">
+    Subscribe to pending transactions, log events, new blocks, and more.
+  </Card>
+
+  <Card title="Trace API" icon="magnifying-glass-arrow-right" href="/docs/reference/trace-api-quickstart">
+    Get insights into transaction processing and onchain activity.
+  </Card>
+
+  <Card title="Debug API" icon="bug" href="/docs/reference/debug-api-quickstart">
+    Non-standard RPC methods for inspecting and debugging transactions.
+  </Card>
+
+  <Card title="Yellowstone gRPC" icon="bolt" href="/docs/reference/yellowstone-grpc-overview">
+    High-performance real-time Solana data streaming interface.
+  </Card>
+</CardGroup>
+
+***
+
+## 2. Data APIs
+
+The [Data APIs](/docs/reference/data-overview) provide structured, indexed data that would be difficult to get via RPC alone.
+
+Use it for NFT metadata, token balances, transaction histories, enriched transfers, and analytics. Optimized for high-volume reads, dashboards, and data-heavy applications.
+
+<CardGroup cols={3}>
+  <Card title="Portfolio API" icon="chart-pie" href="/docs/reference/portfolio-apis">
+    Build a complete portfolio view of a user's wallet across tokens and NFTs.
+  </Card>
+
+  <Card title="Transfers API" icon="arrow-right-arrow-left" href="/docs/reference/transfers-api-quickstart">
+    Get historical transactions for any address in a single request.
+  </Card>
+
+  <Card title="Prices API" icon="chart-line" href="/docs/reference/prices-api-quickstart">
+    Access real-time and historical token prices.
+  </Card>
+
+  <Card title="NFT API" icon="image" href="/docs/reference/nft-api-quickstart">
+    Find, verify, and display NFTs across major blockchains.
+  </Card>
+
+  <Card title="Webhooks" icon="bell" href="/docs/reference/notify-api-quickstart">
+    Subscribe to onchain events like transfers, transactions, and balance changes.
+  </Card>
+
+  <Card title="Simulation API" icon="flask" href="/docs/reference/simulation">
+    Simulate transactions and see their effects before you send them.
+  </Card>
+</CardGroup>
+
+***
+
+## 3. Wallet APIs / Account Abstraction Infrastructure
+
+Our [Smart Wallets](/docs/wallets) product gives you everything you need to build zero-friction user flows, from sign-up to checkout, using smart contract accounts.
+
+Use these APIs to handle user operations, sponsor gas, and implement smart accounts with account abstraction.
+
+<CardGroup cols={3}>
+  <Card title="Bundler" icon="layer-group" href="/docs/reference/bundler-api-quickstart">
+    Bundler API Quickstart for handling user operations.
+  </Card>
+
+  <Card title="Gas Manager" icon="gas-pump" href="https://www.alchemy.com/docs/reference/how-to-sponsor-gas-on-evm">
+    Gas Manager API Quickstart for sponsoring gas fees.
+  </Card>
+
+  <Card title="Transaction APIs" icon="toolbox" href="/docs/wallets/transactions/send-transactions">
+    Send transactions with smart accounts.
+  </Card>
+</CardGroup>
+
+***
+
+## 4. Rollups
+
+Our [Rollups](/docs/reference/rollups-quickstart) product helps you run a dedicated rollup with full control over transaction speed, cost, and functionality.
+
+Launching a rollup can unlock new revenue streams, enable novel use cases, and provide a better user experience.
+
+<CardGroup cols={1}>
+  <Card title="Arbitrum Chain" icon={<img src="https://alchemyapi-res.cloudinary.com/image/upload/v1764179954/docs/api-reference/alchemy-rollups/api_icon3.svg" alt="Arbitrum Chain logo" />} href="/docs/reference/supported-stacks">
+    View the Arbitrum Stack rollup framework.
+  </Card>
+</CardGroup>

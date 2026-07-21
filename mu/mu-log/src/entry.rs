@@ -1,4 +1,4 @@
-//! Запись лога и её байтовая форма (детерминированная, для hash-chain и подписи).
+//! Log entry and its byte form (deterministic, for hash-chain and signing).
 use mu_common::Hash32;
 use sha2::{Digest, Sha256};
 
@@ -8,7 +8,7 @@ pub const WINDOW_SECS: u64 = 86_400;
 pub enum Kind {
     DeniedOmega { intent_hash: Hash32 },
     DeniedDelta { intent_hash: Hash32 },
-    /// Резерв: amount_total = amount + gas_reserve (RISK-M3-3: одна величина для окна и порога).
+    /// Reserve: amount_total = amount + gas_reserve (RISK-M3-3: single value for window and threshold).
     Pending { intent_hash: Hash32, amount_total: u128, chain_nonce: u64 },
     Settled { intent_hash: Hash32, tx_hash: [u8; 32], effective_gas: u128 },
     Failed { intent_hash: Hash32 },
@@ -30,7 +30,7 @@ pub struct Entry {
 }
 
 impl Kind {
-    /// Детерминированная байтовая форма для хеша/подписи.
+    /// Deterministic byte form for hash/signing.
     pub fn encode(&self) -> Vec<u8> {
         let mut b = Vec::new();
         match self {
@@ -67,8 +67,8 @@ impl Kind {
 }
 
 impl Entry {
-    /// hash записи = SHA256(seq ‖ prev_hash ‖ ts ‖ kind_bytes) — БЕЗ sig,
-    /// чтобы hash был вычислим до подписи (подписывается именно этот hash).
+    /// hash = SHA256(seq ‖ prev_hash ‖ ts ‖ kind_bytes) — WITHOUT sig,
+    /// so hash is computable before signing (this hash is what gets signed).
     pub fn hash(&self) -> Hash32 {
         entry_hash(self.seq, &self.prev_hash, self.ts, &self.kind)
     }

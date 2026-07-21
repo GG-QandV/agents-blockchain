@@ -1,0 +1,115 @@
+# How to Get the Latest Block on Ethereum
+
+> Source: [https://www.alchemy.com/docs/how-to-get-the-latest-block-on-ethereum.md](https://www.alchemy.com/docs/how-to-get-the-latest-block-on-ethereum.md)
+
+# How to Get the Latest Block on Ethereum
+
+> Don't know where to start? This guide will walk you through writing a simple web3 script to get the latest block number from the Ethereum mainnet using Alchemy.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+<Info>
+  This tutorial uses the **[getBlockNumber](/docs/reference/sdk-getblocknumber)** endpoint.
+</Info>
+
+*This guide assumes you've gone through the [getting started](/docs/alchemy-quickstart-guide) steps and have an [Alchemy account!](https://alchemy.com/?r=affiliate:b92f4e01-cafb-4038-83f4-372a42df5171)*
+
+## 1. Create a project directory
+
+<CodeGroup>
+  ```shell shell
+  mkdir web3-example
+  cd web3-example
+  ```
+</CodeGroup>
+
+## 2. Install a web3 library
+
+You can use any [web3 library](/docs/alchemy-quickstart-guide) of your choosing. We recommend Viem for new projects, or Ethers.js if you're already familiar with it.
+
+<CodeGroup>
+  ```shell Viem (Recommended)
+  npm install viem
+  ```
+
+  ```shell Ethers.js
+  npm install ethers
+  ```
+</CodeGroup>
+
+## 3. Create `index.js`
+
+<CodeGroup>
+  ```javascript Viem (Recommended)
+  import { createPublicClient, http } from 'viem'
+  import { mainnet } from 'viem/chains'
+
+  // Replace with your Alchemy API Key
+  const apiKey = "demo"; // Replace with your Alchemy API Key.
+
+  const publicClient = createPublicClient({
+    chain: mainnet,
+    transport: http(`https://eth-mainnet.g.alchemy.com/v2/${apiKey}`)
+  })
+
+  async function main() {
+    try {
+      const latestBlock = await publicClient.getBlockNumber();
+      console.log("The latest block number is", latestBlock);
+    } catch (error) {
+      console.error('Request failed:', error.message);
+    }
+  }
+
+  main();
+  ```
+
+  ```javascript Ethers.js
+  import { JsonRpcProvider } from "ethers";
+
+  // Replace with your Alchemy API Key
+  const apiKey = "demo"; // Replace with your Alchemy API Key.
+
+  // Create a provider
+  const provider = new JsonRpcProvider(`https://eth-mainnet.g.alchemy.com/v2/${apiKey}`);
+
+  async function main() {
+    try {
+      const latestBlock = await provider.getBlockNumber();
+      console.log("The latest block number is", latestBlock);
+    } catch (error) {
+      console.error('Request failed:', error.message);
+    }
+  }
+
+  main();
+  ```
+</CodeGroup>
+
+<Warning>
+  You should ultimately replace `demo` with your Alchemy HTTP API key.
+</Warning>
+
+Unfamiliar with the async stuff? Check out this [Medium post](https://medium.com/better-programming/understanding-async-await-in-javascript-1d81bb079b2c).
+
+## 4. Run it using node
+
+<CodeGroup>
+  ```shell shell
+  node index.js
+  ```
+</CodeGroup>
+
+5. You should now see the latest block number output in your console!
+
+<CodeGroup>
+  ```shell shell
+  The latest block number is 11043912
+  ```
+</CodeGroup>
+
+Woo! Congrats! You just wrote your first web3 script using Alchemy 🎉
+
+> 📄 **This content also appears in [How to Get the Number of Transactions in a Block](05-tools-resources/how-to-get-the-number-of-transactions-in-a-block.md)** — see there for full details.
+
+*Not sure what to do next? Build upon your skills learned in this tutorial by checking out our beginner's tutorial for [sending Ethereum transactions using Web3 and Alchemy](/docs/how-to-send-transactions-on-ethereum).*

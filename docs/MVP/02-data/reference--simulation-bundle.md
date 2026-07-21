@@ -1,0 +1,25 @@
+# Bundle Simulation
+
+> Source: [https://www.alchemy.com/docs/reference/simulation-bundle.md](https://www.alchemy.com/docs/reference/simulation-bundle.md)
+
+# Bundle Simulation
+
+> Simulates multiple transactions sequentially.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+<Info>
+  Try it out - [alchemy_simulateAssetChangesBundle](https://www.alchemy.com/docs/data/simulation-apis/transaction-simulation-endpoints/alchemy-simulate-asset-changes-bundle) and [alchemy_simulateExecutionBundle](https://www.alchemy.com/docs/data/simulation-apis/transaction-simulation-endpoints/alchemy-simulate-execution-bundle).
+</Info>
+
+With [Asset Changes](/docs/reference/alchemy-simulateassetchanges) and [Execution Simulation](/docs/reference/alchemy-simulateexecution), you are able to simulate 1 transaction and get asset changes, decoded logs, decoded traces and more.
+
+What about simulating multiple transactions **sequentially**?
+
+For 3 transactions (t1, t2, t3), think of being able to:
+
+* use output of simulating t1 as input to simulating t2
+* use output of simulating t2 as input to simulating t3
+* etc.
+
+The current bundle limit is 3 transactions. 4500 CU cost.

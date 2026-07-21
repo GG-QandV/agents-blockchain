@@ -1,0 +1,30 @@
+# Portfolio APIs
+
+> Source: [https://www.alchemy.com/docs/reference/portfolio-apis.md](https://www.alchemy.com/docs/reference/portfolio-apis.md)
+
+# Portfolio APIs
+
+> Everything you need to view onchain assets.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+Portfolio APIs include *everything* you need to build a view of a user's assets: fungibles, NFTs, and their transactions.
+
+## **Why Portfolio APIs?**
+
+* **Multi-chain**: All Portfolio APIs are multi-chain -- get all the data you need in a single API request, instead of parallelizing dozens of calls across different networks.
+* **Powerful**: Query for the metadata you need (e.g. cached images, token metadata, prices) within the same API call.
+* **Constantly improving**: These APIs are continuously improving, based on customer feedback.
+* **Long-term partners**: We have 7+ years of experience supporting the largest onchain customers and will be around to support you for the long term.
+* **Scalable**: These APIs power some of the biggest wallets in the space -- rest assured that we can scale with you.
+
+| [**Get Tokens By Wallet**](/docs/data/portfolio-apis/portfolio-api-endpoints/portfolio-api-endpoints/get-tokens-by-address)                                                                              | [**NFTs By Wallet**](/docs/data/portfolio-apis/portfolio-api-endpoints/portfolio-api-endpoints/get-nfts-by-address)                                                                                                      | [Transaction History](/docs/transaction-history)                                                                        |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| ![Image 1](https://alchemyapi-res.cloudinary.com/image/upload/v1764179965/docs/api-reference/data/cc619a4df5351c534c2c0f6c718d26336600c07275d076dd15fe80e1964aaee5-Screenshot_2025-02-24_at_4.22.57_PM.png)                      | ![Image 2](https://alchemyapi-res.cloudinary.com/image/upload/v1764179966/docs/api-reference/data/b6a2d47e1d0a755c480ec042ebfd011dcb7403c4338ded3c1a8e0edf106bc848-Screenshot_2025-02-24_at_4.22.10_PM.png)                                      | ![Image 3](https://alchemyapi-res.cloudinary.com/image/upload/v1764179967/docs/api-reference/data/4b35a354494bf54afdd84697b1cabf8e199c9863394f50066727892e497111f1-Screenshot_2025-02-24_at_4.23.35_PM.png)                        |
+| **Ideal for:** Multi-chain token experiences, balance indexing<br /><br />**How it works:** Call an API to get balances, metadata, and prices. | **Ideal for:** NFT drops, token gating, analytics, wallets, marketplaces<br /><br />**How it works:** Call an API to return multi-chain and complete NFT data. | **Ideal for:** Wallets<br /><br />**How it works:** Call an API to get all transactions across different networks for a set of addresses. |
+
+## Feedback?
+
+Get in touch with us directly:
+
+**Email**: data-services-product@alchemy.com

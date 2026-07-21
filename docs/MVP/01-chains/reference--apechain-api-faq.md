@@ -1,0 +1,65 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-faq](../00-consolidated/api-faq.md).
+> Below is the original chain-specific version.
+
+# ApeChain API FAQ
+
+> Source: [https://www.alchemy.com/docs/reference/apechain-api-faq.md](https://www.alchemy.com/docs/reference/apechain-api-faq.md)
+
+# ApeChain API FAQ
+
+> Frequently asked questions about the ApeChain API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## What is ApeChain?
+
+ApeChain is a dedicated infrastructure layer designed to power the ApeCoin ecosystem. It's an Arbitrum chain that utilizes `$APE` as its native gas token, significantly enhancing `$APE`'s utility and fostering a robust, dynamic economy. ApeChain focuses on ecosystem discovery, unique web3 rails, and top-of-funnel exposure to provide developers and users with the best possible blockchain experience.
+
+## What is the ApeChain API?
+
+The ApeChain API allows you to interact with the ApeChain network through a set of JSON-RPC methods. It supports various operations such as smart contract deployment, transaction processing, and data retrieval, enabling you to integrate ApeChain's functionality into your applications.
+
+## How can I get started using the ApeChain API?
+
+Explained in [ApeChain Quickstart Guide](/docs/reference/apechain-api-quickstart)
+
+## Is ApeChain EVM compatible?
+
+Yes, ApeChain is EVM-compatible. As an Arbitrum chain, it allows you to deploy Ethereum-based smart contracts and applications on the ApeChain network, leveraging existing Ethereum development tools and practices.
+
+## What API does ApeChain use?
+
+ApeChain utilizes the JSON-RPC API standard, which is widely used in the Ethereum ecosystem. This provides a familiar and efficient interface for blockchain interactions.
+
+## What is an ApeChain API key?
+
+When accessing the ApeChain network via a service provider, you need an API key to send transactions and retrieve data. An API key ensures secure and authenticated access to the network.
+
+## Which libraries support ApeChain?
+
+As an EVM-compatible blockchain, ApeChain supports popular Ethereum libraries such as Web3.js and Ethers.js. This allows you to leverage existing tools and knowledge when building on ApeChain.
+
+## What programming languages work with ApeChain?
+
+ApeChain supports Solidity for smart contract development due to its EVM compatibility. For offchain interactions, you can use JavaScript, TypeScript, or other common web development languages.
+
+## What does ApeChain use for gas?
+
+ApeChain uses `$APE` as its native gas token. You need `$APE` to pay for transaction fees on the network, which significantly enhances the utility of `$APE` within the ecosystem.
+
+## How can I participate in the ApeChain ecosystem?
+
+You can participate in the ApeChain ecosystem by:
+
+1. Developing dApps on ApeChain
+2. Using `$APE` for transactions and gas fees
+3. Engaging with the ApeCoin community
+4. Exploring and using dApps built on ApeChain
+
+## Is ApeChain secure?
+
+ApeChain inherits security features from Arbitrum's technology and ultimately derives its security from Ethereum. However, as with any blockchain technology, you should always exercise caution and follow best practices for security.
+
+## My question isn't here, where can I get help?
+
+If you have any questions or feedback, contact us at support@alchemy.com or open a ticket in the Alchemy Dashboard.

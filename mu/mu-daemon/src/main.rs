@@ -1,16 +1,16 @@
-//! µ-daemon — boot-протокол M6 §4 + unix socket транспорт M8.
+//! µ-daemon — boot protocol M6 §4 + unix socket transport M8.
 //!
-//! Boot-порядок (строгий):
+//! Boot order (strict):
 //!   1. M1: load + verify + verify_against_log   → ✗ = exit(2)
 //!   2. M5: Log::open + verify_chain              → ✗ = exit(3)
 //!   3. M5: pending() → M7a.status → reconcile
-//!   4. M8: gate.restore_nonce з NonceSnapshot лога
-//!   5. Слухати unix socket → кадри → Gate::accept → Runtime::process
+//!   4. M8: gate.restore_nonce from NonceSnapshot in log
+//!   5. Listen unix socket → frames → Gate::accept → Runtime::process
 
 #![forbid(unsafe_code)]
 
 #[cfg(all(not(debug_assertions), feature = "softvault"))]
-compile_error!("softvault запрещён в release");
+compile_error!("softvault forbidden in release");
 
 use std::fs;
 use std::io::{Read, Write};
@@ -29,7 +29,7 @@ use mu_log::{Log, LogErr};
 use mu_runtime::{IntentStatus, Runtime};
 use mu_vault::backend::SoftVault;
 
-// ── Конфіґ (MVP: хардкод; прод: env/конфіґ) ─────────────────────────────
+// ── Config (MVP: hardcoded; prod: env/config) ─────────────────────────────
 
 const MU_PATH: &str = "mu.bin";
 const LOG_PATH: &str = "mu.log";
@@ -38,7 +38,7 @@ const MU_PUBKEY_HEX: &str = "026ff03b949241ce1dadd43519e6960e0a85b41a69a05c32810
 const BUCKET_CAP: u32 = 10;
 const TS_WINDOW_SECS: u64 = 60;
 
-// ── Допоміжні ───────────────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────
 
 fn hex_decode(s: &str) -> Vec<u8> {
     let s = s.strip_prefix("0x").unwrap_or(s);
@@ -48,7 +48,7 @@ fn hex_decode(s: &str) -> Vec<u8> {
         .collect()
 }
 
-// ── Presenter-заглушка (M9) ─────────────────────────────────────────────
+// ── Presenter stub (M9) ─────────────────────────────────────────────────
 
 struct CliPresenter;
 
@@ -62,7 +62,7 @@ impl Presenter for CliPresenter {
     }
 }
 
-// ── Boot-протокол (до виходу на сокет) ──────────────────────────────────
+// ── Boot protocol (before socket listen) ─────────────────────────────────
 
 #[derive(Debug)]
 enum BootErr {
@@ -87,19 +87,19 @@ fn boot(
     log_path: &Path,
     mu_pubkey: &[u8],
 ) -> Result<(Mu, Log, Gate, SoftVault, StubConnector, CliPresenter, SysClock), BootErr> {
-    // ── Крок 1: M1 — load + verify + verify_against_log (RISK-M1-2) ──
+    // ── Step 1: M1 — load + verify + verify_against_log (RISK-M1-2) ──
     let mu = Mu::load(mu_path)?;
     mu.verify(mu_pubkey).map_err(BootErr::Mu)?;
 
-    // ── Крок 2: M5 — Log::open + verify_chain (RISK-M5-2) ────────────
+    // ── Step 2: M5 — Log::open + verify_chain (RISK-M5-2) ────────────
     let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [3u8; 32]);
     let log = Log::open(log_path, &vault)?;
     log.verify_chain()?;
 
-    // verify_against_log: log_head == хвіст лога (RISK-M1-2)
+    // verify_against_log: log_head == log tail (RISK-M1-2)
     mu.verify_against_log(log.last_hash())?;
 
-    // ── Крок 3: pending() → status → reconcile ──────────────────────
+    // ── Step 3: pending() → status → reconcile ──────────────────────
     let stub = StubConnector::new("bank_stub");
     for entry in log.pending() {
         if let Kind::Pending { .. } = &entry.kind {
@@ -107,9 +107,9 @@ fn boot(
         }
     }
 
-    // ── Крок 4: M8 — restore_nonce з NonceSnapshot логу (RISK-M8-1) ──
+    // ── Step 4: M8 — restore_nonce from NonceSnapshot in log (RISK-M8-1) ──
     let mut allow = AllowList::new();
-    // SMOKE: додаємо тестового агента (seed [42;32])
+    // SMOKE: add test agent (seed [42;32])
     let agent_pubkey: [u8; 32] = [
         0x19, 0x7f, 0x6b, 0x23, 0xe1, 0x6c, 0x85, 0x32,
         0xc6, 0xab, 0xc8, 0x38, 0xfa, 0xcd, 0x5e, 0xa7,
@@ -127,7 +127,7 @@ fn boot(
     Ok((mu, log, gate, vault, stub, CliPresenter, SysClock))
 }
 
-// ── Транспорт M8: unix socket ───────────────────────────────────────────
+// ── Transport M8: unix socket ───────────────────────────────────────────
 
 fn handle_client(
     mut stream: UnixStream,
@@ -215,7 +215,7 @@ fn main() {
         match boot(mu_path, log_path, &mu_pubkey) {
             Ok(v) => v,
             Err(BootErr::Mu(CoreErr::LogHeadMismatch)) => {
-                eprintln!("FATAL: log_head mismatch — стара копія mu.bin");
+                eprintln!("FATAL: log_head mismatch — old copy of mu.bin");
                 std::process::exit(2);
             }
             Err(BootErr::Mu(e)) => {
@@ -240,7 +240,7 @@ fn main() {
             }
         };
 
-    // Leak об'єкти, яким потрібен статичний час життя для Runtime
+    // Leak objects that need a static lifetime for Runtime
     let vault: &'static SoftVault = Box::leak(Box::new(vault));
     let stub: &'static StubConnector = Box::leak(Box::new(stub));
     let presenter: &'static CliPresenter = Box::leak(Box::new(presenter));

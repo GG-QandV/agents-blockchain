@@ -1,0 +1,101 @@
+> ⚠️ **This page is a template variant.** The consolidated content is in [api-quickstart](../00-consolidated/api-quickstart.md).
+> Below is the original chain-specific version.
+
+# ApeChain API Quickstart
+
+> Source: [https://www.alchemy.com/docs/reference/apechain-api-quickstart.md](https://www.alchemy.com/docs/reference/apechain-api-quickstart.md)
+
+# ApeChain API Quickstart
+
+> How to get started building on ApeChain using Alchemy
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+> 📄 **This content also appears in [Choose Your Starting Point](05-tools-resources/get-started.md)** — see there for full details.
+
+ApeChain is a dedicated infrastructure layer designed to power the ApeCoin ecosystem. It's an Arbitrum chain that utilizes `$APE` as its native gas token, significantly enhancing `$APE`'s utility and fostering a robust, dynamic economy. ApeChain focuses on ecosystem discovery, unique web3 rails, and top-of-funnel exposure to provide you with the best possible blockchain experience.
+
+The ApeChain API allows interaction with the ApeChain network through a set of JSON-RPC methods. Its design is familiar to developers who have worked with Ethereum's JSON-RPC APIs, making it intuitive and straightforward to use.
+
+## Send your first request on Alchemy
+
+Let's use the [`viem`](https://www.npmjs.com/package/viem) package to create an ApeChain client connected to Alchemy and fetch the latest block number!
+
+<CodeGroup>
+  ```text npm
+  npm install --save viem
+  ```
+
+  ```text yarn
+  yarn add viem
+  ```
+</CodeGroup>
+
+## Create a client connected to Alchemy
+
+<CodeGroup>
+```js
+import { createPublicClient, http } from "viem"; 
+import { apeChain } from "viem/chains";
+
+const client = createPublicClient({
+  chain: apeChain,
+  transport: http("https://apechain-mainnet.g.alchemy.com/v2/YOUR_ALCHEMY_API_KEY"),
+});
+```
+</CodeGroup>
+
+Now that you've created a client connected to Alchemy, you can continue with some basics:
+
+## Get the latest block number
+
+<CodeGroup>
+```js
+const blockNumber = await client.getBlockNumber();
+console.log("Current block number:", blockNumber);
+```
+</CodeGroup>
+
+## Get an address balance
+
+<CodeGroup>
+```js 
+const balance = await client.getBalance({ address: "0xab5801a7d398351b8be11c439e05c5b3259aec9b" });
+console.log("Balance (APE):", Number(balance) / 1e18);
+```
+</CodeGroup>
+
+## Read block data
+
+<CodeGroup>
+```js
+const block = await client.getBlock({
+  blockNumber: blockNumber, // from previous example
+});
+console.log(block);
+```
+</CodeGroup>
+
+## Fetch a transaction by hash
+
+<CodeGroup> 
+```js 
+const tx = await client.getTransaction({ hash: "0xYOUR_TX_HASH" });
+console.log(tx);
+```
+</CodeGroup>
+
+## Fetch a transaction receipt
+
+<CodeGroup>
+```js
+const receipt = await client.getTransactionReceipt({
+  hash: "0xYOUR_TX_HASH"
+});
+console.log(receipt);
+```
+</CodeGroup>
+
+# ApeChain APIs
+
+For the full list of ApeChain APIs, see the [ApeChain API Endpoints](/docs/chains#apechain-apis).

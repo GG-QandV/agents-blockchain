@@ -1,0 +1,189 @@
+# alchemy_minedTransactions
+
+> Source: [https://www.alchemy.com/docs/reference/alchemy-minedtransactions.md](https://www.alchemy.com/docs/reference/alchemy-minedtransactions.md)
+
+# alchemy_minedTransactions
+
+> Emits full transaction objects or hashes that are mined on the network based on provided filters and block tags.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+The `alchemy_minedTransactions` subscription type subscribes to mined transactions via WebSockets, and filters those transactions based on specified `from` and/or `to` addresses. The subscription will return either full transaction objects or just transaction hashes depending on the request. It will also optionally include re-orged or removed transactions if specified.
+
+# Supported Networks
+
+<Info>
+  Check the [Chains](https://dashboard.alchemy.com/chains) page for details about product and chain support!
+
+  > 📄 **This content also appears in [logs](05-tools-resources/reference--logs.md)** — see there for full details.
+
+# Parameters
+
+* `addresses` (optional): \[`array of objects`] list of addresses to filter mined transactions for specified by `to` or `from` in the following format: `[{"to": "string", "from": "string"}]`. Limit of 1000 total addresses.
+* `includeRemoved` (optional): `boolean` specifier to include transactions that have been removed from the cannonical chain (or [re-orged](/docs/what-is-proof-of-stake#what-is-a-re-org-re-organization)).
+* `hashesOnly` (optional): `boolean` default value is `false`, where the response will return a full transaction object (matches the payload of [eth\_getTransactionByHash](/docs/reference/eth-gettransactionbyhash)) . If set to `true`, the payload returned contains only the *hashes* of the transactions that are mined. Prefer `true` unless you need full transaction objects immediately.
+
+<Info>
+  Excluding all parameters returns the transaction information for **all transactions** that are mined on chain.
+</Info>
+
+<Info>
+  A good starting point is to add address filters and set `hashesOnly` to
+  `true`, then request full transaction objects only when you need them.
+</Info>
+
+# Returns
+
+<Info>
+  Mined transactions are returned once they are mined in the `latest` block. In the future we may add support to specify a given block tag confirmation.
+</Info>
+
+With `hashesOnly` = `true`
+
+* `result`:
+
+  * `removed` - `boolean` specifier if the transaction has been removed (re-orged)
+  * `transaction` - transaction object for mined transaction
+    * `hash` - `string` transaction hash
+
+* `subscription`: `string` - subscription ID
+
+With `hashesOnly` = `false`
+
+* `result`:
+
+  * `removed` - `boolean` specifier if the transaction has been removed (re-orged)
+  * `transaction` - transaction object for mined transaction \*`blockHash`: `DATA`, 32 Bytes - hash of block that the transaction was mined in \*`blockNumber`: `QUANTITY` - `null` when it's pending. \*`from`: `DATA`, 20 Bytes - address of the sender. \*`gas`: `QUANTITY` - gas provided by the sender. \*`gasPrice`: `QUANTITY` - gas price provided by the sender in Wei. \*`hash`: `DATA`, 32 Bytes - hash of the transaction. \*`input`: `DATA` - the data send along with the transaction. \*`nonce`: `QUANTITY` - the number of transactions made by the sender prior to this one. \*`to`: `DATA`, 20 Bytes - address of the receiver. `null` when it's a contract creation transaction. \*`transactionIndex`: `QUANTITY` - `null` when its pending. \*`value`: `QUANTITY` - value transferred in Wei. \*`v`: `QUANTITY` - ECDSA recovery id \*`r`: `DATA`, 32 Bytes - ECDSA signature r \*`s`: `DATA`, 32 Bytes - ECDSA signature s
+
+* `subscription`: `string` - subscription ID
+
+### Request
+
+<CodeGroup>
+  ```shell wscat
+  // initiate websocket stream first
+  wscat -c wss://eth-mainnet.g.alchemy.com/v2/demo
+
+  // to and from filters, hashesOnly = true
+  {
+    "jsonrpc": "2.0",
+    "method": "eth_subscribe",
+    "params": [
+      "alchemy_minedTransactions",
+      {
+        "addresses": [
+          {
+            "to": "0x9f3ce0ad29b767d809642a53c2bccc9a130659d7",
+            "from": "0x228f108fd09450d083bb33fe0cc50ae449bc7e11"
+          },
+          {
+            "to": "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+          }
+        ],
+        "includeRemoved": false,
+        "hashesOnly": true
+      }
+    ],
+    "id": 1
+  }
+  ```
+
+  ```javascript Viem
+  import { createPublicClient, webSocket } from 'viem'
+  import { mainnet } from 'viem/chains'
+
+  const client = createPublicClient({
+    chain: mainnet,
+    transport: webSocket('wss://eth-mainnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->')
+  })
+
+  // Addresses to filter for
+  const targetAddress = "0x473780deaf4a2ac070bbba936b0cdefe7f267dfc"
+
+  // Subscribe to new blocks to get mined transactions
+  const unsubscribe = client.watchBlocks({
+    onBlock: async (block) => {
+      try {
+        const blockWithTxs = await client.getBlock({
+          blockNumber: block.number,
+          includeTransactions: true
+        })
+
+        // Filter transactions by from/to address
+        const filteredTxs = blockWithTxs.transactions.filter(tx =>
+          tx.from?.toLowerCase() === targetAddress.toLowerCase() ||
+          tx.to?.toLowerCase() === targetAddress.toLowerCase()
+        )
+
+        if (filteredTxs.length > 0) {
+          filteredTxs.forEach(tx => {
+            console.log({
+              removed: false, // Standard block subscriptions don't track re-orgs
+              transaction: tx
+            })
+          })
+        }
+      } catch (error) {
+        console.error('Error processing block:', error)
+      }
+    }
+  })
+  ```
+
+  ```javascript Ethers.js
+  import { WebSocketProvider } from 'ethers'
+
+  const provider = new WebSocketProvider('wss://eth-mainnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->')
+
+  // Address to filter for
+  const targetAddress = "0x473780deaf4a2ac070bbba936b0cdefe7f267dfc"
+
+  // Listen for new blocks and filter mined transactions
+  provider.on('block', async (blockNumber) => {
+    try {
+      const block = await provider.getBlock(blockNumber, true)
+
+      if (block && block.transactions) {
+        // Filter transactions by from/to address
+        const filteredTxs = block.transactions.filter(tx =>
+          tx.from?.toLowerCase() === targetAddress.toLowerCase() ||
+          tx.to?.toLowerCase() === targetAddress.toLowerCase()
+        )
+
+        if (filteredTxs.length > 0) {
+          filteredTxs.forEach(tx => {
+            console.log({
+              removed: false, // Standard block subscriptions don't track re-orgs
+              transaction: tx
+            })
+          })
+        }
+      }
+    } catch (error) {
+      console.error('Error processing block:', error)
+    }
+  })
+  ```
+</CodeGroup>
+
+### Result
+
+<CodeGroup>
+  ```json results
+  {"id":1,"result":"0xf13f7073ddef66a8c1b0c9c9f0e543c3","jsonrpc":"2.0"}
+
+  {
+    "jsonrpc": "2.0",
+    "method": "eth_subscription",
+    "params": {
+      "result": {
+  			"removed": false
+  			"transaction": {
+  				"hash":"0xa8f2cf69e302da6c8100b80298ed77c37b6e75eed1177ca22acd5772c9fb9876",
+  			}
+      },
+      "subscription": "0xf13f7073ddef66a8c1b0c9c9f0e543c3"
+    }
+  }
+  ```
+</CodeGroup>

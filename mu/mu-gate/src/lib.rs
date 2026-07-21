@@ -1,9 +1,9 @@
-//! M8 mu-gate — периметр. Всё недоверенное умирает здесь.
+//! M8 mu-gate — perimeter. Everything untrusted dies here.
 //!
-//! RISK-M8-1: replay — монотонный nonce на агента, переживает рестарт (восстановление из лога).
-//! RISK-M8-2: подпись покрывает ВЕСЬ кадр включая agent_id; pubkey берётся из allowlist по id.
-//! RISK-M8-3: hardened-парсер — фикс. схема, лимиты размеров, без паник.
-//! RISK-M8-5: единый deny{code}, без деталей Δ/Ω.
+//! RISK-M8-1: replay — monotonic nonce per agent, survives restart (restored from log).
+//! RISK-M8-2: signature covers ENTIRE frame including agent_id; pubkey taken from allowlist by id.
+//! RISK-M8-3: hardened parser — fixed schema, size limits, no panics.
+//! RISK-M8-5: single deny{code}, no Δ/Ω details.
 #![forbid(unsafe_code)]
 
 pub mod wire;

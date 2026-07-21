@@ -1,0 +1,277 @@
+# How to Subscribe to Pending Transactions via WebSocket Endpoints
+
+> Source: [https://www.alchemy.com/docs/how-to-subscribe-to-transactions-via-websocket-endpoints.md](https://www.alchemy.com/docs/how-to-subscribe-to-transactions-via-websocket-endpoints.md)
+
+# How to Subscribe to Pending Transactions via WebSocket Endpoints
+
+> Learn how to subscribe to pending transactions via WebSockets, and filters the transactions based on specified from and/or to addresses.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+In this tutorial, you'll utilize the alchemy\_pendingTransactions subscription type API endpoint. If you require the script or further details, refer to the following articles or continue reading for more.
+
+[![alchemy.com/docs](https://alchemyapi-res.cloudinary.com/image/upload/v1764180091/docs/api-reference/websockets/0c06bc6-small-alchemy-circle-logo.png)alchemy.com/docs](/docs/reference/alchemy-pendingtransactions)
+
+[alchemy\_pendingTransactions](/docs/reference/alchemy-pendingtransactions)
+
+Alchemy provides the most effective method to subscribe to pending transactions, log events, and new blocks using WebSockets on Ethereum, Polygon, Arbitrum, and Optimism. By leveraging modern Web3 libraries, you're able to access direct subscription types by simply connecting to each endpoint.
+
+In this tutorial, we will test and create a sample project using the `alchemy_pendingTransactions` method offered by Alchemy's WebSocket API.
+
+**What relevance does the `alchemy_pendingTransactions` provide to users?**
+
+* Watching for pending transactions sent to a set of NFT owners to track the most recent floor price
+* Watching transactions sent from a whale trader to track trading patterns
+
+**How does `alchemy_pendingTransactions` compare to `newPendingTransactions`?** Both these subscription types enable developers to receive transaction hashes that are sent to the network and marked as "pending". However, `alchemy_pendingTransactions`enhance the developer experience by providing filters that can specify based on to/from addresses. This greatly improves the readability of the transaction requests received.
+
+It allows for strengthened requests with specific parameters given by the user including:
+
+* `toAddress`(optional): Singular address or array of addresses **to** receive pending transactions sent from this address.
+* `fromAddress`(optional): Singular address or array of addresses **from** receive pending transactions sent from this address.
+* `hashesOnly`(optional - default set to `false`): The response matches the payload of [eth\_getTransactionByHash](/docs/reference/eth-gettransactionbyhash). This is information about a transaction by the transaction hash including `blockHash`, `blockNumber` and `transactionIndex`. For a lighter-weight starting point, keep this set to `true` unless you need full transaction objects immediately.
+
+## Step 0: Configure your developer environment
+
+1\. Install [Node.js ](https://nodejs.org/en/)(> 14) on your local machine
+
+2\. Install [npm](https://www.npmjs.com/) on your local machine
+
+3\. Install [wscat](https://www.npmjs.com/package/wscat) on your local machine
+
+To check your Node version, run the following command in your terminal:
+
+<CodeGroup>
+  ```bash bash
+  node -v
+  ```
+</CodeGroup>
+
+4\. [Create a free Alchemy account](https://dashboard.alchemy.com/signup)
+
+## Step 1: Open your Alchemy App
+
+Once your Alchemy account is created, there will also be a default app that is also created.
+
+To create another Alchemy app, check out [this video](https://www.youtube.com/watch?time_continue=1\&v=tfggWxfG9o0\&feature=emb_logo).
+
+## Step 2: Get WebSocket URL from Alchemy App
+
+Once you have created your app, get your WebSocket URL that we will use later in this tutorial.
+
+1. Click on your app's **View Key** button in the dashboard
+2. Copy and save the **WebSocket URL**
+
+## Step 3: Output Pending Transactions Using wscat
+
+**Wscat** is a terminal or shell tool used to connect to the WebSockets server. Each Alchemy application will provide a WebSocket URL that can be used directly with the wscat command.
+
+1. Initiate the WebSocket stream
+2. Enter the specific call command
+
+From your terminal, run the following commands:
+
+<CodeGroup>
+  ```shell wscat
+  // initiate websocket stream first
+  wscat -c wss://eth-mainnet.g.alchemy.com/v2/demo
+
+  // then call subscription 
+  {"jsonrpc":"2.0","id": 2, "method": "eth_subscribe", "params": ["alchemy_pendingTransactions", {"toAddress": ["0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "0xdAC17F958D2ee523a2206206994597C13D831ec7"], "hashesOnly": true}]}
+  ```
+</CodeGroup>
+
+If successful, you should see output that looks something like this:
+
+<CodeGroup>
+  ```json Results
+  {"id":1,"result":"0xf13f7073ddef66a8c1b0c9c9f0e543c3","jsonrpc":"2.0"}
+
+  {
+    "jsonrpc": "2.0",
+    "method": "eth_subscription",
+    "params": {
+      "result": "0x10466101bd8979f3dcba18eb72155be87bdcd4962527d97c84ad93fc4ad5d461",
+      "subscription": "0xf13f7073ddef66a8c1b0c9c9f0e543c3"
+    }
+  }
+  ```
+</CodeGroup>
+
+By using **wscat**, you are able to verify the transaction immediately via the computer's terminal or shell.
+
+## Step 4: Create a Node project
+
+Let's create an empty repository and install the necessary dependencies for WebSocket connections. We can use either Viem or Ethers.js to manage WebSocket subscriptions.
+
+From your terminal, run the following commands:
+
+<CodeGroup>
+  ```shell Viem
+  mkdir pending-transactions && cd pending-transactions
+  npm init -y
+  npm install viem
+  touch main.js
+  ```
+
+  ```shell Ethers.js
+  mkdir pending-transactions && cd pending-transactions
+  npm init -y
+  npm install ethers
+  touch main.js
+  ```
+</CodeGroup>
+
+This will create a repository named `pending-transactions` that holds all the files and dependencies we need.
+
+Open this repo in your preferred code editor, where we'll write our code in the `main.js` file.
+
+## Step 5: Output pending transactions via WebSockets
+
+Next, we'll demonstrate how to use Viem or Ethers.js to create an **alchemy\_pendingTransactions** subscription.
+
+To make requests using Alchemy's pendingTransactions API, we recommend reviewing the [alchemy\_pendingTransactions docs](/docs/reference/alchemy-pendingtransactions).
+
+Next, add the following code to the `main.js` file, using your Alchemy API key:
+
+<CodeGroup>
+  ```javascript Viem
+  import { createPublicClient, webSocket } from 'viem'
+  import { mainnet } from 'viem/chains'
+
+  const client = createPublicClient({
+    chain: mainnet,
+    transport: webSocket('wss://eth-mainnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->')
+  })
+
+  // Subscribe to pending transactions
+  const unsubscribe = client.watchPendingTransactions({
+    onTransactions: (hashes) => {
+      console.log('Pending transaction hashes:', hashes)
+      // To get full transaction details, you can fetch each hash:
+      // hashes.forEach(async (hash) => {
+      //   const tx = await client.getTransaction({ hash })
+      //   console.log(tx)
+      // })
+    }
+  })
+
+  console.log('Listening for pending transactions...')
+  ```
+
+  ```javascript Ethers.js
+  import { WebSocketProvider } from 'ethers'
+
+  const provider = new WebSocketProvider('wss://eth-mainnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->')
+
+  // Listen for pending transaction hashes
+  provider.on('pending', (txHash) => {
+    console.log('Pending transaction hash:', txHash)
+  })
+
+  console.log('Listening for pending transactions...')
+  ```
+</CodeGroup>
+
+Run this script by running the following command in your terminal:
+
+`node main.js`
+
+If successful, you should see a stream of transaction hashes as the result.
+This stream of output indicates the latest pending transactions hitting the
+Ethereum Mainnet. It should look something like this:
+
+<CodeGroup>
+  ```json Results
+  [
+    "0x9575c90c4923d7d1981029bfcfc3f23b91ec78683b881b571763dff0c00a72da",
+    "0xc81a148daba8bb67daca8b3e645d07c9caaf2977ebdd46245f97f12cc3737dd2"
+  ]
+  ```
+</CodeGroup>
+
+## Step 6: Filter Pending Transactions
+
+Next, we'll demonstrate how to filter pending transactions based on addresses. While standard WebSocket subscriptions don't offer built-in filtering, we can implement filtering logic in our application.
+
+<Warning>
+  Note: The Alchemy-enhanced `alchemy_pendingTransactions` API provides native filtering by `fromAddress` and `toAddress`. For standard WebSocket subscriptions, we need to implement filtering manually as shown below.
+</Warning>
+
+Add the following code to the `main.js` file, using your Alchemy API key:
+
+<CodeGroup>
+  ```javascript Viem with Filtering
+  import { createPublicClient, webSocket } from 'viem'
+  import { mainnet } from 'viem/chains'
+
+  const client = createPublicClient({
+    chain: mainnet,
+    transport: webSocket('wss://eth-mainnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->')
+  })
+
+  // Addresses to filter for
+  const fromAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+  const toAddress = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+
+  // Subscribe to pending transactions with filtering
+  const unsubscribe = client.watchPendingTransactions({
+    onTransactions: async (hashes) => {
+      for (const hash of hashes) {
+        try {
+          const tx = await client.getTransaction({ hash })
+
+          // Filter transactions by from/to address
+          if (tx.from?.toLowerCase() === fromAddress.toLowerCase() ||
+              tx.to?.toLowerCase() === toAddress.toLowerCase()) {
+            console.log('Filtered pending transaction:', tx)
+          }
+        } catch (error) {
+          // Skip transactions that can't be fetched
+          continue
+        }
+      }
+    }
+  })
+
+  console.log(`Listening for pending transactions from ${fromAddress} or to ${toAddress}...`)
+  ```
+
+  ```javascript Ethers.js with Filtering
+  import { WebSocketProvider } from 'ethers'
+
+  const provider = new WebSocketProvider('wss://eth-mainnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->')
+
+  // Addresses to filter for
+  const fromAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+  const toAddress = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+
+  // Listen for pending transactions with filtering
+  provider.on('pending', async (txHash) => {
+    try {
+      const tx = await provider.getTransaction(txHash)
+
+      if (tx && (
+        tx.from?.toLowerCase() === fromAddress.toLowerCase() ||
+        tx.to?.toLowerCase() === toAddress.toLowerCase()
+      )) {
+        console.log('Filtered pending transaction:', tx)
+      }
+    } catch (error) {
+      // Skip transactions that can't be fetched
+    }
+  })
+
+  console.log(`Listening for pending transactions from ${fromAddress} or to ${toAddress}...`)
+  ```
+</CodeGroup>
+
+# Conclusion
+
+You now know how to use WebSocket connections with Viem and Ethers.js to [subscribe to pending transactions](/docs/reference/alchemy-pendingtransactions) and filter them based on addresses.
+
+For more advanced filtering capabilities, consider using Alchemy's enhanced `alchemy_pendingTransactions` API which provides native filtering by `fromAddress` and `toAddress`.
+
+If you enjoyed this tutorial, tweet us at **@Alchemy**.
+
+If you have any questions or feedback, please contact us at support@alchemy.com or open a ticket in the dashboard.

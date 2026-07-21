@@ -1,0 +1,33 @@
+# Geist Network Deprecation Notice
+
+> Source: [https://www.alchemy.com/docs/reference/geist-deprecation-notice.md](https://www.alchemy.com/docs/reference/geist-deprecation-notice.md)
+
+# Geist Network Deprecation Notice
+
+> Important notice regarding the deprecation of the Geist network and API
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+## ⚠️ Deprecation Notice
+
+**The Geist network has been officially deprecated and is no longer supported.**
+
+Effective immediately, all Geist network services are being phased out, including JSON-RPC API endpoints and network infrastructure.
+
+## Migration options
+
+We strongly recommend migrating to **Base**, as the Aavegotchi ecosystem (Geist's primary use case) has officially moved there following a community vote.
+
+**Recommended:**
+* **[Base](/docs/reference/base-api-quickstart)**: Primary recommendation - where Aavegotchi and the gaming ecosystem have migrated
+
+**Alternative options:**
+* **[Arbitrum](/docs/reference/arbitrum-api-quickstart)**: The underlying framework that powered Geist
+* **[Polygon](/docs/reference/polygon-pos-api-quickstart)**: For other gaming and NFT applications
+* **[Ethereum](/docs/reference/ethereum-api-quickstart)**: For scalable Ethereum applications
+
+## Next steps
+
+1. Choose an alternative network for your application
+2. Update your API endpoints and configuration
+3. Contact support through the [Alchemy Dashboard](https://dashboard.alchemy.com) if you need assistance

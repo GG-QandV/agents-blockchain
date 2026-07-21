@@ -1,0 +1,73 @@
+# Alchemy Sandbox
+
+> Source: [https://www.alchemy.com/docs/alchemy-sandbox.md](https://www.alchemy.com/docs/alchemy-sandbox.md)
+
+# Alchemy Sandbox
+
+> Guide on setting up a request on the Alchemy Sandbox to simulate your app behavior and data requests
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+# What is the Alchemy Sandbox?
+
+The Alchemy Sandbox lets you simulate blockchain method calls using Alchemy's API endpoints. It streamlines the development and debugging process for Web3 applications by providing an interactive "play" environment to build and test calls against Alchemy's supported blockchain networks.
+
+![](https://alchemyapi-res.cloudinary.com/image/upload/v1749481314/docs/Screenshot_2025-06-09_at_8.01.49_AM_x1xbmh.png)
+
+# What can you do with the Alchemy Sandbox?
+
+With the Alchemy Sandbox, you can quickly create, debug, and share API requests -- all without a single line of setup.
+
+# Which blockchain networks can you simulate calls on?
+
+As of June 2025, the following networks (including their respective test networks) are supported:
+
+Abstract, ApeChain, Anime, Arbitrum, Astar, Avalanche, Base, Berachain, Blast, BNB Smart Chain, Celo, CrossFi, Degen, Ethereum, Fantom Opera, Flow EVM, Frax, Gnosis, Ink, Lens, Linea, Mantle, Metis, Monad, OP Mainnet, opBNB, Polygon PoS, Polygon zkEVM, Polynomial, Ronin, Rootstock, Scroll, Sei, Settlus, Shape, Solana, Soneium, Sonic, Starknet, DATA Network, Superseed, Tea, Unichain, World Chain, XMTP, ZetaChain, ZKsync, Zora
+
+<Info>
+  Note: API support varies by chain.
+</Info>
+
+# How to set up a request on the Alchemy Sandbox
+
+Let's set up a `eth_getBalance` request on Ethereum mainnet:
+
+1. Visit the [Alchemy Sandbox](https://dashboard.alchemy.com/sandbox) in the Alchemy Dashboard
+
+![Untitled](https://alchemyapi-res.cloudinary.com/image/upload/v1749482005/docs/Screenshot_2025-06-09_at_8.13.06_AM_lbl2fq.png)
+
+2. Click the `Select an app` dropdown and select your application if you want the simulated request to use your app's API key, allowing you to test your key and analytics directly if needed. Otherwise, you can leave the default `Sandblox Demo App` as the selection.
+
+![](https://alchemyapi-res.cloudinary.com/image/upload/v1749482452/docs/Screenshot_2025-06-09_at_8.20.47_AM_g6hdtp.png)
+
+3. In the `Chain and network` section, select the chain and its respective network. Since we want to get the latest block number on Ethereum mainnet, we will select `Ethereum` and `Ethereum mainnet`.
+
+   ![](https://alchemyapi-res.cloudinary.com/image/upload/v1749482584/docs/Screenshot_2025-06-09_at_8.22.58_AM_wrstf3.png)
+
+4. The `Category` section is useful if you want to see what methods are available for each API category supported on the selected chain. You'll notice toggling the `Chain and Network` selection to `Arbitrum` will reduce the Categories available down, indicating what APIs are supported on that chain. For now, you can leave it blank as we are only setting up a simple request.
+
+   ![](https://alchemyapi-res.cloudinary.com/image/upload/v1749482721/docs/Screenshot_2025-06-09_at_8.25.16_AM_uwtiav.png)
+
+5. If not already selected, make sure to toggle to the `eth_getBalance` in the `Method` section of the Sandbox.
+
+You will notice this is a powerful component of the Sandbox, as you can select any method to test out.
+
+![](https://alchemyapi-res.cloudinary.com/image/upload/v1749483543/docs/Screenshot_2025-06-09_at_8.38.58_AM_vxa0m4.png)
+
+5. Your request is now fully set up. Select `Send Request`.
+
+You can change any of the parameters, like the `Address` or `Block`, if you would like to do further testing. This is a fully customizable "Sandbox" experience. As you change parameters, you'll notice the `Request preview` section on the right side of the screen also adapts to your changes.
+
+You can also immediately jump to that endpoint's documentation by selecting `View docs`.
+
+![](https://alchemyapi-res.cloudinary.com/image/upload/v1749483597/docs/Screenshot_2025-06-09_at_8.39.52_AM_ev2hak.png)
+
+You will notice a `Response` section appear:
+
+![](https://alchemyapi-res.cloudinary.com/image/upload/v1749483730/docs/Screenshot_2025-06-09_at_8.42.05_AM_snbk0h.png)
+
+The balance for the address `0xfe3b557e8fb62b89f4916b721be55ceb828dbd73` is `0.000000000000003285 ether`.
+
+# Further testing with the Alchemy Sandbox
+
+The Alchemy Sandbox provides an environment for testing your Web3 applications without local setup or private infrastructure. Whether you’re validating requests to Alchemy’s APIs, experimenting across supported chains, or debugging contract interactions, the Sandbox enables faster iteration and smoother development.

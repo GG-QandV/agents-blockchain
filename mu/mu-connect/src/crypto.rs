@@ -1,11 +1,11 @@
-//! M7a crypto-connector (USDC / EVM L2). Логика полная; сетевой транспорт (RPC) — за trait RpcClient,
-//! чтобы тесты гоняли всю таксономию ошибок без реальной сети (мок-RPC = как Anvil-форк в спеке).
+//! M7a crypto-connector (USDC / EVM L2). Full logic; network transport (RPC) is behind trait RpcClient,
+//! so tests run the full error taxonomy without a real network (mock RPC = like Anvil-fork in spec).
 use crate::{ConnErr, Connector, Fee, Intent, RejectReason, TxRef, TxStatus};
 use mu_common::{Amount, CanonAddress};
 use mu_vault::TxSigner;
 use sha2::{Digest, Sha256};
 
-/// USDC-контракт НЕ конфигурируем (RISK-M7-5): константа per chain_id, зашита в бинарь.
+/// USDC contract is NOT configurable (RISK-M7-5): constant per chain_id, baked into the binary.
 fn usdc_contract(chain_id: u64) -> Option<[u8; 20]> {
     match chain_id {
         8453 => Some(hex20("833589fCD6eDb6E08f4c7C32D4f71b54bdA02913")), // Base USDC
@@ -32,13 +32,13 @@ fn hv(c: u8) -> u8 {
     }
 }
 
-/// Ответ одной RPC-ноды на попытку отправки/статуса. Мок и реальная реализация дают это.
+/// Response of one RPC node to a send/status attempt. Mock and real implementation both yield this.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RpcSend {
     Accepted { tx_hash: [u8; 32] },
     AlreadyKnown { tx_hash: [u8; 32] },
-    DeterministicReject(RejectReason), // нода уверенно отвергла ДО mempool
-    Unreachable,                       // таймаут/сеть — НЕизвестность
+    DeterministicReject(RejectReason), // node confidently rejected BEFORE mempool
+    Unreachable,                       // timeout/network — UNKNOWN
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -68,27 +68,27 @@ pub struct CryptoConnector<R: RpcClient> {
     pub confirmations: u8,
     pub rpc1: R,
     pub rpc2: R,
-    /// локальный next_nonce из M5 (Pending-записи). Приоритетный источник.
+    /// local next_nonce from M5 (Pending records). Priority source.
     pub local_next_nonce: u64,
     pub wallet_addr: [u8; 20],
     pub fee_cap: Amount,
 }
 
 impl<R: RpcClient> CryptoConnector<R> {
-    /// RISK-M7-5: единственная функция сборки calldata ERC20.transfer(to, amount)
-    /// + self-check обратным декодом.
+    /// RISK-M7-5: single function to build ERC20.transfer(to, amount) calldata
+    /// + self-check via reverse decode.
     fn build_transfer(&self, to: &CanonAddress, amount: Amount) -> Result<Vec<u8>, ConnErr> {
-        // RISK-M7-5: calldata = selector + 20B адреса (EVM pad справа) + amount
-        // NB: CanonAddress тепер 32B (Sui), EVM використовує перші 20B
+        // RISK-M7-5: calldata = selector + 20B address (EVM pad right) + amount
+        // NB: CanonAddress is now 32B (Sui), EVM uses the first 20B
         let mut cd = Vec::with_capacity(68);
         cd.extend_from_slice(&[0xa9, 0x05, 0x9c, 0xbb]); // selector transfer(address,uint256)
         let eth_addr = &to.bytes()[..20];
         cd.extend_from_slice(&[0u8; 12]);
         cd.extend_from_slice(eth_addr);
-        let amt = amount.minor().to_be_bytes(); // u128 → 16 байт
+        let amt = amount.minor().to_be_bytes(); // u128 → 16 bytes
         cd.extend_from_slice(&[0u8; 16]);
         cd.extend_from_slice(&amt);
-        // self-check: обратный декод recipient+amount совпадает с intent
+        // self-check: reverse decode recipient+amount matches intent
         let dec_to = &cd[16..36];
         let dec_amt = u128::from_be_bytes(cd[52..68].try_into().map_err(|_| {
             ConnErr::Config("calldata self-check length".into())
@@ -105,7 +105,7 @@ impl<R: RpcClient> CryptoConnector<R> {
         match (n1, n2) {
             (Some(a), Some(b)) => {
                 let net = a.max(b);
-                // расхождение > 1 → не гадаем
+                // divergence > 1 → no guessing
                 if a.abs_diff(b) > 1 {
                     return Err(ConnErr::Unknown("rpc nonce divergence".into()));
                 }
@@ -121,7 +121,7 @@ impl<R: RpcClient> Connector for CryptoConnector<R> {
         if i.chain_id != self.chain_id {
             return Err(ConnErr::Rejected(RejectReason::ChainMismatch));
         }
-        // запас газа: фиксированная оценка × 3/2, cap'нута fee_cap
+        // gas margin: fixed estimate × 3/2, capped at fee_cap
         let base = Amount::from_minor(50_000);
         let est = base
             .checked_mul_u32(3)
@@ -145,7 +145,7 @@ impl<R: RpcClient> Connector for CryptoConnector<R> {
         // 3. calldata + self-check (RISK-M7-5)
         let calldata = self.build_transfer(&i.recipient, i.amount)?;
 
-        // 4. simulate на обоих RPC
+        // 4. simulate on both RPCs
         let s1 = self.rpc1.simulate(&contract, &calldata);
         let s2 = self.rpc2.simulate(&contract, &calldata);
         match (&s1, &s2) {
@@ -158,16 +158,16 @@ impl<R: RpcClient> Connector for CryptoConnector<R> {
             _ => {}
         }
 
-        // 5. подпись (RFC 6979). signer уничтожается по выходу из функции (move).
+        // 5. signature (RFC 6979). signer is consumed on function exit (move).
         let sighash = tx_sighash(&contract, &calldata, nonce, self.chain_id);
         let _sig = signer
             .sign(&sighash)
             .map_err(|e| ConnErr::Unknown(format!("sign failed: {e:?}")))?;
-        // (сериализация raw_tx с подписью опущена до транспортного слоя; для мок-тестов
-        //  используем детерминированный tx_hash из sighash)
+        // (serialization of raw_tx with signature is deferred to transport layer; for mock tests
+        //  we use deterministic tx_hash from sighash)
         let raw_tx = sighash.0.to_vec();
 
-        // 6. отправка в оба RPC. КЛЮЧЕВАЯ ЛОГИКА RISK-M7-1.
+        // 6. send to both RPCs. KEY LOGIC OF RISK-M7-1.
         let r1 = self.rpc1.send_raw(&raw_tx);
         let r2 = self.rpc2.send_raw(&raw_tx);
         classify_send(r1, r2, nonce)
@@ -177,13 +177,13 @@ impl<R: RpcClient> Connector for CryptoConnector<R> {
         let tx_hash = match r {
             TxRef::Real { tx_hash, .. } => tx_hash,
             TxRef::Simulated { .. } => {
-                // реальный коннектор не должен получать Simulated — это баг вызывающего
+                // real connector should not receive Simulated — that's a caller bug
                 return Ok(TxStatus::Failed {
                     reason: crate::FailReason::Simulated,
                 });
             }
         };
-        // RISK-M7-3: Settled только при согласии обоих RPC
+        // RISK-M7-3: Settled only when both RPCs agree
         let rc1 = self.rpc1.receipt(tx_hash);
         let rc2 = self.rpc2.receipt(tx_hash);
         match (rc1, rc2) {
@@ -196,17 +196,17 @@ impl<R: RpcClient> Connector for CryptoConnector<R> {
                 reason: crate::FailReason::OnChainRevert,
             }),
             (RpcReceipt::Unreachable, _) | (_, RpcReceipt::Unreachable) => Ok(TxStatus::Pending),
-            // расхождение нод → НЕ Settled, ждём (RISK-M7-3)
+            // node divergence → NOT Settled, wait (RISK-M7-3)
             _ => Ok(TxStatus::Pending),
         }
     }
 }
 
-/// RISK-M7-1: классификация исхода отправки в две ноды.
-/// Failed НЕ производится: если tx могла уйти хоть куда-то, исход — Real (Pending на стороне M6).
+/// RISK-M7-1: classify send outcome across two nodes.
+/// Failed is NOT produced: if tx could have gone anywhere, outcome is Real (Pending on M6 side).
 fn classify_send(r1: RpcSend, r2: RpcSend, nonce: u64) -> Result<TxRef, ConnErr> {
     use RpcSend::*;
-    // хотя бы одна нода приняла (или "уже знает") → tx в сети → Real
+    // at least one node accepted (or "already knows") → tx in network → Real
     let accepted_hash = match (&r1, &r2) {
         (Accepted { tx_hash }, _) | (_, Accepted { tx_hash }) => Some(*tx_hash),
         (AlreadyKnown { tx_hash }, _) | (_, AlreadyKnown { tx_hash }) => Some(*tx_hash),
@@ -215,11 +215,11 @@ fn classify_send(r1: RpcSend, r2: RpcSend, nonce: u64) -> Result<TxRef, ConnErr>
     if let Some(tx_hash) = accepted_hash {
         return Ok(TxRef::Real { tx_hash, chain_nonce: nonce });
     }
-    // ОБЕ ноды дали ДЕТЕРМИНИРОВАННЫЙ отказ → безопасно Rejected
+    // BOTH nodes gave DETERMINISTIC rejection → safely Rejected
     if let (DeterministicReject(a), DeterministicReject(_b)) = (&r1, &r2) {
         return Err(ConnErr::Rejected(a.clone()));
     }
-    // всё остальное (хоть одна Unreachable, разнобой) → Unknown: tx МОГЛА уйти.
+    // everything else (at least one Unreachable, mismatch) → Unknown: tx COULD have gone through.
     Err(ConnErr::Unknown("send outcome uncertain".into()))
 }
 
@@ -268,7 +268,7 @@ mod tests {
             local_next_nonce: 0, wallet_addr: [0xAA; 20], fee_cap: Amount::from_minor(1_000_000),
         }
     }
-    // TxSigner::from_bytes — pub(crate) в mu-vault; для тестов коннектора берём через softvault Vault.
+    // TxSigner::from_bytes — pub(crate) in mu-vault; for connector tests we get it via softvault Vault.
     fn make_signer() -> TxSigner {
         use mu_vault::Vault;
         let v = mu_vault::backend::SoftVault::for_test([1;32],[2;32],[3;32]);
@@ -281,7 +281,7 @@ mod tests {
 
     #[test]
     fn accepted_by_one_rpc_is_real() {
-        // RISK-M7-1: одна нода приняла → Real (не важно, что вторая молчит)
+        // RISK-M7-1: one node accepted → Real (regardless of the second being silent)
         let c = conn(
             ok_rpc(RpcSend::Accepted { tx_hash: [7;32] }, RpcReceipt::None),
             ok_rpc(RpcSend::Unreachable, RpcReceipt::None),
@@ -292,14 +292,14 @@ mod tests {
 
     #[test]
     fn one_unreachable_no_accept_is_unknown_not_failed() {
-        // RISK-M7-1 ГЛАВНЫЙ: неизвестность НИКОГДА не Failed
+        // RISK-M7-1 KEY: unknown is NEVER Failed
         let c = conn(
             ok_rpc(RpcSend::Unreachable, RpcReceipt::None),
             ok_rpc(RpcSend::DeterministicReject(RejectReason::NonceTooLow), RpcReceipt::None),
         );
         let e = c.execute(&intent(), make_signer()).unwrap_err();
         assert!(matches!(e, ConnErr::Unknown(_)));
-        // и уж точно не Rejected при одной Unreachable
+        // and certainly not Rejected with one Unreachable
     }
 
     #[test]
@@ -317,7 +317,7 @@ mod tests {
         let mut r1 = ok_rpc(RpcSend::Accepted { tx_hash: [1;32] }, RpcReceipt::None);
         let mut r2 = ok_rpc(RpcSend::Accepted { tx_hash: [1;32] }, RpcReceipt::None);
         r1.nonce = Some(5);
-        r2.nonce = Some(9); // расхождение > 1
+        r2.nonce = Some(9); // divergence > 1
         let c = conn(r1, r2);
         let e = c.execute(&intent(), make_signer()).unwrap_err();
         assert!(matches!(e, ConnErr::Unknown(_)));

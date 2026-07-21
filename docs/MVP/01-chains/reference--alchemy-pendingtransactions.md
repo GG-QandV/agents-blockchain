@@ -1,0 +1,166 @@
+# alchemy_pendingTransactions
+
+> Source: [https://www.alchemy.com/docs/reference/alchemy-pendingtransactions.md](https://www.alchemy.com/docs/reference/alchemy-pendingtransactions.md)
+
+# alchemy_pendingTransactions
+
+> Emits full transaction objects or hashes that are sent to the network, marked as pending, based on provided filters.
+
+> For the complete documentation index, see [llms.txt](/docs/llms.txt).
+
+The `alchemy_pendingTransactions` subscription type subscribes to pending transactions via WebSockets, and filters those transactions based on specified `from` and/or `to` addresses. The subscription will return either full transaction objects or just transaction hashes depending on the request. It will also optionally include re-orged or removed transactions if specified.
+
+<Info>
+  When listening to pending transactions with this endpoint, you will only get
+  pending transactions in Alchemy mempool.
+</Info>
+
+# Supported Networks
+
+Please note that `alchemy_pendingTransactions` is only supported on **ETH Mainnet**, **ETH Sepolia** and **Matic Mainnet.**
+
+# Limits
+
+A maximum of 1000 addresses can be added in the addresses filter for `alchemy_pendingTransactions`.
+
+# Parameters
+
+* `fromAddress` (optional): `string` or \[`array of strings`]
+  * Singular address or array of addresses to receive pending transactions sent **from** this address.
+* `toAddress` (optional): `string` or \[`array of strings`]
+  * Singular address or array of addresses to receive pending transactions **to** this address
+* `hashesOnly` (optional): `boolean` default value is `false`, where the response matches the payload of [eth\_getTransactionByHash](/docs/reference/eth-gettransactionbyhash) . If set to `true`, the payload returned contains *only the hashes of the transactions* that are added to the pending state, which matches the payload of [newPendingTransactions](/docs/reference/newpendingtransactions). Prefer `true` unless you need full transaction objects immediately.
+
+<Info>
+  **Note: Parameter Specification**
+
+  1. There is an address limit of 1k unique addresses (combination of
+     `fromAddress` and `toAddress` lists)
+  2. Excluding all parameters returns the transaction information for all transactions that are added to the pending state.
+  3. If `fromAddress` and `toAddress` are both present, then this subscription
+     will include transactions sent from the `fromAddress` OR received by the
+     `toAddress`.
+  4. A good starting point is to keep filters narrow and set `hashesOnly` to
+     `true`, then request full transaction objects only when you need them.
+</Info>
+
+# Returns
+
+With `hashesOnly` = `true`
+
+* `result`: ***\[string]***- transaction hash for pending transaction
+* `subscription`: ***\[string]*** - subscription ID
+
+With `hashesOnly` = `false`
+
+* `result` - ***\[object]*** A transaction object:
+
+  * `blockHash`: `DATA`, 32 Bytes - `null` when it's pending.
+  * `blockNumber`: `QUANTITY` - `null` when it's pending.
+  * `from`: `DATA`, 20 Bytes - address of the sender.
+  * `gas`: `QUANTITY` - gas provided by the sender.
+  * `gasPrice`: `QUANTITY` - gas price provided by the sender in Wei.
+  * `hash`: `DATA`, 32 Bytes - hash of the transaction.
+  * `input`: `DATA` - the data send along with the transaction.
+  * `nonce`: `QUANTITY` - the number of transactions made by the sender prior to this one.
+  * `to`: `DATA`, 20 Bytes - address of the receiver. `null` when it's a contract creation transaction.
+  * `transactionIndex`: `QUANTITY` - `null` when its pending.
+  * `value`: `QUANTITY` - value transferred in Wei.
+  * `v`: `QUANTITY` - ECDSA recovery id
+  * `r`: `DATA`, 32 Bytes - ECDSA signature r
+  * `s`: `DATA`, 32 Bytes - ECDSA signature s
+
+* `subscription` - ***\[string]*** subscription ID
+
+### Request
+
+<CodeGroup>
+  ```shell wscat
+  // initiate websocket stream first
+  wscat -c wss://eth-mainnet.g.alchemy.com/v2/demo
+
+  // then call subscription
+  {"jsonrpc":"2.0","id": 2, "method": "eth_subscribe", "params": ["alchemy_pendingTransactions", {"toAddress": ["0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", "0xdAC17F958D2ee523a2206206994597C13D831ec7"], "hashesOnly": true}]}
+
+  ```
+
+  ```javascript Viem
+  import { createPublicClient, webSocket } from 'viem'
+  import { mainnet } from 'viem/chains'
+
+  const client = createPublicClient({
+    chain: mainnet,
+    transport: webSocket('wss://eth-mainnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->')
+  })
+
+  // Addresses to filter for
+  const fromAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+  const toAddress = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+
+  // Subscribe to pending transactions with filtering
+  const unsubscribe = client.watchPendingTransactions({
+    onTransactions: async (hashes) => {
+      for (const hash of hashes) {
+        try {
+          const tx = await client.getTransaction({ hash })
+
+          // Filter transactions by from/to address
+          if (tx.from?.toLowerCase() === fromAddress.toLowerCase() ||
+              tx.to?.toLowerCase() === toAddress.toLowerCase()) {
+            console.log('Filtered pending transaction:', tx)
+          }
+        } catch (error) {
+          continue // Skip transactions that can't be fetched
+        }
+      }
+    }
+  })
+  ```
+
+  ```javascript Ethers.js
+  import { WebSocketProvider } from 'ethers'
+
+  const provider = new WebSocketProvider('wss://eth-mainnet.g.alchemy.com/v2/<-- ALCHEMY APP API KEY -->')
+
+  // Addresses to filter for
+  const fromAddress = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
+  const toAddress = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
+
+  // Listen for pending transactions with filtering
+  provider.on('pending', async (txHash) => {
+    try {
+      const tx = await provider.getTransaction(txHash)
+
+      if (tx && (
+        tx.from?.toLowerCase() === fromAddress.toLowerCase() ||
+        tx.to?.toLowerCase() === toAddress.toLowerCase()
+      )) {
+        console.log('Filtered pending transaction:', tx)
+      }
+    } catch (error) {
+      // Skip transactions that can't be fetched
+    }
+  })
+  ```
+</CodeGroup>
+
+### Result
+
+<CodeGroup>
+  ```shell results
+  {
+      "id": 1,
+      "result": "0xf13f7073ddef66a8c1b0c9c9f0e543c3",
+      "jsonrpc": "2.0"
+  }
+
+  {
+      "jsonrpc": "2.0",
+      "method": "eth_subscription",
+      "params": {
+          "result": "0x10466101bd8979f3dcba18eb72155be87bdcd4962527d97c84ad93fc4ad5d461",
+          "subscription": "0xf13f7073ddef66a8c1b0c9c9f0e543c3"
+      }
+  }
+  ```
+</CodeGroup>

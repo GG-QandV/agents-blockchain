@@ -1,0 +1,29 @@
+{
+  "template_name": "utxo-overview",
+  "chain_count": 3,
+  "chains": [
+    "Bitcoin/Utxo",
+    "Bitcoincash/Utxo",
+    "Litecoin/Utxo"
+  ],
+  "per_chain": {
+    "Bitcoin/Utxo": {
+      "title": "UTXO Overview",
+      "rpc_url": "https://www.alchemy.com/docs/bitcoin/utxo.md](https://www.alchemy.com/docs/bitcoin/utxo.md)",
+      "_unique_lines": 30,
+      "_total_lines": 51
+    },
+    "Bitcoincash/Utxo": {
+      "title": "UTXO Overview",
+      "rpc_url": "https://www.alchemy.com/docs/bitcoincash/utxo.md](https://www.alchemy.com/docs/bitcoincash/utxo.md)",
+      "_unique_lines": 25,
+      "_total_lines": 45
+    },
+    "Litecoin/Utxo": {
+      "title": "UTXO Overview",
+      "rpc_url": "https://www.alchemy.com/docs/litecoin/utxo.md](https://www.alchemy.com/docs/litecoin/utxo.md)",
+      "_unique_lines": 25,
+      "_total_lines": 45
+    }
+  }
+}

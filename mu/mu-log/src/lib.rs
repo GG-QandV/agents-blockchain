@@ -1,10 +1,10 @@
-//! M5 mu-log — WAL + hash-chain, источник истины для лимитов и аудита.
+//! M5 mu-log — WAL + hash-chain, source of truth for limits and audit.
 //!
-//! RISK-M5-1: append = write → flush/fsync → Ok; WalWritten у M6 порождается только этим Ok.
-//! RISK-M5-2: hash-chain + подпись каждой записи (домен mu.log.v1) + HEAD; фальсификация → verify Err.
-//! RISK-M5-3: reconcile — табличная résolution, default = Keep (никакого «else → Failed»).
-//! RISK-M5-4: window_sum — единственная реализация окна 24ч; Simulated/Failed исключены.
-//! RISK-M5-5: битый хвост → truncate до последней валидной + запись TailTruncated.
+//! RISK-M5-1: append = write → flush/fsync → Ok; WalWritten in M6 is only produced by this Ok.
+//! RISK-M5-2: hash-chain + signature of each entry (domain mu.log.v1) + HEAD; forgery → verify Err.
+//! RISK-M5-3: reconcile — tabular resolution, default = Keep (no "else → Failed" branch).
+//! RISK-M5-4: window_sum — single 24h window implementation; Simulated/Failed excluded.
+//! RISK-M5-5: corrupted tail → truncate to last valid + write TailTruncated entry.
 #![forbid(unsafe_code)]
 
 pub mod entry;
