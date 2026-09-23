@@ -96,3 +96,43 @@ impl TxSignerP256 {
         Ok((s64, p33))
     }
 }
+
+/// Ed25519 wallet handle for Solana (μ Gate KSG edition, feature `ksg`).
+/// Same discipline as `TxSigner`: private key bytes, Zeroizing, !Clone, !Debug,
+/// constructor only inside the crate.
+#[cfg(feature = "ksg")]
+pub struct TxSignerEd25519 {
+    key: Zeroizing<[u8; 32]>,
+}
+
+#[cfg(feature = "ksg")]
+impl TxSignerEd25519 {
+    pub(crate) fn from_bytes(raw: [u8; 32]) -> Self {
+        TxSignerEd25519 { key: Zeroizing::new(raw) }
+    }
+
+    /// Public key (the Solana fee-payer address), not a secret.
+    pub fn public_key(&self) -> [u8; 32] {
+        ed25519_dalek::SigningKey::from_bytes(&self.key).verifying_key().to_bytes()
+    }
+
+    /// Sign a Solana message: Ed25519 over the serialized message bytes
+    /// (Solana signs the message itself, not a prehash).
+    pub fn sign_message(&self, message: &[u8]) -> [u8; 64] {
+        use ed25519_dalek::Signer;
+        ed25519_dalek::SigningKey::from_bytes(&self.key).sign(message).to_bytes()
+    }
+}
+
+#[cfg(all(test, feature = "ksg"))]
+mod ed25519_tests {
+    use super::*;
+    #[test]
+    fn signs_and_verifies() {
+        use ed25519_dalek::Verifier;
+        let s = TxSignerEd25519::from_bytes([7u8; 32]);
+        let sig = s.sign_message(b"message");
+        let vk = ed25519_dalek::VerifyingKey::from_bytes(&s.public_key()).unwrap();
+        assert!(vk.verify(b"message", &ed25519_dalek::Signature::from_bytes(&sig)).is_ok());
+    }
+}

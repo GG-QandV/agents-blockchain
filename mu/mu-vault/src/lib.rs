@@ -12,6 +12,8 @@ pub mod backend;
 
 pub use domain::DomainTag;
 pub use signer::{TxSigner, TxSignerP256};
+#[cfg(feature = "ksg")]
+pub use signer::TxSignerEd25519;
 
 use mu_common::Hash32;
 
@@ -62,6 +64,16 @@ pub trait Vault: Send + Sync {
 
     /// P-256 wallet handle (Sui, flag 0x02). Default: KeyMissing.
     fn tx_signer_p256(&self) -> Result<TxSignerP256, VaultErr> {
+        Err(VaultErr::KeyMissing)
+    }
+
+    /// Ed25519 wallet handle (Solana fee payer, μ Gate KSG edition). Default: KeyMissing.
+    ///
+    /// Same boundary as `tx_signer` (RISK-M4-1): the key is unwrapped into the
+    /// handle for one execute() and zeroed on drop. No enclave signs Ed25519
+    /// natively, so this path has the EVM wallet's model, not the Sui P-256 one.
+    #[cfg(feature = "ksg")]
+    fn tx_signer_ed25519(&self) -> Result<TxSignerEd25519, VaultErr> {
         Err(VaultErr::KeyMissing)
     }
 
