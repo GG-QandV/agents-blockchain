@@ -1,6 +1,6 @@
-# μ Gate — edition keysingate (в.keysingate)
+# μ Gate KSG — edition for keysingate (в.keysingate)
 
-**Status:** skeleton, no code yet. Created 2026-09-23 as a separate edition so it
+**Status:** feasibility confirmed 2026-09-23 (adaptable with six changes, keysingate `internal/TODO_na_potom.md` T-1); no code yet — postponed by the owner. Crate name when built: `mu-ksg`, version 0.1.0, based on μ Gate 0.2.1. Created 2026-09-23 as a separate edition so it
 is not confused with the base μ Gate in `mu/`.
 **Owner's task:** adapt μ Gate so it can pay Solana gas for keysingate anchoring
 (keysingate `internal/TODO_na_potom.md`, T-1).
