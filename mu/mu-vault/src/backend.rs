@@ -78,6 +78,10 @@ impl Vault for SoftVault {
     fn tx_signer_p256(&self) -> Result<crate::signer::TxSignerP256, VaultErr> {
         Ok(crate::signer::TxSignerP256::from_bytes(*self.wallet_key))
     }
+    #[cfg(feature = "ksg")]
+    fn tx_signer_ed25519(&self) -> Result<crate::signer::TxSignerEd25519, VaultErr> {
+        Ok(crate::signer::TxSignerEd25519::from_bytes(*self.wallet_key))
+    }
     fn attest(&self) -> VaultInfo {
         VaultInfo { backend: "softvault", hw_backed: false }
     }
