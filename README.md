@@ -63,9 +63,9 @@ See `cp1-harness.py` for the 4 test cases (allowed call, wrong address denial, t
 
 ## Architecture
 
-![Agent-Connector architecture](diagram-1.svg)
+![μ Gate architecture](docs/diagram-mU.svg)
 
-*Architecture diagram: [`diagram-1.svg`](diagram-1.svg) (source: [`docs/diagram-1.drawio`](docs/diagram-1.drawio))*
+*Architecture diagram: [`docs/diagram-mU.svg`](docs/diagram-mU.svg) (source: [`docs/diagram-mU.drawio`](docs/diagram-mU.drawio))*
 
 ### Modules
 

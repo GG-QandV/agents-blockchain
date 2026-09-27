@@ -10,3 +10,4 @@ agent.key
 *.tar.gz
 arch-backup/
 docs/language/
+docs/.ignore_no_commit/
