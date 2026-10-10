@@ -11,7 +11,14 @@ use mu_policy::{canon_address_checked, delta_hash, validate, Delta, OmegaView, W
 use std::path::PathBuf;
 
 const DECIMALS: u8 = 6; // USDC
-const CHAIN: u64 = 8453;
+/// The chain the policy is written for: `MU_CHAIN` — 8453 (Base, default) or
+/// 84532 (Base Sepolia, test network). Any other value falls back to Base.
+fn chain() -> u64 {
+    match std::env::var("MU_CHAIN").ok().and_then(|s| s.parse::<u64>().ok()) {
+        Some(84532) => 84532,
+        _ => 8453,
+    }
+}
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -28,7 +35,7 @@ fn omega_stub() -> OmegaView {
     let ceil = std::env::var("MU_CEILING").ok()
         .and_then(|s| parse_decimal(&s, DECIMALS).ok())
         .unwrap_or(Amount::from_minor(1_000_000_000));
-    OmegaView { max_ceiling: ceil, supported_chain_ids: vec![CHAIN] }
+    OmegaView { max_ceiling: ceil, supported_chain_ids: vec![chain()] }
 }
 
 fn load_or_default() -> DeltaProposal {
@@ -76,7 +83,7 @@ fn run(args: &[String]) -> i32 {
                 eprintln!("usage: wl-add <address> <label>"); return 1;
             };
             // E-ADR-01/02: канонизация с EIP-55 (S3-логика: показать усечённо)
-            let (canon, warn) = match canon_address_checked(addr, CHAIN) {
+            let (canon, warn) = match canon_address_checked(addr, chain()) {
                 Ok(x) => x,
                 Err(e) => { eprintln!("address rejected: {e:?}"); return 1; }
             };
@@ -90,7 +97,7 @@ fn run(args: &[String]) -> i32 {
         }
         "wl-rm" => {
             let Some(addr) = args.get(1) else { eprintln!("usage: wl-rm <address>"); return 1; };
-            let Ok((canon, _)) = canon_address_checked(addr, CHAIN) else { eprintln!("bad address"); return 1; };
+            let Ok((canon, _)) = canon_address_checked(addr, chain()) else { eprintln!("bad address"); return 1; };
             let mut p = load_or_default();
             let before = p.new_delta.whitelist.len();
             p.new_delta.whitelist.retain(|e| e.address != canon);

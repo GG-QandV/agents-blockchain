@@ -13,7 +13,14 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 const DECIMALS: u8 = 6;
-const CHAIN: u64 = 8453;
+/// The chain the policy is written for: `MU_CHAIN` — 8453 (Base, default) or
+/// 84532 (Base Sepolia, test network). Any other value falls back to Base.
+fn chain() -> u64 {
+    match std::env::var("MU_CHAIN").ok().and_then(|s| s.parse::<u64>().ok()) {
+        Some(84532) => 84532,
+        _ => 8453,
+    }
+}
 
 // ── DTO for UI (no secrets; addresses — hex + redacted) ────────────────────
 #[derive(Serialize, Deserialize, Clone)]
@@ -33,7 +40,7 @@ fn omega_view() -> OmegaView {
     let ceil = std::env::var("MU_CEILING").ok()
         .and_then(|s| parse_decimal(&s, DECIMALS).ok())
         .unwrap_or(Amount::from_minor(1_000_000_000));
-    OmegaView { max_ceiling: ceil, supported_chain_ids: vec![CHAIN] }
+    OmegaView { max_ceiling: ceil, supported_chain_ids: vec![chain()] }
 }
 
 fn to_dto(d: &Delta) -> DeltaDto {
@@ -52,7 +59,7 @@ fn from_dto(d: &DeltaDto) -> Result<Delta, String> {
     let thr = parse_decimal(&d.confirm_threshold, DECIMALS).map_err(|e| format!("threshold: {e:?}"))?;
     let mut wl = Vec::new();
     for e in &d.whitelist {
-        let a = CanonAddress::canon(&e.address_hex, CHAIN).map_err(|x| format!("addr: {x:?}"))?;
+        let a = CanonAddress::canon(&e.address_hex, chain()).map_err(|x| format!("addr: {x:?}"))?;
         wl.push(WlEntry { address: a, label: e.label.clone() });
     }
     Ok(Delta { daily_limit: daily, whitelist: wl, confirm_threshold: thr })
@@ -93,7 +100,7 @@ fn validate_form(delta: DeltaDto) -> Result<ReportDto, String> {
 /// Address canonicalization on paste (S3): redacted + identicon-seed.
 #[tauri::command]
 fn check_address(input: String) -> Result<serde_json::Value, String> {
-    match canon_address_checked(&input, CHAIN) {
+    match canon_address_checked(&input, chain()) {
         Ok((a, warn)) => Ok(serde_json::json!({
             "ok": true, "hex": format!("0x{}", a.to_hex()),
             "redacted": a.redacted(), "addr_warning": warn,

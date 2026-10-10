@@ -1,13 +1,27 @@
-# ksg-bare-repeat — Composer draft for paying a repeated keysingate `bare`
+# ksg-bare-repeat — policy for paying a repeated keysingate `bare`
 
-Opens in Δ-Composer: `MU_HOME=<this folder> mu-compose show` (or composer-tauri with the same `MU_HOME`).
+Three forms of one policy (owner's choice 2026-10-10: A, B and C).
 
-| Field | Value | Why |
-|---|---|---|
-| daily_limit | 5 USDC | a repeated `bare` costs $0.1–1 |
-| confirm_threshold | 0 | every payment confirmed by the owner while the issuer's account is not set |
-| whitelist | empty | Composer takes 32-byte (Sui) addresses only (`mu-policy/src/sui_addr.rs:10`); USDC on Base and the issuer's account are 20-byte EVM addresses — rejected with `BadLength` |
+| Form | File | Opens in | What it holds |
+|---|---|---|---|
+| A — limits only | `A-limits/draft.bin` | Δ-Composer (`mu-compose`, composer-tauri) | daily limit 5 USDC, every payment confirmed by the owner, empty whitelist (warning W-WL-01) |
+| B — with the issuer | `B-whitelist/draft.bin` | Δ-Composer | A + the issuer's account in the whitelist (placeholder `0x…dEaD` — replace) |
+| C — description | `../ksg-bare-repeat.toml` | a text editor | the same policy plus the resource allowlist (host / path / price cap) |
 
-Variant A of the owner's choice (2026-10-10): limits only. Variant B — teach Composer
-EVM addresses for chain 8453 — would let the whitelist hold USDC Base and the issuer's account.
-Regenerate: `MU_HOME=<this folder> mu-compose set-limit 5 && mu-compose set-threshold 0`.
+Open a draft (Base Sepolia, test network):
+
+```bash
+MU_CHAIN=84532 MU_HOME=<path>/ksg-bare-repeat/B-whitelist mu-compose show
+```
+
+Replace the placeholder with the issuer's real account:
+
+```bash
+export MU_CHAIN=84532 MU_HOME=<path>/ksg-bare-repeat/B-whitelist
+mu-compose wl-rm 0x000000000000000000000000000000000000dEaD
+mu-compose wl-add <issuer EIP-55 address> "KSG issuer"
+```
+
+`MU_CHAIN` — 84532 (Base Sepolia) or 8453 (Base, real money; default). The whitelist entry
+is the x402 `payTo` (the issuer), not the USDC contract: the token is fixed per network in
+the x402 connector and is never taken from a policy or a 402 answer.

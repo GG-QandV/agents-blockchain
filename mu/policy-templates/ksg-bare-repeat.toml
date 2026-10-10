@@ -1,0 +1,16 @@
+# keysingate — paying a repeated `bare` (x402, USDC on Base Sepolia, test network).
+# A repeated bare costs $0.1–1 (keysingate [decision] 06.10); the issuer is paid
+# through x402, seller side `ksg-pay-v2`.
+# Composer drafts of the same policy: ksg-bare-repeat/A-limits, ksg-bare-repeat/B-whitelist.
+chain_id = 84532                          # Base Sepolia; 8453 = Base mainnet
+daily_limit_minor = 5_000_000             # 5 USDC/day (USDC 6 decimals)
+confirm_threshold_minor = 0               # every payment confirmed by the owner while the issuer is a placeholder
+
+[[whitelist]]
+address = "0x000000000000000000000000000000000000dEaD"
+label = "KSG issuer PLACEHOLDER - replace with the issuer's account"
+
+[[resource_allowlist]]
+host = "issuer.example"                   # the issuer's host — replace
+path_prefix = "/bare/issue"
+max_price_per_call_minor = 1_000_000      # $1 — the top of the bare price range
