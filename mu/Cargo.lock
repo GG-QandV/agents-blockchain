@@ -280,6 +280,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "hex"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f24254aa9a54b5c858eaee2f5bccdb46aaf0e486a595ed5fd8f86ba55232a70"
+
+[[package]]
 name = "hmac"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -315,6 +321,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cb26cec98cce3a3d96cbb7bced3c4b16e3d13f27ec56dbd62cbc8f39cfb9d653"
 dependencies = [
  "cpufeatures",
+]
+
+[[package]]
+name = "ksg-smoke"
+version = "0.2.0-ksg"
+dependencies = [
+ "mu-common",
+ "mu-connect",
+ "mu-human",
+ "mu-log",
+ "mu-policy",
+ "mu-runtime",
+ "mu-vault",
+ "p256",
+ "serde_json",
+ "tempfile",
 ]
 
 [[package]]
@@ -454,6 +476,8 @@ dependencies = [
 name = "mu-runtime"
 version = "0.2.0-ksg"
 dependencies = [
+ "base64",
+ "hex",
  "mu-common",
  "mu-connect",
  "mu-human",
@@ -461,6 +485,7 @@ dependencies = [
  "mu-policy",
  "mu-vault",
  "p256",
+ "serde_json",
  "sha2",
  "tempfile",
 ]

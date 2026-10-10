@@ -127,10 +127,7 @@ impl<'a> Runtime<'a> {
 
         // 3b. Resource-check для x402
         if let Some(ref resource) = i.resource {
-            let (host, path) = match resource.split_once('/') {
-                Some((h, p)) => (h, p),
-                None => (resource.as_str(), ""),
-            };
+            let (host, path) = split_resource(resource);
             if resource_check(host, path, total, &self.delta).is_err() {
                 let _ = self.log.append(Kind::DeniedDelta { intent_hash: ih }, now, self.vault);
                 return IntentStatus::DeniedDelta;
@@ -216,7 +213,7 @@ impl<'a> Runtime<'a> {
                 );
                 IntentStatus::Failed
             }
-            Ok(TxRef::Authorization { nonce, valid_before }) => {
+            Ok(TxRef::Authorization { .. }) => {
                 // x402: авторизація підписана, фасилітатор проведе платіж.
                 // Статус визначається пізніше через connector.status().
                 // nonce — ключ для authorizationState.
@@ -233,5 +230,31 @@ impl<'a> Runtime<'a> {
             Err(ConnErr::Unknown(_)) | Err(ConnErr::Config(_)) => IntentStatus::ReconcilePending,
             Err(_) => IntentStatus::ReconcilePending,
         }
+    }
+}
+
+/// `host` and `/path` of an x402 resource: a full URL (`https://host/path?q`,
+/// as a 402 answer gives it) or `host/path`. The path keeps its leading `/`,
+/// as the policy's `path_prefix` is written; the query is not part of it.
+pub fn split_resource(resource: &str) -> (&str, &str) {
+    let r = resource
+        .strip_prefix("https://")
+        .or_else(|| resource.strip_prefix("http://"))
+        .unwrap_or(resource);
+    let r = r.split(['?', '#']).next().unwrap_or(r);
+    match r.find('/') {
+        Some(i) => (&r[..i], &r[i..]),
+        None => (r, "/"),
+    }
+}
+
+#[cfg(test)]
+mod resource_tests {
+    use super::split_resource;
+    #[test]
+    fn resources_split_into_host_and_slash_path() {
+        assert_eq!(split_resource("https://issuer.example/bare/issue?x=1"), ("issuer.example", "/bare/issue"));
+        assert_eq!(split_resource("api.coingecko.com/api/v3/simple/price"), ("api.coingecko.com", "/api/v3/simple/price"));
+        assert_eq!(split_resource("issuer.example"), ("issuer.example", "/"));
     }
 }

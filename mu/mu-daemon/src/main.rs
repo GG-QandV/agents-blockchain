@@ -279,8 +279,14 @@ fn main() {
             let wallet_hex = std::env::var("MU_WALLET_ADDR")
                 .expect("MU_WALLET_ADDR required for x402 connector");
             let wallet = hex20(&wallet_hex);
-            eprintln!("Connector: X402 (wallet: {wallet_hex})");
-            Box::leak(Box::new(X402Connector::new(wallet)))
+            // MU_X402_NETWORK: base (default, real money) | base-sepolia (test network).
+            let net = match std::env::var("MU_X402_NETWORK").as_deref() {
+                Ok("base-sepolia") => mu_connect::x402::BASE_SEPOLIA,
+                Ok("base") | Err(_) => mu_connect::x402::BASE,
+                Ok(other) => panic!("MU_X402_NETWORK={other}: base | base-sepolia"),
+            };
+            eprintln!("Connector: X402 on {} (wallet: {wallet_hex}; the signing key must be this wallet)", net.name);
+            Box::leak(Box::new(X402Connector::on(net, wallet)))
         }
         _ => {
             eprintln!("Connector: Stub (set MU_CONNECTOR=x402 for real payments)");
