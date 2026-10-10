@@ -1,5 +1,5 @@
 [workspace]
-members = ["mu-common", "mu-vault", "mu-connect", "mu-gate", "mu-log", "mu-runtime", "mu-human", "mu-policy", "composer-core", "composer-cli", "mu-core", "mu-daemon", "mu-fixtures", "sui-smoke"]
+members = ["mu-common", "mu-vault", "mu-connect", "mu-gate", "mu-log", "mu-runtime", "mu-human", "mu-policy", "composer-core", "composer-cli", "mu-core", "mu-daemon", "mu-fixtures", "sui-smoke", "mu-license"]
 resolver = "2"
 
 [workspace.package]

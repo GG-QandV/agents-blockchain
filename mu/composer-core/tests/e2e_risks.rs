@@ -8,8 +8,9 @@ fn addr(x: &str) -> CanonAddress { CanonAddress::canon(x, 8453).unwrap() }
 fn base_delta() -> Delta {
     Delta {
         daily_limit: Amount::from_minor(500),
-        whitelist: vec![WlEntry { address: addr("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), label: "API".into() }],
+        whitelist: vec![WlEntry { address: addr("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), label: "API".into() }],
         confirm_threshold: Amount::from_minor(100),
+        resource_allowlist: vec![],
     }
 }
 fn daemon() -> DaemonPolicy {
@@ -70,7 +71,7 @@ fn trojan_composer_swap_visible_in_diff() {
     // Daemon renders diff from proposal → swap is visible to owner in approve closure.
     let mut st = daemon();
     let mut d = st.current.clone();
-    d.whitelist.push(WlEntry { address: addr("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"), label: "Evil".into() });
+    d.whitelist.push(WlEntry { address: addr("0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"), label: "Evil".into() });
     let prop = DeltaProposal { new_delta: d, base_delta_hash: delta_hash(&st.current), ts: 1 };
     let raw = encode_proposal(&prop).unwrap();
     let mut owner_saw_evil = false;

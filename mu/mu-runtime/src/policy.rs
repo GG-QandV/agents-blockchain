@@ -1,10 +1,10 @@
-//! Minimal Ω/Δ for pipeline operation.
-//! NB: per module map these are M2/M3 (separate crates mu-omega/mu-delta);
-//! here they are embedded in runtime as temporary placement — interfaces match the specs.
+//! Минимальные Ω/Δ для работы конвейера.
+//! NB: по модульной карте это M2/M3 (отдельные крейты mu-omega/mu-delta);
+//! здесь встроены в runtime как временное размещение — интерфейсы совпадают со спеками.
 use mu_common::{Amount, CanonAddress, ConnectorId};
 use mu_log::Log;
 
-// ── Ω (M2): static capability filter ─────────────────────────────────
+// ── Ω (M2): статичный фильтр возможностей ─────────────────────────────────
 pub struct Omega {
     pub connectors: Vec<ConnectorId>,
     pub max_ceiling: Amount,
@@ -16,36 +16,40 @@ pub enum OmegaDeny {
     CeilingExceeded,
 }
 
-/// Sui gasless: total = amount (no gas_estimate).
+/// RISK-M2-1: checked-арифметика; переполнение = Deny, не паника.
 pub fn omega_check(
     amount: Amount,
+    gas_estimate: Amount,
     connector: ConnectorId,
     o: &Omega,
 ) -> Result<Amount, OmegaDeny> {
     if !o.connectors.contains(&connector) {
         return Err(OmegaDeny::ConnectorUnknown);
     }
-    if amount > o.max_ceiling {
+    let total = amount.checked_add(gas_estimate).ok_or(OmegaDeny::CeilingExceeded)?;
+    if total > o.max_ceiling {
         return Err(OmegaDeny::CeilingExceeded);
     }
-    Ok(amount)
+    Ok(total)
 }
 
-// ── Δ (M3): moment policies ──────────────────────────────────────────────
+// ── Δ (M3): политики момента ──────────────────────────────────────────────
 pub struct Delta {
     pub daily_limit: Amount,
     pub whitelist: Vec<CanonAddress>,
     pub confirm_threshold: Amount,
+    pub resource_allowlist: Vec<mu_policy::ResourceRule>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum DeltaDeny {
     NotWhitelisted,
     WindowExceeded,
+    ResourceDenied,
 }
 
-/// RISK-M3-2: membership only over CanonAddress (no strings here by type).
-/// RISK-M5-4: window counts ONLY the log.
+/// RISK-M3-2: membership только над CanonAddress (строк здесь нет по типам).
+/// RISK-M5-4: окно считает ТОЛЬКО лог.
 pub fn delta_check(
     recipient: &CanonAddress,
     amount_total: Amount,
@@ -64,7 +68,31 @@ pub fn delta_check(
     Ok(())
 }
 
-/// RISK-M3-3: threshold compared against the same total value as the reserve.
+/// Перевірка resource_allowlist для x402 (хост+шлях).
+/// Повертає Ok, якщо ресурс дозволений і ціна ≤ max_price_per_call.
+pub fn resource_check(
+    host: &str,
+    path: &str,
+    price: Amount,
+    d: &Delta,
+) -> Result<(), DeltaDeny> {
+    if d.resource_allowlist.is_empty() {
+        // Пустий список = всі ресурси дозволені (зворотна сумісність)
+        return Ok(());
+    }
+    for rule in &d.resource_allowlist {
+        if host == rule.host && path.starts_with(&rule.path_prefix) {
+            if price <= rule.max_price_per_call {
+                return Ok(());
+            } else {
+                return Err(DeltaDeny::ResourceDenied);
+            }
+        }
+    }
+    Err(DeltaDeny::ResourceDenied)
+}
+
+/// RISK-M3-3: порог сравнивается с той же величиной total, что и резерв.
 pub fn needs_human(amount_total: Amount, d: &Delta) -> bool {
     amount_total > d.confirm_threshold
 }

@@ -1,16 +1,16 @@
-//! µ-daemon — boot protocol M6 §4 + unix socket transport M8.
+//! µ-daemon — boot-протокол M6 §4 + unix socket транспорт M8.
 //!
-//! Boot order (strict):
+//! Boot-порядок (строгий):
 //!   1. M1: load + verify + verify_against_log   → ✗ = exit(2)
 //!   2. M5: Log::open + verify_chain              → ✗ = exit(3)
 //!   3. M5: pending() → M7a.status → reconcile
-//!   4. M8: gate.restore_nonce from NonceSnapshot in log
-//!   5. Listen unix socket → frames → Gate::accept → Runtime::process
+//!   4. M8: gate.restore_nonce з NonceSnapshot лога
+//!   5. Слухати unix socket → кадри → Gate::accept → Runtime::process
 
 #![forbid(unsafe_code)]
 
 #[cfg(all(not(debug_assertions), feature = "softvault"))]
-compile_error!("softvault forbidden in release");
+compile_error!("softvault запрещён в release");
 
 use std::fs;
 use std::io::{Read, Write};
@@ -20,16 +20,18 @@ use std::path::Path;
 
 use mu_common::{Clock, ConnectorId, SysClock};
 use mu_connect::stub::StubConnector;
+use mu_connect::x402::X402Connector;
 use mu_connect::Connector;
 use mu_core::{CoreErr, Mu, MU_MAX_SIZE};
 use mu_gate::{AllowList, DenyCode, Gate};
 use mu_human::Presenter;
+use mu_license::License;
 use mu_log::Kind;
 use mu_log::{Log, LogErr};
 use mu_runtime::{IntentStatus, Runtime};
 use mu_vault::backend::SoftVault;
 
-// ── Config (MVP: hardcoded; prod: env/config) ─────────────────────────────
+// ── Конфіґ (MVP: хардкод; прод: env/конфіґ) ─────────────────────────────
 
 const MU_PATH: &str = "mu.bin";
 const LOG_PATH: &str = "mu.log";
@@ -38,7 +40,7 @@ const MU_PUBKEY_HEX: &str = "026ff03b949241ce1dadd43519e6960e0a85b41a69a05c32810
 const BUCKET_CAP: u32 = 10;
 const TS_WINDOW_SECS: u64 = 60;
 
-// ── Helpers ──────────────────────────────────────────────────────────────
+// ── Допоміжні ───────────────────────────────────────────────────────────
 
 fn hex_decode(s: &str) -> Vec<u8> {
     let s = s.strip_prefix("0x").unwrap_or(s);
@@ -48,7 +50,16 @@ fn hex_decode(s: &str) -> Vec<u8> {
         .collect()
 }
 
-// ── Presenter stub (M9) ─────────────────────────────────────────────────
+fn hex20(s: &str) -> [u8; 20] {
+    let s = s.strip_prefix("0x").unwrap_or(s);
+    let mut a = [0u8; 20];
+    for i in 0..20 {
+        a[i] = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).unwrap_or(0);
+    }
+    a
+}
+
+// ── Presenter-заглушка (M9) ─────────────────────────────────────────────
 
 struct CliPresenter;
 
@@ -62,7 +73,7 @@ impl Presenter for CliPresenter {
     }
 }
 
-// ── Boot protocol (before socket listen) ─────────────────────────────────
+// ── Boot-протокол (до виходу на сокет) ──────────────────────────────────
 
 #[derive(Debug)]
 enum BootErr {
@@ -87,19 +98,36 @@ fn boot(
     log_path: &Path,
     mu_pubkey: &[u8],
 ) -> Result<(Mu, Log, Gate, SoftVault, StubConnector, CliPresenter, SysClock), BootErr> {
-    // ── Step 1: M1 — load + verify + verify_against_log (RISK-M1-2) ──
+    // ── Крок 0: License check ──────────────────────────────────────────
+    let license_path = Path::new("license.key");
+    match License::load(license_path) {
+        Ok(l) => match l.mode {
+            mu_license::LicenseMode::Personal => {
+                println!("License: PERSONAL (full functionality, embed license available at $299)");
+            }
+            mu_license::LicenseMode::Commercial => {
+                println!("License: COMMERCIAL EMBED");
+            }
+        },
+        Err(e) => {
+            eprintln!("License error: {e:?} — aborting");
+            std::process::exit(2);
+        }
+    };
+
+    // ── Крок 1: M1 — load + verify + verify_against_log (RISK-M1-2) ──
     let mu = Mu::load(mu_path)?;
     mu.verify(mu_pubkey).map_err(BootErr::Mu)?;
 
-    // ── Step 2: M5 — Log::open + verify_chain (RISK-M5-2) ────────────
+    // ── Крок 2: M5 — Log::open + verify_chain (RISK-M5-2) ────────────
     let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [3u8; 32]);
     let log = Log::open(log_path, &vault)?;
     log.verify_chain()?;
 
-    // verify_against_log: log_head == log tail (RISK-M1-2)
+    // verify_against_log: log_head == хвіст лога (RISK-M1-2)
     mu.verify_against_log(log.last_hash())?;
 
-    // ── Step 3: pending() → status → reconcile ──────────────────────
+    // ── Крок 3: pending() → status → reconcile ──────────────────────
     let stub = StubConnector::new("bank_stub");
     for entry in log.pending() {
         if let Kind::Pending { .. } = &entry.kind {
@@ -107,9 +135,9 @@ fn boot(
         }
     }
 
-    // ── Step 4: M8 — restore_nonce from NonceSnapshot in log (RISK-M8-1) ──
+    // ── Крок 4: M8 — restore_nonce з NonceSnapshot логу (RISK-M8-1) ──
     let mut allow = AllowList::new();
-    // SMOKE: add test agent (seed [42;32])
+    // SMOKE: додаємо тестового агента (seed [42;32])
     let agent_pubkey: [u8; 32] = [
         0x19, 0x7f, 0x6b, 0x23, 0xe1, 0x6c, 0x85, 0x32,
         0xc6, 0xab, 0xc8, 0x38, 0xfa, 0xcd, 0x5e, 0xa7,
@@ -127,7 +155,7 @@ fn boot(
     Ok((mu, log, gate, vault, stub, CliPresenter, SysClock))
 }
 
-// ── Transport M8: unix socket ───────────────────────────────────────────
+// ── Транспорт M8: unix socket ───────────────────────────────────────────
 
 fn handle_client(
     mut stream: UnixStream,
@@ -164,6 +192,7 @@ fn handle_client(
                 chain_id: vi.chain_id,
                 agent_id: vi.agent_id,
                 connector: ConnectorId::BankStub,
+                resource: None,
             };
 
             let status = runtime.process(&intent);
@@ -215,7 +244,7 @@ fn main() {
         match boot(mu_path, log_path, &mu_pubkey) {
             Ok(v) => v,
             Err(BootErr::Mu(CoreErr::LogHeadMismatch)) => {
-                eprintln!("FATAL: log_head mismatch — old copy of mu.bin");
+                eprintln!("FATAL: log_head mismatch — стара копія mu.bin");
                 std::process::exit(2);
             }
             Err(BootErr::Mu(e)) => {
@@ -240,10 +269,24 @@ fn main() {
             }
         };
 
-    // Leak objects that need a static lifetime for Runtime
+    // Leak об'єкти, яким потрібен статичний час життя для Runtime
     let vault: &'static SoftVault = Box::leak(Box::new(vault));
-    let stub: &'static StubConnector = Box::leak(Box::new(stub));
     let presenter: &'static CliPresenter = Box::leak(Box::new(presenter));
+
+    // Вибір коннектора: MU_CONNECTOR=x402 або за замовчуванням stub
+    let connector: &'static dyn Connector = match std::env::var("MU_CONNECTOR").as_deref() {
+        Ok("x402") => {
+            let wallet_hex = std::env::var("MU_WALLET_ADDR")
+                .expect("MU_WALLET_ADDR required for x402 connector");
+            let wallet = hex20(&wallet_hex);
+            eprintln!("Connector: X402 (wallet: {wallet_hex})");
+            Box::leak(Box::new(X402Connector::new(wallet)))
+        }
+        _ => {
+            eprintln!("Connector: Stub (set MU_CONNECTOR=x402 for real payments)");
+            Box::leak(Box::new(stub))
+        }
+    };
 
     let omega = mu_runtime::policy::Omega {
         connectors: vec![ConnectorId::BankStub, ConnectorId::CardStub],
@@ -257,6 +300,7 @@ fn main() {
             ).unwrap(),
         ],
         confirm_threshold: mu_common::Amount::from_minor(1_000_000_000),
+        resource_allowlist: vec![],
     };
 
     let mut runtime = Runtime {
@@ -264,7 +308,7 @@ fn main() {
         delta,
         log,
         vault,
-        connector: stub,
+        connector,
         presenter,
         clock: &clock,
         owner_pubkey: mu.owner_pubkey().to_vec(),

@@ -23,7 +23,7 @@ impl SuiRpc for MockRpc {
 const RCP: [u8; 32] = [0xAB; 32];
 fn intent() -> Intent {
     Intent {
-        recipient: CanonAddress::canon("0xabcdef0123456789abcdef0123456789abcdef01000000000000000000000000", 1).unwrap(),
+        recipient: CanonAddress::canon("0xabcdef0123456789abcdef0123456789abcdef01", 1).unwrap(),
         amount: Amount::from_minor(5_000_000),
         chain_id: 1,
     }

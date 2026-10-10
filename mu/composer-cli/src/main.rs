@@ -1,8 +1,8 @@
-//! C5 mu-compose — CLI frontend for Composer (spec F-09).
-//! Commands: show | set-limit <v> | set-threshold <v> | wl-add <addr> <label> | wl-rm <addr>
+//! C5 mu-compose — CLI-фронтенд Composer (спека F-09).
+//! Команды: show | set-limit <v> | set-threshold <v> | wl-add <addr> <label> | wl-rm <addr>
 //!          | diff | propose
-//! Works with local draft; propose sends a frame to the daemon unix socket.
-//! Without daemon (--socket) all commands except propose work offline (F-08).
+//! Работает с локальным черновиком; propose шлёт кадр в unix socket демона.
+//! В отсутствие демона (--socket) команды кроме propose работают offline (F-08).
 use composer_core::client::{read_frame, write_frame};
 use composer_core::drafts::{load_draft, save_draft};
 use composer_core::proposal::{encode_proposal, DeltaProposal};
@@ -24,7 +24,7 @@ fn draft_path() -> PathBuf {
 }
 
 fn omega_stub() -> OmegaView {
-    // offline mode: ceiling from env (in production — from daemon GetPolicy)
+    // offline-режим: потолок берётся из env (в проде — из GetPolicy демона)
     let ceil = std::env::var("MU_CEILING").ok()
         .and_then(|s| parse_decimal(&s, DECIMALS).ok())
         .unwrap_or(Amount::from_minor(1_000_000_000));
@@ -33,7 +33,7 @@ fn omega_stub() -> OmegaView {
 
 fn load_or_default() -> DeltaProposal {
     load_draft(&draft_path()).ok().flatten().unwrap_or(DeltaProposal {
-        new_delta: Delta { daily_limit: Amount::ZERO, whitelist: vec![], confirm_threshold: Amount::ZERO },
+        new_delta: Delta { daily_limit: Amount::ZERO, whitelist: vec![], confirm_threshold: Amount::ZERO, resource_allowlist: vec![] },
         base_delta_hash: mu_common::Hash32([0; 32]),
         ts: 0,
     })
@@ -75,12 +75,12 @@ fn run(args: &[String]) -> i32 {
             let (Some(addr), Some(label)) = (args.get(1), args.get(2)) else {
                 eprintln!("usage: wl-add <address> <label>"); return 1;
             };
-            // Sui: canonicalization without checksum (length/hex)
+            // E-ADR-01/02: канонизация с EIP-55 (S3-логика: показать усечённо)
             let (canon, warn) = match canon_address_checked(addr, CHAIN) {
                 Ok(x) => x,
                 Err(e) => { eprintln!("address rejected: {e:?}"); return 1; }
             };
-            if warn { println!("warn: address without checksum (W-ADR-01) — verify identicon: {}", canon.redacted()); }
+            if warn { println!("warn: адрес без EIP-55 чексуммы (W-ADR-01) — сверьте: {}", canon.redacted()); }
             println!("adding: {}", canon.redacted());
             let mut p = load_or_default();
             p.new_delta.whitelist.push(WlEntry { address: canon, label: label.clone() });
@@ -102,7 +102,7 @@ fn run(args: &[String]) -> i32 {
             let rep = validate(&p.new_delta, &omega_stub());
             if !rep.ok() { eprintln!("blocked by validation: {:?}", rep.errors); return 1; }
             let Ok(sock_path) = std::env::var("MU_POLICY_SOCK") else {
-                eprintln!("MU_POLICY_SOCK not set (daemon unavailable → offline, draft saved)");
+                eprintln!("MU_POLICY_SOCK not set (демон недоступен → offline, черновик сохранён)");
                 return 3;
             };
             let raw = match encode_proposal(&p) {
@@ -123,7 +123,7 @@ fn run(args: &[String]) -> i32 {
                 }
             }
             #[cfg(not(unix))]
-            { eprintln!("named pipe transport: platform-specific build"); 3 }
+            { eprintln!("named pipe transport: платформенная сборка"); 3 }
         }
         "hash" => {
             let p = load_or_default();

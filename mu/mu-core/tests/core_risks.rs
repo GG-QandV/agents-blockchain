@@ -25,10 +25,11 @@ fn delta(limit: u128) -> Delta {
     Delta {
         daily_limit: Amount::from_minor(limit),
         whitelist: vec![WlEntry {
-            address: CanonAddress::canon("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 8453).unwrap(),
+            address: CanonAddress::canon("0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", 8453).unwrap(),
             label: "API".into(),
         }],
         confirm_threshold: Amount::from_minor(limit / 5),
+        resource_allowlist: vec![],
     }
 }
 fn sign_delta(v: &SoftVault, d: &Delta) -> [u8; 64] {

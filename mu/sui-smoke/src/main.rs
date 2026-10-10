@@ -1,13 +1,13 @@
-//! Live smoke M7a-sui against Sui testnet.
-//! Run (on the agent machine with network access):
+//! Живой smoke M7a-sui против Sui testnet.
+//! Запуск (у агента, где есть сеть):
 //!   SUI_RPC1=https://fullnode.testnet.sui.io:443 \
-//!   SUI_RPC2=<second provider> \
-//!   SUI_COIN_TYPE=<test USDC type tag> \
-//!   SUI_BUILD_METHOD=<build method from official docs (see ETAP2, sources)> \
+//!   SUI_RPC2=<второй провайдер> \
+//!   SUI_COIN_TYPE=<type-tag тестового USDC> \
+//!   SUI_BUILD_METHOD=<метод сборки из офиц. docs (см. ETAP2, источники)> \
 //!   SUI_RECIPIENT=0x<32B hex> \
 //!   cargo run -p sui-smoke
-//! Wallet: deterministic dev key SoftVault ([3;32]) — address is printed,
-//! top up from testnet faucet before running.
+//! Кошелёк: детерминированный dev-ключ SoftVault ([3;32]) — адрес печатается,
+//! пополнить с faucet testnet перед прогоном.
 use mu_common::{Amount, CanonAddress};
 use mu_connect::sui::{signing_digest, sui_address_from_pubkey, SuiConnector};
 use mu_connect::sui_jsonrpc::{JsonRpcClient, SuiRpcConfig};
@@ -16,7 +16,7 @@ use mu_vault::backend::SoftVault;
 use mu_vault::Vault;
 use std::process::Command;
 
-/// HTTP POST via system curl — no TLS dependencies in the binary.
+/// HTTP POST через системный curl — без TLS-зависимостей в бинаре.
 fn curl_post(url: &str, body: &str, timeout_ms: u64) -> Result<String, String> {
     let out = Command::new("curl")
         .args(["-sS", "--max-time", &format!("{}", timeout_ms.div_ceil(1000).max(1)),
@@ -30,7 +30,7 @@ fn curl_post(url: &str, body: &str, timeout_ms: u64) -> Result<String, String> {
 }
 
 fn env(k: &str) -> String {
-    std::env::var(k).unwrap_or_else(|_| panic!("env {k} required (see file header)"))
+    std::env::var(k).unwrap_or_else(|_| panic!("env {k} required (см. шапку файла)"))
 }
 fn client(url: String, build_method: String) -> JsonRpcClient {
     JsonRpcClient {
@@ -53,7 +53,7 @@ fn main() {
     let wallet_addr = sui_address_from_pubkey(&pk);
     println!("dev wallet Sui address (P-256, flag 0x02): 0x{}",
              wallet_addr.iter().map(|b| format!("{b:02x}")).collect::<String>());
-    println!("→ verify: sui keytool (README-LIVE §3); top up testnet-USDC to this address\n");
+    println!("→ сверить: sui keytool (README-LIVE §3); пополнить testnet-USDC на этот адрес\n");
 
     let recipient_hex = env("SUI_RECIPIENT");
     let rcp = CanonAddressLike32(&recipient_hex).parse().expect("SUI_RECIPIENT: 0x + 64 hex");
@@ -66,8 +66,8 @@ fn main() {
         rpc2: client(env("SUI_RPC2"), env("SUI_BUILD_METHOD")),
     };
     let intent = Intent {
-        recipient: CanonAddress::canon("0xabcdef0123456789abcdef0123456789abcdef01000000000000000000000000", 1).unwrap(), // 20B field unused in sui path
-        amount: Amount::from_minor(1_000_000), // 1 unit of 6-decimals
+        recipient: CanonAddress::canon("0xabcdef0123456789abcdef0123456789abcdef01", 1).unwrap(), // 20B-поле unused в sui-пути
+        amount: Amount::from_minor(1_000_000), // 1 единица 6-decimals
         chain_id: 1,
     };
 
@@ -85,7 +85,7 @@ fn main() {
                 if matches!(st, Ok(TxStatus::Settled { .. }) | Ok(TxStatus::Failed { .. })) { break; }
             }
         }
-        other => println!("outcome: {other:?}  ← compare with RISK-M7-1 matrix (Unknown = DO NOT retry)"),
+        other => println!("outcome: {other:?}  ← сверить с матрицей RISK-M7-1 (Unknown = НЕ повторять)"),
     }
 }
 

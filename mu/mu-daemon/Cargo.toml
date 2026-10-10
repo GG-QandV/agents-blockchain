@@ -6,15 +6,14 @@ edition.workspace = true
 [dependencies]
 mu-common = { path = "../mu-common" }
 mu-core = { path = "../mu-core" }
-mu-vault = { path = "../mu-vault" }
 mu-log = { path = "../mu-log" }
+mu-gate = { path = "../mu-gate" }
 mu-runtime = { path = "../mu-runtime" }
 mu-connect = { path = "../mu-connect" }
-mu-gate = { path = "../mu-gate" }
+mu-vault = { path = "../mu-vault" }
 mu-human = { path = "../mu-human" }
 mu-policy = { path = "../mu-policy" }
-
-# system
+mu-license = { path = "../mu-license" }
 sha2 = "=0.10.8"
 
 [features]

@@ -8,7 +8,7 @@
 //!   ‖ chain_id:u64(BE) ‖ agent_len:u8 ‖ agent_id[..] ‖ nonce:u64(BE) ‖ ts:u64(BE)
 
 pub const MAX_FRAME: usize = 4096;
-const MAX_RECIPIENT: usize = 80;
+const MAX_RECIPIENT: usize = 64;
 const MAX_AGENT: usize = 64;
 const SIG_LEN: usize = 64;
 

@@ -1,20 +1,21 @@
-//! M7 mu-connect — sole contact point with external money.
+//! M7 mu-connect — единственная точка контакта с деньгами внешнего мира.
 //!
-//! RISK-M7-1 (main): Unknown ≠ Failed. execute() CANNOT return Failed by type.
-//!   Failed is only emitted by status()/reconcile based on chain data.
-//! RISK-M7-5: recipient/contract are non-spoofable — calldata built by single function + self-check.
-//! RISK-M7S-1: stubs return TxRef::Simulated, unreachable for real accounting.
+//! RISK-M7-1 (главный): Unknown ≠ Failed. execute() ТИПОМ не может вернуть Failed.
+//!   Failed выносит только status()/reconcile по данным цепи.
+//! RISK-M7-5: recipient/contract неподменяемы — сборка calldata единственной функцией + self-check.
+//! RISK-M7S-1: стабы возвращают TxRef::Simulated, недостижимый для реального учёта.
 #![forbid(unsafe_code)]
 
 pub mod crypto;
 pub mod stub;
 pub mod sui;
 pub mod sui_jsonrpc;
+pub mod x402;
 
 use mu_common::{Amount, CanonAddress};
 use mu_vault::TxSigner;
 
-/// Payment intent, already passed Ω/Δ (address canonicalized).
+/// Намерение платежа, уже прошедшее Ω/Δ (адрес канонизирован).
 #[derive(Clone, Debug)]
 pub struct Intent {
     pub recipient: CanonAddress,
@@ -22,12 +23,16 @@ pub struct Intent {
     pub chain_id: u64,
 }
 
-/// Transaction reference. Real and Simulated are DISTINCT variants (RISK-M7S-1):
-/// Simulated can never be confused with a real tx_hash.
+/// Ссылка на транзакцию. Real и Simulated — РАЗНЫЕ варианты (RISK-M7S-1):
+/// Simulated никогда не спутается с настоящим tx_hash.
+/// Authorization — EIP-3009 TransferWithAuthorization (x402, gasless).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TxRef {
     Real { tx_hash: [u8; 32], chain_nonce: u64 },
     Simulated { id: [u8; 16] },
+    /// x402: EIP-3009 авторизація, nonce — випадковий 32B (RISK-M7-5).
+    /// valid_before — unix ts, після якого authorizationState→false = остаточний Failed.
+    Authorization { nonce: [u8; 32], valid_before: u64 },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -44,10 +49,10 @@ pub enum FailReason {
     Simulated,
 }
 
-/// KEY ERROR CONTRACT (RISK-M7-1):
-/// - Rejected: reliable refusal BEFORE tx enters the network → M6 can Failed+rollback.
-/// - Unknown:  network/timeout/divergence → M6 MUST keep Pending (reserve is held).
-/// There is NO Failed variant here: execute cannot "kill" a payment whose fate is unclear.
+/// КЛЮЧЕВОЙ КОНТРАКТ ОШИБОК (RISK-M7-1):
+/// - Rejected: достоверный отказ ДО попадания tx в сеть → M6 может Failed+rollback.
+/// - Unknown:  сеть/таймаут/расхождение → M6 ОБЯЗАН оставить Pending (резерв держится).
+/// Варианта Failed здесь НЕТ: execute не может «убить» платёж, судьба которого неясна.
 #[derive(Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum ConnErr {
@@ -71,14 +76,14 @@ pub struct Fee {
     pub gas_estimate: Amount,
 }
 
-/// Connector contract. execute takes TxSigner BY MOVE (RISK-M4-1):
-/// after execute, the key handle is destroyed, cannot sign again.
+/// Контракт коннектора. execute принимает TxSigner ПО MOVE (RISK-M4-1):
+/// после execute хэндл ключа уничтожен, повторно подписать нельзя.
 pub trait Connector {
     fn quote(&self, i: &Intent) -> Result<Fee, ConnErr>;
     fn execute(&self, i: &Intent, signer: TxSigner) -> Result<TxRef, ConnErr>;
     fn status(&self, r: &TxRef) -> Result<TxStatus, ConnErr>;
 }
 
-// Re-export for connector tests: access to SoftVault constructor for TxSigner.
+// Реэкспорт для тестов коннектора: доступ к SoftVault-конструктору TxSigner.
 #[cfg(feature = "softvault")]
 pub use mu_vault::backend as vault_backend;

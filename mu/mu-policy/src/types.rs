@@ -6,11 +6,20 @@ pub struct WlEntry {
     pub label: String, // ≤64, no control/bidi chars (E-LBL-01)
 }
 
+/// Правило доступу до ресурсу по URL (хост+шлях) для x402.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ResourceRule {
+    pub host: String,
+    pub path_prefix: String,
+    pub max_price_per_call: Amount,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Delta {
     pub daily_limit: Amount,
     pub whitelist: Vec<WlEntry>,
     pub confirm_threshold: Amount,
+    pub resource_allowlist: Vec<ResourceRule>,
 }
 
 /// Read-only Ω slice for validation (daemon serves via GetPolicy).
