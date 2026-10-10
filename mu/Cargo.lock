@@ -52,7 +52,7 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "composer-cli"
-version = "0.1.0"
+version = "0.2.0-ksg"
 dependencies = [
  "composer-core",
  "mu-common",
@@ -61,7 +61,7 @@ dependencies = [
 
 [[package]]
 name = "composer-core"
-version = "0.1.0"
+version = "0.2.0-ksg"
 dependencies = [
  "mu-common",
  "mu-policy",
@@ -289,6 +289,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "itoa"
+version = "1.0.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
+
+[[package]]
 name = "k256"
 version = "0.13.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -324,25 +330,34 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d26c52dbd32dccf2d10cac7725f8eae5296885fb5703b261f7d0a0739ec807ab"
 
 [[package]]
+name = "memchr"
+version = "2.8.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
+
+[[package]]
 name = "mu-common"
-version = "0.1.0"
+version = "0.2.0-ksg"
 
 [[package]]
 name = "mu-connect"
-version = "0.1.0"
+version = "0.2.0-ksg"
 dependencies = [
  "base64",
  "blake2",
+ "k256",
  "mu-common",
  "mu-vault",
  "p256",
+ "rand_core",
+ "serde_json",
  "sha2",
  "sha3",
 ]
 
 [[package]]
 name = "mu-core"
-version = "0.1.0"
+version = "0.2.0-ksg"
 dependencies = [
  "mu-common",
  "mu-log",
@@ -355,7 +370,7 @@ dependencies = [
 
 [[package]]
 name = "mu-daemon"
-version = "0.1.0"
+version = "0.2.0-ksg"
 dependencies = [
  "mu-common",
  "mu-connect",
@@ -372,7 +387,7 @@ dependencies = [
 
 [[package]]
 name = "mu-fixtures"
-version = "0.1.0"
+version = "0.2.0-ksg"
 dependencies = [
  "ed25519-dalek",
  "mu-common",
@@ -386,7 +401,7 @@ dependencies = [
 
 [[package]]
 name = "mu-gate"
-version = "0.1.0"
+version = "0.2.0-ksg"
 dependencies = [
  "ed25519-dalek",
  "mu-common",
@@ -395,7 +410,7 @@ dependencies = [
 
 [[package]]
 name = "mu-human"
-version = "0.1.0"
+version = "0.2.0-ksg"
 dependencies = [
  "mu-common",
  "mu-log",
@@ -407,7 +422,7 @@ dependencies = [
 
 [[package]]
 name = "mu-license"
-version = "0.1.0"
+version = "0.2.0-ksg"
 dependencies = [
  "ed25519-dalek",
  "sha2",
@@ -415,7 +430,7 @@ dependencies = [
 
 [[package]]
 name = "mu-log"
-version = "0.1.0"
+version = "0.2.0-ksg"
 dependencies = [
  "mu-common",
  "mu-connect",
@@ -426,7 +441,7 @@ dependencies = [
 
 [[package]]
 name = "mu-policy"
-version = "0.1.0"
+version = "0.2.0-ksg"
 dependencies = [
  "mu-common",
  "serde",
@@ -437,7 +452,7 @@ dependencies = [
 
 [[package]]
 name = "mu-runtime"
-version = "0.1.0"
+version = "0.2.0-ksg"
 dependencies = [
  "mu-common",
  "mu-connect",
@@ -452,7 +467,7 @@ dependencies = [
 
 [[package]]
 name = "mu-vault"
-version = "0.1.0"
+version = "0.2.0-ksg"
 dependencies = [
  "k256",
  "mu-common",
@@ -568,6 +583,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ryu"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
+
+[[package]]
 name = "sec1"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -605,6 +626,18 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "serde_json"
+version = "1.0.143"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d401abef1d108fbd9cbaebc3e46611f4b1021f714a0597a71f41ee463f5f4a5a"
+dependencies = [
+ "itoa",
+ "memchr",
+ "ryu",
+ "serde",
 ]
 
 [[package]]
@@ -656,7 +689,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "sui-smoke"
-version = "0.1.0"
+version = "0.2.0-ksg"
 dependencies = [
  "mu-common",
  "mu-connect",

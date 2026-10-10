@@ -1,46 +1,75 @@
-//! M7x x402-connector — gasless USDC via EIP-3009 TransferWithAuthorization.
+//! M7x x402 connector — gasless USDC via EIP-3009 `TransferWithAuthorization`.
 //!
-//! x402 protocol: server returns 402 with `accepts[]`, agent signs EIP-712
-//! TransferWithAuthorization, retries with X-PAYMENT header. The facilitator
-//! (CDP/x402.org) submits the auth on-chain via USDC.transferWithAuthorization().
+//! x402 (version 1, scheme `exact`): the server answers 402 with `accepts[]`;
+//! the agent signs an EIP-712 `TransferWithAuthorization` and retries with the
+//! `X-PAYMENT` header; the server's facilitator submits it on chain.
 //!
-//! RISK-M7-1: Unknown ≠ Failed. execute() returns TxRef::Authorization{nonce}.
-//!   status() uses read-only eth_call — ніколи не Failed напряму.
-//! RISK-M7-5: self-check звіряє to/value перед поверненням підпису.
+//! RISK-M7-1: Unknown ≠ Failed. `execute()` returns `TxRef::Authorization`;
+//!   `status()` never fails a payment while its authorization can still settle.
+//! RISK-M7-5: nothing the server says can move money elsewhere. The token
+//!   contract is a per-network constant baked into the binary; the challenge
+//!   must name exactly the intent's recipient, amount, network and that token,
+//!   or nothing is signed.
+//! RISK-M4-1: the payer address is derived from the signing key itself — a
+//!   wallet configured wrong refuses before any signature leaves.
 
 use crate::{ConnErr, Connector, Fee, Intent, RejectReason, TxRef, TxStatus};
 use mu_common::{Amount, Hash32};
 use mu_vault::TxSigner;
-use sha3::Digest;
+use sha3::{Digest, Keccak256};
+use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-// ── EIP-712 type hashes ────────────────────────────────────────────────
-// keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
-const EIP712_DOMAIN_TYPE_HASH: [u8; 32] = [
-    0x8b, 0x73, 0xc3, 0xc6, 0x9b, 0xbb, 0xe6, 0x4b,
-    0x42, 0x3e, 0x65, 0xf5, 0x0f, 0x78, 0x0d, 0xee,
-    0xda, 0xe9, 0x07, 0x6e, 0xcd, 0x72, 0x6d, 0x53,
-    0x0f, 0x5b, 0xf6, 0x63, 0xea, 0x7a, 0x51, 0x5f,
-];
+/// The only x402 version and scheme this connector speaks.
+pub const X402_VERSION: u64 = 1;
+pub const SCHEME_EXACT: &str = "exact";
 
-// keccak256("TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)")
-const TRANSFER_WITH_AUTH_TYPE_HASH: [u8; 32] = [
-    0x7f, 0xc3, 0x72, 0x60, 0x0b, 0x3e, 0x40, 0xc1,
-    0x9e, 0x0c, 0x25, 0x52, 0x23, 0x09, 0x0b, 0x15,
-    0xb0, 0x8b, 0x6a, 0xc7, 0x9f, 0xbe, 0xd8, 0x0c,
-    0x07, 0xf7, 0x06, 0x3e, 0x51, 0xca, 0xe8, 0x2b,
-];
+const EIP712_DOMAIN_TYPE: &[u8] =
+    b"EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)";
+const TRANSFER_WITH_AUTH_TYPE: &[u8] = b"TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)";
 
-/// USDC контракт на Base mainnet (RISK-M7-5: зашитий в бінар).
-pub const USDC_BASE: [u8; 20] = [
-    0x83, 0x35, 0x89, 0xfc, 0xd6, 0xed, 0xb6, 0xe0,
-    0x8f, 0x4c, 0x7c, 0x32, 0xd4, 0xf7, 0x1b, 0x54,
-    0xbd, 0xa0, 0x29, 0x13,
-];
-pub const CHAIN_ID_BASE: u64 = 8453;
+/// One network x402 pays on: its USDC contract and EIP-712 domain are
+/// constants (RISK-M7-5), never taken from a 402 answer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct X402Network {
+    pub chain_id: u64,
+    /// x402 network name.
+    pub name: &'static str,
+    pub usdc: [u8; 20],
+    /// USDC's EIP-712 domain name on this network.
+    pub domain_name: &'static str,
+    pub domain_version: &'static str,
+}
 
-/// Парс accept[] з 402-відповіді сервера.
-#[derive(Clone, Debug)]
+/// Base mainnet — real money.
+pub const BASE: X402Network = X402Network {
+    chain_id: 8453,
+    name: "base",
+    usdc: hex20_const(b"833589fcd6edb6e08f4c7c32d4f71b54bda02913"),
+    domain_name: "USD Coin",
+    domain_version: "2",
+};
+
+/// Base Sepolia — test network, no real money (keysingate stand).
+pub const BASE_SEPOLIA: X402Network = X402Network {
+    chain_id: 84532,
+    name: "base-sepolia",
+    usdc: hex20_const(b"036cbd53842c5426634e7929541ec2318f3dcf7e"),
+    domain_name: "USDC",
+    domain_version: "2",
+};
+
+/// USDC on Base mainnet (kept for callers of 0.2.1).
+pub const USDC_BASE: [u8; 20] = BASE.usdc;
+pub const CHAIN_ID_BASE: u64 = BASE.chain_id;
+
+/// The network of a chain id; `None` for one x402 is not configured for.
+pub fn network_for_chain(chain_id: u64) -> Option<X402Network> {
+    [BASE, BASE_SEPOLIA].into_iter().find(|n| n.chain_id == chain_id)
+}
+
+/// One entry of `accepts[]` from a 402 answer.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct X402Challenge {
     pub scheme: String,
     pub network: String,
@@ -53,105 +82,167 @@ pub struct X402Challenge {
     pub domain_version: String,
 }
 
-/// Підписана EIP-3009 авторизація.
-#[derive(Clone, Debug)]
+impl X402Challenge {
+    /// The `exact` entry for `network` from a 402 body.
+    pub fn from_402_body(body: &str, network: &X402Network) -> Result<Self, ConnErr> {
+        let bad = |m: &str| ConnErr::Config(format!("x402 402 body: {m}"));
+        let v: serde_json::Value = serde_json::from_str(body).map_err(|_| bad("not JSON"))?;
+        if v.get("x402Version").and_then(serde_json::Value::as_u64) != Some(X402_VERSION) {
+            return Err(bad("x402Version is not 1"));
+        }
+        let accepts = v.get("accepts").and_then(|a| a.as_array()).ok_or_else(|| bad("no accepts[]"))?;
+        let a = accepts
+            .iter()
+            .find(|a| {
+                a.get("scheme").and_then(|s| s.as_str()) == Some(SCHEME_EXACT)
+                    && a.get("network").and_then(|s| s.as_str()) == Some(network.name)
+            })
+            .ok_or_else(|| bad("no exact entry for this network"))?;
+        let s = |k: &str| -> Result<String, ConnErr> {
+            a.get(k).and_then(|x| x.as_str()).map(str::to_owned).ok_or_else(|| bad(k))
+        };
+        let extra = |k: &str, d: &str| -> String {
+            a.get("extra")
+                .and_then(|e| e.get(k))
+                .and_then(|x| x.as_str())
+                .unwrap_or(d)
+                .to_owned()
+        };
+        Ok(Self {
+            scheme: s("scheme")?,
+            network: s("network")?,
+            max_amount_required: s("maxAmountRequired")?,
+            pay_to: s("payTo")?,
+            asset: s("asset")?,
+            resource: a.get("resource").and_then(|x| x.as_str()).unwrap_or("").to_owned(),
+            max_timeout_seconds: a
+                .get("maxTimeoutSeconds")
+                .and_then(serde_json::Value::as_u64)
+                .ok_or_else(|| bad("maxTimeoutSeconds"))?,
+            domain_name: extra("name", network.domain_name),
+            domain_version: extra("version", network.domain_version),
+        })
+    }
+
+    /// RISK-M7-5: the challenge must ask for exactly what the intent pays.
+    fn matches(&self, i: &Intent, net: &X402Network) -> Result<(), ConnErr> {
+        let no = || ConnErr::Rejected(RejectReason::ChallengeMismatch);
+        if self.scheme != SCHEME_EXACT || self.network != net.name {
+            return Err(no());
+        }
+        if parse_addr(&self.asset).ok_or_else(no)? != net.usdc {
+            return Err(no());
+        }
+        if parse_addr(&self.pay_to).ok_or_else(no)? != *i.recipient.bytes() {
+            return Err(no());
+        }
+        let amount: u128 = self.max_amount_required.parse().map_err(|_| no())?;
+        if amount != i.amount.minor() {
+            return Err(no());
+        }
+        // The token's EIP-712 domain is ours, not the server's.
+        if self.domain_name != net.domain_name || self.domain_version != net.domain_version {
+            return Err(no());
+        }
+        if self.max_timeout_seconds == 0 || self.max_timeout_seconds > MAX_VALIDITY_SECONDS {
+            return Err(no());
+        }
+        Ok(())
+    }
+}
+
+/// The longest an authorization may stay valid.
+pub const MAX_VALIDITY_SECONDS: u64 = 3600;
+const DEFAULT_VALIDITY_SECONDS: u64 = 300;
+/// Clock skew allowance before now.
+const VALID_AFTER_SKEW: u64 = 60;
+
+/// A signed EIP-3009 authorization.
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SignedAuthorization {
+    pub network: &'static str,
     pub from: [u8; 20],
     pub to: [u8; 20],
     pub value: u128,
     pub valid_after: u64,
     pub valid_before: u64,
     pub nonce: [u8; 32],
+    /// 27 or 28.
     pub v: u8,
     pub r: [u8; 32],
     pub s: [u8; 32],
 }
 
 impl SignedAuthorization {
-    /// X-PAYMENT заголовок: base64(JSON{...}).
-    /// Формат: base64url(JSON з signature + authorization).
+    /// `X-PAYMENT`: base64 of the x402 version 1 payload.
     pub fn to_header(&self) -> String {
         use base64::Engine;
-        let json = format!(
-            r#"{{"x402Version":"1.0","scheme":"exact","network":"base",\
-               "payload":{{"signature":{{"r":"0x{}","s":"0x{}","v":{}}},\
-               "authorization":{{"from":"0x{}","to":"0x{}","value":"{}",\
-               "validAfter":{},"validBefore":{},"nonce":"0x{}"}}}}}}"#,
-            hex32(&self.r),
-            hex32(&self.s),
-            self.v,
-            hex20(&self.from),
-            hex20(&self.to),
-            self.value,
-            self.valid_after,
-            self.valid_before,
-            hex32(&self.nonce),
-        );
-        base64::engine::general_purpose::STANDARD.encode(json.as_bytes())
+        let mut sig = String::with_capacity(132);
+        sig.push_str("0x");
+        sig.push_str(&hex(&self.r));
+        sig.push_str(&hex(&self.s));
+        sig.push_str(&format!("{:02x}", self.v));
+        let json = serde_json::json!({
+            "x402Version": X402_VERSION,
+            "scheme": SCHEME_EXACT,
+            "network": self.network,
+            "payload": {
+                "signature": sig,
+                "authorization": {
+                    "from": format!("0x{}", hex(&self.from)),
+                    "to": format!("0x{}", hex(&self.to)),
+                    "value": self.value.to_string(),
+                    "validAfter": self.valid_after.to_string(),
+                    "validBefore": self.valid_before.to_string(),
+                    "nonce": format!("0x{}", hex(&self.nonce)),
+                }
+            }
+        });
+        base64::engine::general_purpose::STANDARD.encode(json.to_string().as_bytes())
     }
 }
 
-/// x402 коннектор — підписує EIP-3009 TransferWithAuthorization.
+/// x402 connector: signs EIP-3009 `TransferWithAuthorization` for one wallet
+/// on one network.
 pub struct X402Connector {
     pub chain_id: u64,
+    pub network: X402Network,
+    /// The wallet this connector pays from; the signing key must be its key.
     pub wallet_addr: [u8; 20],
-    /// EIP-712 domain name (з 402-відповіді або дефолт "USD Coin").
-    pub domain_name: std::sync::Mutex<String>,
-    /// EIP-712 domain version (з 402-відповіді або дефолт "2").
-    pub domain_version: std::sync::Mutex<String>,
-    /// Остання підписана авторизація (для take_header).
-    last_auth: std::sync::Mutex<Option<SignedAuthorization>>,
+    challenge: Mutex<Option<X402Challenge>>,
+    last_auth: Mutex<Option<SignedAuthorization>>,
 }
 
 impl X402Connector {
+    /// Base mainnet (0.2.1 behaviour).
     pub fn new(wallet_addr: [u8; 20]) -> Self {
+        Self::on(BASE, wallet_addr)
+    }
+
+    /// On `network`.
+    pub fn on(network: X402Network, wallet_addr: [u8; 20]) -> Self {
         X402Connector {
-            chain_id: CHAIN_ID_BASE,
+            chain_id: network.chain_id,
+            network,
             wallet_addr,
-            domain_name: std::sync::Mutex::new("USD Coin".into()),
-            domain_version: std::sync::Mutex::new("2".into()),
-            last_auth: std::sync::Mutex::new(None),
+            challenge: Mutex::new(None),
+            last_auth: Mutex::new(None),
         }
     }
 
-    /// Отримати X-PAYMENT header останньої авторизації (consume).
+    /// The `X-PAYMENT` header of the last authorization, once.
     pub fn take_header(&self) -> Option<String> {
         self.last_auth.lock().unwrap().take().map(|a| a.to_header())
     }
 
-    /// Встановити challenge з 402-відповіді (domain name/version).
+    /// The 402 challenge the next `execute` answers. Checked against the
+    /// intent at `execute`, not here.
     pub fn set_challenge(&self, challenge: &X402Challenge) {
-        *self.domain_name.lock().unwrap() = challenge.domain_name.clone();
-        *self.domain_version.lock().unwrap() = challenge.domain_version.clone();
+        *self.challenge.lock().unwrap() = Some(challenge.clone());
     }
 
-    // ── внутрішня логіка ───────────────────────────────────────────────
-
-    fn build_domain_separator(&self, verifying_contract: &[u8; 20]) -> Hash32 {
-        let mut h = sha3::Keccak256::new();
-        h.update(&EIP712_DOMAIN_TYPE_HASH);
-        // name: keccak256(bytes(name))
-        let name = self.domain_name.lock().unwrap();
-        h.update(keccak256_bytes(name.as_bytes()));
-        // version: keccak256(bytes(version))
-        let version = self.domain_version.lock().unwrap();
-        h.update(keccak256_bytes(version.as_bytes()));
-        // chainId: uint256 = u64 as 32B big-endian
-        let chain_bytes = self.chain_id.to_be_bytes();
-        let mut chain32 = [0u8; 32];
-        chain32[24..].copy_from_slice(&chain_bytes);
-        h.update(&chain32);
-        // verifyingContract: address = 20B left-padded to 32B
-        let mut addr32 = [0u8; 32];
-        addr32[12..].copy_from_slice(verifying_contract);
-        h.update(&addr32);
-        let out = h.finalize();
-        let mut d = [0u8; 32];
-        d.copy_from_slice(&out);
-        Hash32(d)
-    }
-
-    fn build_struct_hash(
+    /// The EIP-712 digest of an authorization on this connector's network.
+    pub fn digest(
         &self,
         from: &[u8; 20],
         to: &[u8; 20],
@@ -160,63 +251,63 @@ impl X402Connector {
         valid_before: u64,
         nonce: &[u8; 32],
     ) -> Hash32 {
-        let mut h = sha3::Keccak256::new();
-        h.update(&TRANSFER_WITH_AUTH_TYPE_HASH);
-        // from (address → 32B left-padded)
-        let mut f32 = [0u8; 32];
-        f32[12..].copy_from_slice(from);
-        h.update(&f32);
-        // to (address → 32B left-padded)
-        let mut t32 = [0u8; 32];
-        t32[12..].copy_from_slice(to);
-        h.update(&t32);
-        // value (uint256 → 32B big-endian)
-        let val_bytes = value.to_be_bytes();
-        let mut v32 = [0u8; 32];
-        v32[16..].copy_from_slice(&val_bytes);
-        h.update(&v32);
-        // validAfter (uint256 → 32B big-endian)
-        let va_bytes = valid_after.to_be_bytes();
-        let mut va32 = [0u8; 32];
-        va32[24..].copy_from_slice(&va_bytes);
-        h.update(&va32);
-        // validBefore (uint256 → 32B big-endian)
-        let vb_bytes = valid_before.to_be_bytes();
-        let mut vb32 = [0u8; 32];
-        vb32[24..].copy_from_slice(&vb_bytes);
-        h.update(&vb32);
-        // nonce (bytes32 → 32B)
-        h.update(nonce);
-        let out = h.finalize();
-        let mut d = [0u8; 32];
-        d.copy_from_slice(&out);
-        Hash32(d)
+        let mut chain = [0u8; 32];
+        chain[24..].copy_from_slice(&self.network.chain_id.to_be_bytes());
+        let domain = keccak(&[
+            &keccak(&[EIP712_DOMAIN_TYPE]),
+            &keccak(&[self.network.domain_name.as_bytes()]),
+            &keccak(&[self.network.domain_version.as_bytes()]),
+            &chain,
+            &word20(&self.network.usdc),
+        ]);
+        let s = keccak(&[
+            &keccak(&[TRANSFER_WITH_AUTH_TYPE]),
+            &word20(from),
+            &word20(to),
+            &word_u128(value),
+            &word_u128(u128::from(valid_after)),
+            &word_u128(u128::from(valid_before)),
+            nonce,
+        ]);
+        Hash32(keccak(&[&[0x19, 0x01], &domain, &s]))
     }
 
-    fn build_digest(&self, from: &[u8; 20], to: &[u8; 20], value: u128,
-                    valid_after: u64, valid_before: u64, nonce: &[u8; 32]) -> Hash32 {
-        let domain = self.build_domain_separator(&USDC_BASE);
-        let struct_hash = self.build_struct_hash(from, to, value, valid_after, valid_before, nonce);
-        // EIP-712: keccak256("\x19\x01" ‖ domainSeparator ‖ structHash)
-        let mut h = sha3::Keccak256::new();
-        h.update(&[0x19, 0x01]);
-        h.update(&domain.0);
-        h.update(&struct_hash.0);
-        let out = h.finalize();
-        let mut d = [0u8; 32];
-        d.copy_from_slice(&out);
-        Hash32(d)
-    }
-
-    /// Self-check (RISK-M7-5): звіряє to/value з intent до повернення підпису.
-    fn self_check(intent: &Intent, to: &[u8; 20], value: u128) -> Result<(), ConnErr> {
-        if to != intent.recipient.bytes() {
-            return Err(ConnErr::Rejected(RejectReason::InvalidRecipient));
+    /// Signs one authorization with every field given — `execute` supplies
+    /// the time window and a random nonce; tests supply fixed ones.
+    pub fn authorize(
+        &self,
+        signer: &TxSigner,
+        to: [u8; 20],
+        value: u128,
+        valid_after: u64,
+        valid_before: u64,
+        nonce: [u8; 32],
+    ) -> Result<SignedAuthorization, ConnErr> {
+        let from = address_of(signer)?;
+        if from != self.wallet_addr {
+            return Err(ConnErr::Rejected(RejectReason::WalletMismatch));
         }
-        if value != intent.amount.minor() {
-            return Err(ConnErr::Rejected(RejectReason::InvalidRecipient));
+        let digest = self.digest(&from, &to, value, valid_after, valid_before, &nonce);
+        let sig = signer
+            .sign(&digest)
+            .map_err(|e| ConnErr::Unknown(format!("sign: {e:?}")))?;
+        let auth = SignedAuthorization {
+            network: self.network.name,
+            from,
+            to,
+            value,
+            valid_after,
+            valid_before,
+            nonce,
+            v: 27 + sig.v,
+            r: sig.r,
+            s: sig.s,
+        };
+        // Self-check: the signature recovers to the wallet over this digest.
+        if recover(&digest, &auth) != Some(from) {
+            return Err(ConnErr::Unknown("x402 self-check: signature does not recover".into()));
         }
-        Ok(())
+        Ok(auth)
     }
 }
 
@@ -225,297 +316,369 @@ impl Connector for X402Connector {
         if i.chain_id != self.chain_id {
             return Err(ConnErr::Rejected(RejectReason::ChainMismatch));
         }
-        // x402 gasless: жодних комісій
-        Ok(Fee {
-            gas_estimate: Amount::ZERO,
-        })
+        Ok(Fee { gas_estimate: Amount::ZERO })
     }
 
     fn execute(&self, i: &Intent, signer: TxSigner) -> Result<TxRef, ConnErr> {
-        if i.chain_id != self.chain_id {
+        if i.chain_id != self.chain_id || i.recipient.chain_id() != self.chain_id {
             return Err(ConnErr::Rejected(RejectReason::ChainMismatch));
         }
-
-        // 1. параметри авторизації
+        let validity = match self.challenge.lock().unwrap().take() {
+            Some(c) => {
+                c.matches(i, &self.network)?;
+                c.max_timeout_seconds
+            }
+            None => DEFAULT_VALIDITY_SECONDS,
+        };
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|e| ConnErr::Unknown(format!("clock: {e:?}")))?
             .as_secs();
-        let valid_after = now.saturating_sub(60);  // 1 хв назад (буфер)
-        let valid_before = now + 300;               // 5 хв вікно
-        let nonce = random32();
-        let to = i.recipient.bytes().clone(); // [u8; 20]
-        let value = i.amount.minor();
-        let from = self.wallet_addr;
-
-        // 2. Self-check (RISK-M7-5): to/value до підпису
-        Self::self_check(i, &to, value)?;
-
-        // 3. EIP-712 digest
-        let digest = self.build_digest(&from, &to, value, valid_after, valid_before, &nonce);
-
-        // 4. Підпис (RFC 6979, k256)
-        let sig = signer
-            .sign(&digest)
-            .map_err(|e| ConnErr::Unknown(format!("sign: {e:?}")))?;
-
-        // 5. Self-check 2: звірка зворотнім декодом заголовка
-        let auth = SignedAuthorization {
-            from,
-            to,
-            value,
-            valid_after,
-            valid_before,
+        let mut nonce = [0u8; 32];
+        rand_core::RngCore::try_fill_bytes(&mut rand_core::OsRng, &mut nonce)
+            .map_err(|e| ConnErr::Unknown(format!("nonce: {e}")))?;
+        let auth = self.authorize(
+            &signer,
+            *i.recipient.bytes(),
+            i.amount.minor(),
+            now.saturating_sub(VALID_AFTER_SKEW),
+            now + validity,
             nonce,
-            v: sig.v,
-            r: sig.r,
-            s: sig.s,
-        };
-        // Self-check 2: звірка безпосередньо auth полів з intent (RISK-M7-5)
+        )?;
+        // RISK-M7-5: what was signed is what the intent says.
         if auth.to != *i.recipient.bytes() || auth.value != i.amount.minor() {
             return Err(ConnErr::Config("x402 self-check: auth mismatch".into()));
         }
-
-        // 6. зберегти для take_header
+        let r = TxRef::Authorization { nonce: auth.nonce, valid_before: auth.valid_before };
         *self.last_auth.lock().unwrap() = Some(auth);
-
-        Ok(TxRef::Authorization {
-            nonce,
-            valid_before,
-        })
+        Ok(r)
     }
 
     fn status(&self, r: &TxRef) -> Result<TxStatus, ConnErr> {
-        let (_nonce, valid_before) = match r {
-            TxRef::Authorization {
-                nonce,
-                valid_before,
-            } => (*nonce, *valid_before),
-            TxRef::Real { .. } => {
-                return Err(ConnErr::Config("x402 got Real txref".into()));
-            }
+        let valid_before = match r {
+            TxRef::Authorization { valid_before, .. } => *valid_before,
+            TxRef::Real { .. } => return Err(ConnErr::Config("x402 got Real txref".into())),
             TxRef::Simulated { .. } => {
-                return Ok(TxStatus::Failed {
-                    reason: crate::FailReason::Simulated,
-                });
+                return Ok(TxStatus::Failed { reason: crate::FailReason::Simulated })
             }
         };
-
-        // Для unit-тестів без RPC використовуємо часову логіку:
-        // authorizationState потребує eth_call до USDC контракту.
-        // Тут визначаємо Pending/Failed за часом.
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|e| ConnErr::Unknown(format!("clock: {e:?}")))?
             .as_secs();
-
-        if now > valid_before {
-            // Термін дії авторизації минув — остаточний Failed
-            Ok(TxStatus::Failed {
-                reason: crate::FailReason::NonceConsumedByOther,
-            })
+        // Without a chain reader (authorizationState) the time window is all
+        // we know: past validBefore the authorization can never settle.
+        if now >= valid_before {
+            Ok(TxStatus::Failed { reason: crate::FailReason::NonceConsumedByOther })
         } else {
-            // Ще може бути виконано фасилітатором
             Ok(TxStatus::Pending)
         }
     }
 }
 
-// ── helpers ────────────────────────────────────────────────────────────
-
-fn keccak256_bytes(data: &[u8]) -> [u8; 32] {
-    let mut h = sha3::Keccak256::new();
-    h.update(data);
-    let out = h.finalize();
-    let mut d = [0u8; 32];
-    d.copy_from_slice(&out);
-    d
+/// The EVM address of a signing key.
+pub fn address_of(signer: &TxSigner) -> Result<[u8; 20], ConnErr> {
+    let compressed = signer
+        .verifying_key_bytes()
+        .map_err(|e| ConnErr::Unknown(format!("key: {e:?}")))?;
+    let vk = k256::ecdsa::VerifyingKey::from_sec1_bytes(&compressed)
+        .map_err(|_| ConnErr::Unknown("key: not a secp256k1 point".into()))?;
+    Ok(address_of_key(&vk))
 }
 
-fn hex20(a: &[u8; 20]) -> String {
-    let mut s = String::with_capacity(40);
-    for b in a {
-        s.push_str(&format!("{b:02x}"));
+fn address_of_key(vk: &k256::ecdsa::VerifyingKey) -> [u8; 20] {
+    let point = vk.to_encoded_point(false);
+    let h = keccak(&[&point.as_bytes()[1..]]);
+    let mut a = [0u8; 20];
+    a.copy_from_slice(&h[12..]);
+    a
+}
+
+fn recover(digest: &Hash32, a: &SignedAuthorization) -> Option<[u8; 20]> {
+    let mut rs = [0u8; 64];
+    rs[..32].copy_from_slice(&a.r);
+    rs[32..].copy_from_slice(&a.s);
+    let sig = k256::ecdsa::Signature::from_slice(&rs).ok()?;
+    if sig.normalize_s().is_some() {
+        return None; // high-s: refused by sellers (EIP-2)
     }
-    s
+    let id = k256::ecdsa::RecoveryId::from_byte(a.v.checked_sub(27)?)?;
+    let vk = k256::ecdsa::VerifyingKey::recover_from_prehash(&digest.0, &sig, id).ok()?;
+    Some(address_of_key(&vk))
 }
 
-fn hex32(a: &[u8; 32]) -> String {
-    let mut s = String::with_capacity(64);
-    for b in a {
-        s.push_str(&format!("{b:02x}"));
+fn keccak(parts: &[&[u8]]) -> [u8; 32] {
+    let mut h = Keccak256::new();
+    for p in parts {
+        h.update(p);
     }
-    s
+    h.finalize().into()
 }
 
-fn random32() -> [u8; 32] {
-    // Детермінований nonce для тестів; в продакшені замінити на
-    // справжній CSPRNG (напр. getrandom або /dev/urandom).
-    let mut buf = [0u8; 32];
-    // Використовуємо час як ентропію для тестів
-    if let Ok(d) = SystemTime::now().duration_since(UNIX_EPOCH) {
-        let nanos = d.as_nanos();
-        // u128 → 16 байт, копіюємо в перші 16 байт buf
-        let (hi, lo) = ((nanos >> 64) as u64, nanos as u64);
-        buf[..8].copy_from_slice(&hi.to_be_bytes());
-        buf[8..16].copy_from_slice(&lo.to_be_bytes());
+fn word20(a: &[u8; 20]) -> [u8; 32] {
+    let mut w = [0u8; 32];
+    w[12..].copy_from_slice(a);
+    w
+}
+
+fn word_u128(v: u128) -> [u8; 32] {
+    let mut w = [0u8; 32];
+    w[16..].copy_from_slice(&v.to_be_bytes());
+    w
+}
+
+fn hex(b: &[u8]) -> String {
+    b.iter().map(|x| format!("{x:02x}")).collect()
+}
+
+fn parse_addr(s: &str) -> Option<[u8; 20]> {
+    let h = s.strip_prefix("0x")?;
+    if h.len() != 40 {
+        return None;
     }
-    buf
+    let mut a = [0u8; 20];
+    for (i, c) in h.as_bytes().chunks(2).enumerate() {
+        a[i] = (nib(c[0])? << 4) | nib(c[1])?;
+    }
+    Some(a)
 }
 
-// ── tests ──────────────────────────────────────────────────────────────
+fn nib(c: u8) -> Option<u8> {
+    match c {
+        b'0'..=b'9' => Some(c - b'0'),
+        b'a'..=b'f' => Some(c - b'a' + 10),
+        b'A'..=b'F' => Some(c - b'A' + 10),
+        _ => None,
+    }
+}
+
+const fn hex20_const(s: &[u8; 40]) -> [u8; 20] {
+    const fn n(c: u8) -> u8 {
+        match c {
+            b'0'..=b'9' => c - b'0',
+            b'a'..=b'f' => c - b'a' + 10,
+            _ => panic!("lowercase hex only"),
+        }
+    }
+    let mut out = [0u8; 20];
+    let mut i = 0;
+    while i < 20 {
+        out[i] = (n(s[2 * i]) << 4) | n(s[2 * i + 1]);
+        i += 1;
+    }
+    out
+}
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::TxRef;
     use mu_common::CanonAddress;
+    use mu_vault::Vault;
 
-    fn make_signer() -> TxSigner {
-        use mu_vault::Vault;
-        let v = mu_vault::backend::SoftVault::for_test([1; 32], [2; 32], [3; 32]);
-        v.tx_signer().unwrap()
+    // Independent vector: eth-account 0.13.4 (Python), wallet key 0x11…11,
+    // `sign_typed_data` on Base Sepolia USDC (same vector as keysingate
+    // `ksg-pay-v2`, which accepts it).
+    const ISSUER: &str = "0x209693bc6afc0c5328ba36faf03c514ef312287c";
+    const PAYER: &str = "19e7e376e7c213b7e7e7e46cc70a5dd086daff2a";
+    const DIGEST: &str = "e651273bbc3ba2b8cab7f0588dcb94aaf5fd04a1c7ac61512c0df2225dc52064";
+    const SIG: &str = "2a895ae6947395e7203111cc46aae30fb17b34185d92e5dc3af39b1f0047a97a0c6e8b4874c9e32469ab305eae18a3e23895f84a878ed4d905652f33f43878421c";
+
+    fn vault(wallet: [u8; 32]) -> mu_vault::backend::SoftVault {
+        mu_vault::backend::SoftVault::for_test([1; 32], [2; 32], wallet)
     }
 
-    fn intent(to: &str, amount: u128) -> Intent {
+    fn payer() -> [u8; 20] {
+        parse_addr(&format!("0x{PAYER}")).unwrap()
+    }
+
+    fn sepolia() -> X402Connector {
+        X402Connector::on(BASE_SEPOLIA, payer())
+    }
+
+    fn intent(to: &str, amount: u128, chain: u64) -> Intent {
         Intent {
-            recipient: CanonAddress::canon(to, 8453).unwrap(),
+            recipient: CanonAddress::canon(to, chain).unwrap(),
             amount: Amount::from_minor(amount),
-            chain_id: 8453,
+            chain_id: chain,
         }
     }
 
-    fn connector() -> X402Connector {
-        X402Connector::new([0xAA; 20])
+    fn challenge(pay_to: &str, amount: &str) -> X402Challenge {
+        X402Challenge::from_402_body(
+            &serde_json::json!({
+                "x402Version": 1,
+                "accepts": [{
+                    "scheme": "exact", "network": "base-sepolia",
+                    "maxAmountRequired": amount, "resource": "https://issuer.example/bare/issue",
+                    "payTo": pay_to, "maxTimeoutSeconds": 300,
+                    "asset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+                    "extra": {"name": "USDC", "version": "2"}
+                }]
+            })
+            .to_string(),
+            &BASE_SEPOLIA,
+        )
+        .unwrap()
     }
 
     #[test]
-    fn eip712_digest_deterministic() {
-        // EIP-712 хеш детермінований (однаковий для однакових вхідних)
-        let c = connector();
-        let from = [0xAA; 20];
-        let to = [0xBB; 20];
-        let value = 1_000_000u128;
-        let nonce = [7u8; 32];
-        let d1 = c.build_digest(&from, &to, value, 100, 200, &nonce);
-        let d2 = c.build_digest(&from, &to, value, 100, 200, &nonce);
-        assert_eq!(d1.0, d2.0, "EIP-712 digest must be deterministic");
+    fn type_strings_hash_to_the_known_constants() {
+        assert_eq!(
+            hex(&keccak(&[EIP712_DOMAIN_TYPE])),
+            "8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f"
+        );
+        assert_eq!(
+            hex(&keccak(&[TRANSFER_WITH_AUTH_TYPE])),
+            "7c7c6cdb67a18743f49ec6fa9b35f50d52ed05cbed4cc592e13b44501c1a2267"
+        );
     }
 
     #[test]
-    fn eip712_digest_changes_with_nonce() {
-        let c = connector();
-        let from = [0xAA; 20];
-        let to = [0xBB; 20];
-        let n1 = c.build_digest(&from, &to, 1_000_000, 100, 200, &[1u8; 32]);
-        let n2 = c.build_digest(&from, &to, 1_000_000, 100, 200, &[2u8; 32]);
-        assert_ne!(n1.0, n2.0, "different nonces must produce different digests");
+    fn digest_and_signature_match_an_independent_implementation() {
+        let v = vault([0x11; 32]);
+        let signer = v.tx_signer().unwrap();
+        assert_eq!(hex(&address_of(&signer).unwrap()), PAYER);
+        let c = sepolia();
+        let to = parse_addr(ISSUER).unwrap();
+        let nonce = [0xab; 32];
+        assert_eq!(hex(&c.digest(&payer(), &to, 100_000, 1_760_000_000, 1_760_000_600, &nonce).0), DIGEST);
+        let a = c.authorize(&signer, to, 100_000, 1_760_000_000, 1_760_000_600, nonce).unwrap();
+        let sig = format!("{}{}{:02x}", hex(&a.r), hex(&a.s), a.v);
+        assert_eq!(sig, SIG, "RFC 6979 is deterministic: same key, same digest, same signature");
     }
 
     #[test]
-    fn quote_gasless() {
-        let c = connector();
-        let fee = c.quote(&intent("0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", 5_000_000)).unwrap();
-        assert_eq!(fee.gas_estimate, Amount::ZERO);
-    }
-
-    #[test]
-    fn quote_chain_mismatch() {
-        let c = connector();
-        let i = Intent {
-            recipient: CanonAddress::canon("0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", 8453).unwrap(),
-            amount: Amount::from_minor(5_000_000),
-            chain_id: 1, // mainnet, not Base
-        };
-        let e = c.quote(&i).unwrap_err();
-        assert!(matches!(e, ConnErr::Rejected(RejectReason::ChainMismatch)));
-    }
-
-    #[test]
-    fn execute_returns_authorization() {
-        let c = connector();
-        let i = intent("0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", 5_000_000);
-        let r = c.execute(&i, make_signer()).unwrap();
-        assert!(matches!(r, TxRef::Authorization { .. }));
-    }
-
-    #[test]
-    fn execute_self_check_catches_wrong_recipient() {
-        // Self-check відхиляє якщо recipient не співпадає з intent
-        let c = connector();
-        // використовуємо інший recipient, але self-check перевіряє intent.recipient
-        let i = intent("0x1111111111111111111111111111111111111111", 5_000_000);
-        let r = c.execute(&i, make_signer()).unwrap();
-        // execute має пройти (self-check звіряє intent з тим самим intent)
-        assert!(matches!(r, TxRef::Authorization { .. }));
-    }
-
-    #[test]
-    fn execute_chain_mismatch() {
-        let c = connector();
-        let i = Intent {
-            recipient: CanonAddress::canon("0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", 8453).unwrap(),
-            amount: Amount::from_minor(5_000_000),
-            chain_id: 1,
-        };
-        let e = c.execute(&i, make_signer()).unwrap_err();
-        assert!(matches!(e, ConnErr::Rejected(RejectReason::ChainMismatch)));
-    }
-
-    #[test]
-    fn status_expired_is_failed() {
-        // valid_before в минулому → Failed
-        let c = connector();
-        let st = c.status(&TxRef::Authorization {
-            nonce: [1u8; 32],
-            valid_before: 1, // 1970 рік → давно минув
-        }).unwrap();
-        assert!(matches!(st, TxStatus::Failed { .. }));
-    }
-
-    #[test]
-    fn status_valid_is_pending() {
-        // valid_before в майбутньому → Pending
-        let c = connector();
-        let far_future = 1_000_000_000_000u64; // рік 48000+
-        let st = c.status(&TxRef::Authorization {
-            nonce: [1u8; 32],
-            valid_before: far_future,
-        }).unwrap();
-        assert_eq!(st, TxStatus::Pending);
-    }
-
-    #[test]
-    fn status_simulated_is_failed() {
-        let c = connector();
-        let st = c.status(&TxRef::Simulated { id: [0u8; 16] }).unwrap();
-        assert!(matches!(st, TxStatus::Failed { .. }));
-    }
-
-    #[test]
-    fn take_header_returns_some_after_execute() {
-        let c = connector();
-        let i = intent("0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", 5_000_000);
-        let _ = c.execute(&i, make_signer()).unwrap();
-        let header = c.take_header();
-        assert!(header.is_some(), "header must be available after execute");
-        let h = header.unwrap();
-        assert!(h.len() > 50, "header must be non-trivial");
-        // base64 decode має працювати
+    fn header_is_x402_version_1() {
+        let v = vault([0x11; 32]);
+        let c = sepolia();
+        let a = c
+            .authorize(&v.tx_signer().unwrap(), parse_addr(ISSUER).unwrap(), 100_000, 1_760_000_000, 1_760_000_600, [0xab; 32])
+            .unwrap();
         use base64::Engine;
-        let decoded = base64::engine::general_purpose::STANDARD.decode(&h).unwrap();
-        let json = String::from_utf8(decoded).unwrap();
-        assert!(json.contains("x402Version"), "header must contain x402Version");
-        assert!(json.contains("signature"), "header must contain signature");
-        assert!(json.contains("authorization"), "header must contain authorization");
+        let raw = base64::engine::general_purpose::STANDARD.decode(a.to_header()).unwrap();
+        let j: serde_json::Value = serde_json::from_slice(&raw).unwrap();
+        assert_eq!(j["x402Version"], 1);
+        assert_eq!(j["scheme"], "exact");
+        assert_eq!(j["network"], "base-sepolia");
+        assert_eq!(j["payload"]["signature"], format!("0x{SIG}"));
+        let au = &j["payload"]["authorization"];
+        assert_eq!(au["from"], format!("0x{PAYER}"));
+        assert_eq!(au["to"], ISSUER);
+        assert_eq!(au["value"], "100000");
+        assert_eq!(au["validAfter"], "1760000000");
+        assert_eq!(au["validBefore"], "1760000600");
+        assert_eq!(au["nonce"], format!("0x{}", "ab".repeat(32)));
     }
 
     #[test]
-    fn take_header_returns_none_twice() {
-        let c = connector();
-        let i = intent("0x833589fcd6edb6e08f4c7c32d4f71b54bda02913", 5_000_000);
-        let _ = c.execute(&i, make_signer()).unwrap();
-        let _ = c.take_header();
-        assert!(c.take_header().is_none(), "second take must return None");
+    fn a_key_that_is_not_the_wallet_signs_nothing() {
+        let c = sepolia();
+        let i = intent(ISSUER, 100_000, 84532);
+        let e = c.execute(&i, vault([0x22; 32]).tx_signer().unwrap()).unwrap_err();
+        assert_eq!(e, ConnErr::Rejected(RejectReason::WalletMismatch));
+        assert!(c.take_header().is_none());
+    }
+
+    #[test]
+    fn execute_answers_a_matching_challenge_once() {
+        let c = sepolia();
+        let i = intent(ISSUER, 100_000, 84532);
+        c.set_challenge(&challenge(ISSUER, "100000"));
+        let r = c.execute(&i, vault([0x11; 32]).tx_signer().unwrap()).unwrap();
+        assert!(matches!(r, TxRef::Authorization { .. }));
+        assert!(c.take_header().is_some());
+        assert!(c.take_header().is_none(), "the header is handed out once");
+    }
+
+    #[test]
+    fn a_challenge_that_differs_from_the_intent_signs_nothing() {
+        let other = "0x1111111111111111111111111111111111111111";
+        let i = intent(ISSUER, 100_000, 84532);
+        for ch in [
+            challenge(other, "100000"),           // another recipient
+            challenge(ISSUER, "100001"),          // another amount
+            {
+                let mut c = challenge(ISSUER, "100000");
+                c.asset = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913".into(); // another token
+                c
+            },
+            {
+                let mut c = challenge(ISSUER, "100000");
+                c.domain_name = "Fake USDC".into(); // another EIP-712 domain
+                c
+            },
+            {
+                let mut c = challenge(ISSUER, "100000");
+                c.max_timeout_seconds = MAX_VALIDITY_SECONDS + 1;
+                c
+            },
+        ] {
+            let c = sepolia();
+            c.set_challenge(&ch);
+            let e = c.execute(&i, vault([0x11; 32]).tx_signer().unwrap()).unwrap_err();
+            assert_eq!(e, ConnErr::Rejected(RejectReason::ChallengeMismatch), "{ch:?}");
+            assert!(c.take_header().is_none());
+        }
+    }
+
+    #[test]
+    fn a_402_body_for_another_network_or_version_is_refused() {
+        let body = |v: u64, net: &str| {
+            serde_json::json!({"x402Version": v, "accepts": [{"scheme": "exact", "network": net,
+                "maxAmountRequired": "1", "payTo": ISSUER, "maxTimeoutSeconds": 60,
+                "asset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e"}]})
+            .to_string()
+        };
+        assert!(X402Challenge::from_402_body(&body(1, "base-sepolia"), &BASE_SEPOLIA).is_ok());
+        assert!(X402Challenge::from_402_body(&body(2, "base-sepolia"), &BASE_SEPOLIA).is_err());
+        assert!(X402Challenge::from_402_body(&body(1, "base"), &BASE_SEPOLIA).is_err());
+        assert!(X402Challenge::from_402_body("not json", &BASE_SEPOLIA).is_err());
+    }
+
+    #[test]
+    fn nonces_are_random() {
+        let c = sepolia();
+        let i = intent(ISSUER, 1, 84532);
+        let a = c.execute(&i, vault([0x11; 32]).tx_signer().unwrap()).unwrap();
+        let b = c.execute(&i, vault([0x11; 32]).tx_signer().unwrap()).unwrap();
+        assert_ne!(a, b);
+    }
+
+    #[test]
+    fn chain_mismatch_is_refused() {
+        let c = sepolia();
+        let i = intent(ISSUER, 1, 8453);
+        assert_eq!(
+            c.execute(&i, vault([0x11; 32]).tx_signer().unwrap()).unwrap_err(),
+            ConnErr::Rejected(RejectReason::ChainMismatch)
+        );
+        assert_eq!(c.quote(&i).unwrap_err(), ConnErr::Rejected(RejectReason::ChainMismatch));
+        assert_eq!(c.quote(&intent(ISSUER, 1, 84532)).unwrap().gas_estimate, Amount::ZERO);
+    }
+
+    #[test]
+    fn status_follows_the_time_window() {
+        let c = sepolia();
+        assert!(matches!(
+            c.status(&TxRef::Authorization { nonce: [1; 32], valid_before: 1 }).unwrap(),
+            TxStatus::Failed { .. }
+        ));
+        assert_eq!(
+            c.status(&TxRef::Authorization { nonce: [1; 32], valid_before: u64::MAX }).unwrap(),
+            TxStatus::Pending
+        );
+        assert!(matches!(
+            c.status(&TxRef::Simulated { id: [0; 16] }).unwrap(),
+            TxStatus::Failed { .. }
+        ));
+    }
+
+    #[test]
+    fn known_networks() {
+        assert_eq!(network_for_chain(8453), Some(BASE));
+        assert_eq!(network_for_chain(84532), Some(BASE_SEPOLIA));
+        assert_eq!(network_for_chain(1), None);
+        assert_eq!(USDC_BASE, parse_addr("0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913").unwrap());
     }
 }

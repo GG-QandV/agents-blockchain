@@ -69,6 +69,10 @@ pub enum RejectReason {
     FeeCapTooLow,
     ChainMismatch,
     SimulateRevert,
+    /// x402: the signing key is not the wallet the connector was configured for.
+    WalletMismatch,
+    /// x402: the 402 challenge does not match the intent (network, token, recipient, amount).
+    ChallengeMismatch,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

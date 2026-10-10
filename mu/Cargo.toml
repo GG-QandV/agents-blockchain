@@ -3,5 +3,5 @@ members = ["mu-common", "mu-vault", "mu-connect", "mu-gate", "mu-log", "mu-runti
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0-ksg"
 edition = "2021"
