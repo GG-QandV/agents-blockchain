@@ -337,6 +337,7 @@ dependencies = [
  "p256",
  "serde_json",
  "tempfile",
+ "zeroize",
 ]
 
 [[package]]

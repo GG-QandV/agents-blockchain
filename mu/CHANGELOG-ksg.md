@@ -44,3 +44,7 @@ connector → `X-PAYMENT`, which keysingate's seller side (`ksg-pay-v2`) accepts
   authorization's time window.
 - Hardware vault backends — as in 0.2.1, SoftVault only; the Tauri Composer is not built in CI
   (needs webkit).
+
+## 0.2.0-ksg — 11.10
+
+- `ksg-smoke`: the payer's key from the file `MU_PAYER_KEY_FILE` (64 hex, mode 600, never printed; a file readable by others is refused) for one live payment on Base Sepolia; without it, the fixed test key as before.
