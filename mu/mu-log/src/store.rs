@@ -111,7 +111,12 @@ impl Log {
         }
         self.entries
             .iter()
-            .filter(|e| matches!(&e.kind, Kind::Pending { intent_hash, .. } if !closed.contains(&intent_hash.0)))
+            .filter(|e| match &e.kind {
+                Kind::Pending { intent_hash, .. } | Kind::PendingAuth { intent_hash, .. } => {
+                    !closed.contains(&intent_hash.0)
+                }
+                _ => false,
+            })
             .collect()
     }
 
@@ -129,6 +134,7 @@ impl Log {
                     self.pending_total_for(&e.kind)
                 }
                 Kind::Pending { amount_total, .. } if open_set.contains(&e.seq) => Some(*amount_total),
+                Kind::PendingAuth { amount_total, .. } if open_set.contains(&e.seq) => Some(*amount_total),
                 _ => None,
             };
             if let Some(v) = add {
@@ -245,6 +251,14 @@ fn decode_kind(b: &[u8]) -> Option<Kind> {
             Some(Kind::NonceSnapshot { agent_id: id, nonce: n })
         }
         11 => Some(Kind::Alert { code: u16::from_be_bytes(r.get(..2)?.try_into().ok()?) }),
+        12 => {
+            let ih = h32(r)?;
+            let amt = u128::from_be_bytes(r.get(32..48)?.try_into().ok()?);
+            let mut nonce = [0u8; 32];
+            nonce.copy_from_slice(r.get(48..80)?);
+            let valid_before = u64::from_be_bytes(r.get(80..88)?.try_into().ok()?);
+            Some(Kind::PendingAuth { intent_hash: ih, amount_total: amt, nonce, valid_before })
+        }
         _ => None,
     }
 }

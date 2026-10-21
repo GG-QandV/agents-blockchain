@@ -124,7 +124,8 @@ fn a_repeated_bare_is_paid_with_the_owners_consent() {
     // reserve stays held until then (RISK-M6-5).
     assert_eq!(st, IntentStatus::ReconcilePending);
     assert!(log.iter().any(|k| matches!(k, Kind::HumanDecision { approved: true, .. })));
-    assert!(log.iter().any(|k| matches!(k, Kind::Pending { amount_total: 100_000, .. })));
+    // x402 now writes the authorization parameters before the money moves.
+    assert!(log.iter().any(|k| matches!(k, Kind::PendingAuth { amount_total: 100_000, .. })));
 
     let raw = base64::engine::general_purpose::STANDARD.decode(header.expect("a header")).unwrap();
     let j: serde_json::Value = serde_json::from_slice(&raw).unwrap();

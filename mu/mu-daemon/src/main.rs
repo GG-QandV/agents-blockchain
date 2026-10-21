@@ -16,6 +16,7 @@
 compile_error!("softvault запрещён в release");
 
 mod config;
+mod reconcile;
 
 use std::fs;
 use std::io::{Read, Write};
@@ -114,6 +115,7 @@ fn boot(
     mu_pubkey: &[u8],
     allow: AllowList,
     vault: &'static SoftVault,
+    connector: &dyn Connector,
 ) -> Result<(Mu, Log, Gate), BootErr> {
     // ── Крок 0: License check ──────────────────────────────────────────
     let license_path = Path::new("license.key");
@@ -144,12 +146,12 @@ fn boot(
     mu.verify_against_log(log.last_hash())?;
 
     // ── Крок 3: pending() → status → reconcile ──────────────────────
-    let stub = StubConnector::new("bank_stub");
-    for entry in log.pending() {
-        if let Kind::Pending { .. } = &entry.kind {
-            let _ = stub.status(&mu_connect::TxRef::Simulated { id: [0u8; 16] });
-        }
-    }
+    let mut log = log;
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    reconcile::reconcile(&mut log, connector, vault, now);
 
     // ── Крок 4: M8 — restore_nonce з NonceSnapshot логу (RISK-M8-1) ──
     let mut gate = Gate::new(allow, BUCKET_CAP, TS_WINDOW_SECS);
@@ -269,7 +271,27 @@ fn main() {
 
     let vault: &'static SoftVault = Box::leak(Box::new(vault));
 
-    let (mu, log, mut gate) = match boot(&mu_path, &log_path, &mu_pubkey, allow, vault) {
+    // Вибір коннектора: MU_CONNECTOR=x402 або за замовчуванням stub
+    let connector: &'static dyn Connector = match std::env::var("MU_CONNECTOR").as_deref() {
+        Ok("x402") => {
+            let wallet_hex = std::env::var("MU_WALLET_ADDR")
+                .expect("MU_WALLET_ADDR required for x402 connector");
+            let wallet = hex20(&wallet_hex);
+            let net = match std::env::var("MU_X402_NETWORK").as_deref() {
+                Ok("base-sepolia") => mu_connect::x402::BASE_SEPOLIA,
+                Ok("base") | Err(_) => mu_connect::x402::BASE,
+                Ok(other) => panic!("MU_X402_NETWORK={other}: base | base-sepolia"),
+            };
+            eprintln!("Connector: X402 on {} (wallet: {wallet_hex}; the signing key must be this wallet)", net.name);
+            Box::leak(Box::new(X402Connector::on(net, wallet)))
+        }
+        _ => {
+            eprintln!("Connector: Stub (set MU_CONNECTOR=x402 for real payments)");
+            Box::leak(Box::new(StubConnector::new("bank_stub")))
+        }
+    };
+
+    let (mu, log, mut gate) = match boot(&mu_path, &log_path, &mu_pubkey, allow, vault, connector) {
         Ok(v) => v,
         Err(BootErr::Mu(CoreErr::LogHeadMismatch)) => {
             eprintln!("FATAL: log_head mismatch — стара копія mu.bin");
@@ -295,26 +317,6 @@ fn main() {
 
     let presenter: &'static StdinPresenter = Box::leak(Box::new(StdinPresenter));
     let clock = SysClock;
-
-    // Вибір коннектора: MU_CONNECTOR=x402 або за замовчуванням stub
-    let connector: &'static dyn Connector = match std::env::var("MU_CONNECTOR").as_deref() {
-        Ok("x402") => {
-            let wallet_hex = std::env::var("MU_WALLET_ADDR")
-                .expect("MU_WALLET_ADDR required for x402 connector");
-            let wallet = hex20(&wallet_hex);
-            let net = match std::env::var("MU_X402_NETWORK").as_deref() {
-                Ok("base-sepolia") => mu_connect::x402::BASE_SEPOLIA,
-                Ok("base") | Err(_) => mu_connect::x402::BASE,
-                Ok(other) => panic!("MU_X402_NETWORK={other}: base | base-sepolia"),
-            };
-            eprintln!("Connector: X402 on {} (wallet: {wallet_hex}; the signing key must be this wallet)", net.name);
-            Box::leak(Box::new(X402Connector::on(net, wallet)))
-        }
-        _ => {
-            eprintln!("Connector: Stub (set MU_CONNECTOR=x402 for real payments)");
-            Box::leak(Box::new(StubConnector::new("bank_stub")))
-        }
-    };
 
     let mut runtime = Runtime {
         omega,

@@ -1,5 +1,28 @@
 # μ Gate KSG — changelog
 
+## 0.2.1-ksg — 2026-10-20 — journal format 2
+
+### Changed (journal format 2)
+- New `Kind::PendingAuth` record (tag 12): `intent_hash ‖ amount_total:u128 ‖ nonce[32] ‖ valid_before:u64`.
+  x402 writes it instead of `Pending`, so the single-use authorization nonce is on disk
+  before the money moves. Old journals and `Pending` records (Sui/EVM) are read as before;
+  the hash chain stays valid because the new tag has its own offsets.
+- `Connector::pre_auth()` and `Connector::execute_auth(intent, signer, Option<AuthParams>)`.
+  x402 returns `true` and refuses to sign without parameters written to the WAL; it no longer
+  invents a nonce inside `execute`.
+- The authorization window is fixed before the WAL: 300 s, checked against the challenge
+  (never more than an hour).
+- Reconcile on start: `PendingAuth` → connector status; used → `Settled` (nonce is the chain key),
+  failed → `Failed`, still pending after `valid_before + 60 s` → `Failed` (reserve released).
+  Two nodes disagreeing or unavailable → reserve kept, `Alert 0x0A02`.
+
+### Legacy records
+- A `Pending` record with `chain_nonce = 0` has no on-chain key and cannot be verified. After
+  `3600 s + 60 s` from its timestamp it is closed `Failed` with `Alert 0x0A01`. This releases
+  the reserve without checking the chain: the daemon never returned the payment header for
+  those records, so no money moved on them.
+
+
 ## 0.2.0-ksg — 2026-10-10 (initial production baseline for keysingate)
 
 Branch `keysingate`, tag `v0.2.0-ksg`. Base: μ Gate 0.2.1 (`baseline/evm-x402`) merged with the

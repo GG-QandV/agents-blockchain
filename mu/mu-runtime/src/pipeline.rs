@@ -1,7 +1,7 @@
 //! Конвейер: Ω → Δ → [human] → WAL → execute → Settled/Failed/ReconcilePending.
 use crate::policy::{delta_check, needs_human, omega_check, resource_check, Delta, Omega};
 use mu_common::{Amount, CanonAddress, Clock, ConnectorId, Hash32};
-use mu_connect::{ConnErr, Connector, Intent as ConnIntent, TxRef, TxStatus};
+use mu_connect::{AuthParams, ConnErr, Connector, Intent as ConnIntent, TxRef, TxStatus};
 use mu_human::{confirm_payment, verify_auth_proof, HumanDecision, PayConfirm, Presenter};
 use mu_log::{Kind, Log};
 use mu_vault::Vault;
@@ -62,12 +62,22 @@ fn write_wal(
     amount_total: Amount,
     chain_nonce: u64,
     ts: u64,
+    auth: Option<AuthParams>,
 ) -> Result<WalWritten, mu_log::LogErr> {
-    log.append(
-        Kind::Pending { intent_hash, amount_total: amount_total.minor(), chain_nonce },
-        ts,
-        vault,
-    )?; // fsync внутри (RISK-M5-1)
+    let kind = match auth {
+        Some(a) => Kind::PendingAuth {
+            intent_hash,
+            amount_total: amount_total.minor(),
+            nonce: a.nonce,
+            valid_before: a.valid_before,
+        },
+        None => Kind::Pending {
+            intent_hash,
+            amount_total: amount_total.minor(),
+            chain_nonce,
+        },
+    };
+    log.append(kind, ts, vault)?; // fsync внутри (RISK-M5-1)
     Ok(WalWritten { intent_hash, _priv: () })
 }
 
@@ -76,8 +86,9 @@ fn exec_after_wal(
     connector: &dyn Connector,
     intent: &ConnIntent,
     signer: mu_vault::TxSigner,
+    auth: Option<AuthParams>,
 ) -> (Hash32, Result<TxRef, ConnErr>) {
-    let r = connector.execute(intent, signer);
+    let r = connector.execute_auth(intent, signer, auth);
     (proof.intent_hash, r)
 }
 
@@ -176,13 +187,34 @@ impl<'a> Runtime<'a> {
             Ok(s) => s,
             Err(_) => return IntentStatus::Failed, // ключ недоступен ДО денег — безопасный отказ
         };
-        let wal = match write_wal(&mut self.log, self.vault, ih, total, 0, now) {
+        // x402: the nonce must be on disk before the money moves, so a crash
+        // after execute reuses the same single-use nonce instead of minting a
+        // second authorization.
+        let auth = if self.connector.pre_auth() {
+            let mut nonce = [0u8; 32];
+            if rand_core::RngCore::try_fill_bytes(&mut rand_core::OsRng, &mut nonce).is_err() {
+                return IntentStatus::Failed;
+            }
+            // The wall clock, because the x402 connector signs with it: the
+            // runtime clock may be a test double.
+            let wall = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(now);
+            Some(AuthParams {
+                nonce,
+                valid_before: wall.saturating_add(AUTH_WINDOW_SECS),
+            })
+        } else {
+            None
+        };
+        let wal = match write_wal(&mut self.log, self.vault, ih, total, 0, now, auth) {
             Ok(w) => w,
             Err(_) => return IntentStatus::Failed, // WAL не записан → денег не трогаем
         };
 
         // 6. исполнение
-        let (ih2, res) = exec_after_wal(wal, self.connector, &conn_intent, signer);
+        let (ih2, res) = exec_after_wal(wal, self.connector, &conn_intent, signer, auth);
         match res {
             Ok(TxRef::Real { tx_hash, .. }) => {
                 // 7. финальность: Settled только при консенсусе status (RISK-M6-2/M7-3)
@@ -236,6 +268,10 @@ impl<'a> Runtime<'a> {
 /// `host` and `/path` of an x402 resource: a full URL (`https://host/path?q`,
 /// as a 402 answer gives it) or `host/path`. The path keeps its leading `/`,
 /// as the policy's `path_prefix` is written; the query is not part of it.
+/// The x402 authorization window written before the money moves; the challenge
+/// may shorten it, never lengthen it (changelog 2026-10-20).
+pub const AUTH_WINDOW_SECS: u64 = 300;
+
 pub fn split_resource(resource: &str) -> (&str, &str) {
     let r = resource
         .strip_prefix("https://")

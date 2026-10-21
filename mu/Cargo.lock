@@ -489,6 +489,7 @@ dependencies = [
  "mu-policy",
  "mu-vault",
  "p256",
+ "rand_core",
  "serde_json",
  "sha2",
  "tempfile",

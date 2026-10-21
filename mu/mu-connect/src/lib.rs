@@ -82,6 +82,14 @@ pub struct Fee {
 
 /// Контракт коннектора. execute принимает TxSigner ПО MOVE (RISK-M4-1):
 /// после execute хэндл ключа уничтожен, повторно подписать нельзя.
+/// Authorization parameters fixed before the WAL: the nonce is single-use on
+/// chain, so a retry after a crash reuses it and cannot pay twice.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AuthParams {
+    pub nonce: [u8; 32],
+    pub valid_before: u64,
+}
+
 pub trait Connector {
     fn quote(&self, i: &Intent) -> Result<Fee, ConnErr>;
     fn execute(&self, i: &Intent, signer: TxSigner) -> Result<TxRef, ConnErr>;
@@ -91,6 +99,23 @@ pub trait Connector {
     /// one (x402). Taken once: a second call returns `None`.
     fn take_header(&self) -> Option<String> {
         None
+    }
+
+    /// True when the connector needs its authorization parameters before the
+    /// WAL is written (x402). The pipeline then writes `PendingAuth` first.
+    fn pre_auth(&self) -> bool {
+        false
+    }
+
+    /// Execute with parameters that were already written to the WAL. The
+    /// default ignores them and calls `execute`.
+    fn execute_auth(
+        &self,
+        i: &Intent,
+        signer: TxSigner,
+        _auth: Option<AuthParams>,
+    ) -> Result<TxRef, ConnErr> {
+        self.execute(i, signer)
     }
 }
 

@@ -319,31 +319,44 @@ impl Connector for X402Connector {
         Ok(Fee { gas_estimate: Amount::ZERO })
     }
 
-    fn execute(&self, i: &Intent, signer: TxSigner) -> Result<TxRef, ConnErr> {
+    fn pre_auth(&self) -> bool {
+        true
+    }
+
+    /// x402 never invents a nonce: the pipeline must pass one that is already
+    /// in the WAL, so a crash cannot produce a second authorization.
+    fn execute(&self, _i: &Intent, _signer: TxSigner) -> Result<TxRef, ConnErr> {
+        Err(ConnErr::Config(
+            "x402 needs pre-authorized parameters: use execute_auth".into(),
+        ))
+    }
+
+    fn execute_auth(
+        &self,
+        i: &Intent,
+        signer: TxSigner,
+        auth: Option<crate::AuthParams>,
+    ) -> Result<TxRef, ConnErr> {
         if i.chain_id != self.chain_id || i.recipient.chain_id() != self.chain_id {
             return Err(ConnErr::Rejected(RejectReason::ChainMismatch));
         }
-        let validity = match self.challenge.lock().unwrap().take() {
-            Some(c) => {
-                c.matches(i, &self.network)?;
-                c.max_timeout_seconds
-            }
-            None => DEFAULT_VALIDITY_SECONDS,
-        };
+        let params = auth.ok_or_else(|| {
+            ConnErr::Config("x402 requires a nonce written to the WAL".into())
+        })?;
+        if let Some(c) = self.challenge.lock().unwrap().take() {
+            c.matches(i, &self.network)?;
+        }
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|e| ConnErr::Unknown(format!("clock: {e:?}")))?
             .as_secs();
-        let mut nonce = [0u8; 32];
-        rand_core::RngCore::try_fill_bytes(&mut rand_core::OsRng, &mut nonce)
-            .map_err(|e| ConnErr::Unknown(format!("nonce: {e}")))?;
         let auth = self.authorize(
             &signer,
             *i.recipient.bytes(),
             i.amount.minor(),
             now.saturating_sub(VALID_AFTER_SKEW),
-            now + validity,
-            nonce,
+            params.valid_before,
+            params.nonce,
         )?;
         // RISK-M7-5: what was signed is what the intent says.
         if auth.to != *i.recipient.bytes() || auth.value != i.amount.minor() {
@@ -508,6 +521,11 @@ mod tests {
         }
     }
 
+    fn params(n: u8) -> crate::AuthParams {
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        crate::AuthParams { nonce: [n; 32], valid_before: now + 300 }
+    }
+
     fn challenge(pay_to: &str, amount: &str) -> X402Challenge {
         X402Challenge::from_402_body(
             &serde_json::json!({
@@ -553,6 +571,43 @@ mod tests {
     }
 
     #[test]
+    fn execute_without_a_wal_nonce_is_refused() {
+        let c = sepolia();
+        let i = intent(ISSUER, 100_000, BASE_SEPOLIA.chain_id);
+        let v = vault([0x11; 32]);
+        c.set_challenge(&challenge(ISSUER, "100000"));
+        match c.execute(&i, v.tx_signer().unwrap()) {
+            Err(ConnErr::Config(m)) => assert!(m.contains("execute_auth"), "{m}"),
+            other => panic!("expected a refusal, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn execute_auth_without_params_is_refused() {
+        let c = sepolia();
+        let i = intent(ISSUER, 100_000, BASE_SEPOLIA.chain_id);
+        let v = vault([0x11; 32]);
+        assert!(c.execute_auth(&i, v.tx_signer().unwrap(), None).is_err());
+    }
+
+    #[test]
+    fn the_same_wal_nonce_gives_the_same_header() {
+        use crate::AuthParams;
+        let v = vault([0x11; 32]);
+        let i = intent(ISSUER, 100_000, BASE_SEPOLIA.chain_id);
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        let p = AuthParams { nonce: [0xab; 32], valid_before: now + 300 };
+        let mut headers = Vec::new();
+        for _ in 0..2 {
+            let c = sepolia();
+            c.set_challenge(&challenge(ISSUER, "100000"));
+            c.execute_auth(&i, v.tx_signer().unwrap(), Some(p)).expect("pay");
+            headers.push(c.take_header().expect("header"));
+        }
+        assert_eq!(headers[0], headers[1], "same nonce, same signature, no second payment");
+    }
+
+    #[test]
     fn header_is_x402_version_1() {
         let v = vault([0x11; 32]);
         let c = sepolia();
@@ -579,7 +634,7 @@ mod tests {
     fn a_key_that_is_not_the_wallet_signs_nothing() {
         let c = sepolia();
         let i = intent(ISSUER, 100_000, 84532);
-        let e = c.execute(&i, vault([0x22; 32]).tx_signer().unwrap()).unwrap_err();
+        let e = c.execute_auth(&i, vault([0x22; 32]).tx_signer().unwrap(), Some(params(0xab))).unwrap_err();
         assert_eq!(e, ConnErr::Rejected(RejectReason::WalletMismatch));
         assert!(c.take_header().is_none());
     }
@@ -589,7 +644,7 @@ mod tests {
         let c = sepolia();
         let i = intent(ISSUER, 100_000, 84532);
         c.set_challenge(&challenge(ISSUER, "100000"));
-        let r = c.execute(&i, vault([0x11; 32]).tx_signer().unwrap()).unwrap();
+        let r = c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), Some(params(0xab))).unwrap();
         assert!(matches!(r, TxRef::Authorization { .. }));
         assert!(c.take_header().is_some());
         assert!(c.take_header().is_none(), "the header is handed out once");
@@ -620,7 +675,7 @@ mod tests {
         ] {
             let c = sepolia();
             c.set_challenge(&ch);
-            let e = c.execute(&i, vault([0x11; 32]).tx_signer().unwrap()).unwrap_err();
+            let e = c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), Some(params(0xab))).unwrap_err();
             assert_eq!(e, ConnErr::Rejected(RejectReason::ChallengeMismatch), "{ch:?}");
             assert!(c.take_header().is_none());
         }
@@ -641,12 +696,17 @@ mod tests {
     }
 
     #[test]
-    fn nonces_are_random() {
+    fn the_nonce_comes_from_the_wal() {
         let c = sepolia();
         let i = intent(ISSUER, 1, 84532);
-        let a = c.execute(&i, vault([0x11; 32]).tx_signer().unwrap()).unwrap();
-        let b = c.execute(&i, vault([0x11; 32]).tx_signer().unwrap()).unwrap();
-        assert_ne!(a, b);
+        let p = params(0xcd);
+        match c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), Some(p)).unwrap() {
+            TxRef::Authorization { nonce, valid_before } => {
+                assert_eq!(nonce, p.nonce);
+                assert_eq!(valid_before, p.valid_before);
+            }
+            other => panic!("expected an authorization, got {other:?}"),
+        }
     }
 
     #[test]
@@ -654,7 +714,7 @@ mod tests {
         let c = sepolia();
         let i = intent(ISSUER, 1, 8453);
         assert_eq!(
-            c.execute(&i, vault([0x11; 32]).tx_signer().unwrap()).unwrap_err(),
+            c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), Some(params(0xab))).unwrap_err(),
             ConnErr::Rejected(RejectReason::ChainMismatch)
         );
         assert_eq!(c.quote(&i).unwrap_err(), ConnErr::Rejected(RejectReason::ChainMismatch));
