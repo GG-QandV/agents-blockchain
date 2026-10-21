@@ -10,6 +10,7 @@
 pub const MAX_FRAME: usize = 4096;
 const MAX_RECIPIENT: usize = 64;
 const MAX_AGENT: usize = 64;
+const MAX_RESOURCE: usize = 256;
 const SIG_LEN: usize = 64;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -29,6 +30,8 @@ pub struct WireIntent {
     pub agent_id: String,
     pub nonce: u64,
     pub ts: u64,
+    /// Resource URL (v2 only): host + path for the x402 resource check.
+    pub resource: Option<String>,
     /// payload bytes (for signature verification) and the signature itself.
     pub signed_bytes: Vec<u8>,
     pub sig: [u8; SIG_LEN],
@@ -74,7 +77,7 @@ pub fn parse_wire(frame: &[u8]) -> Result<WireIntent, WireErr> {
 
     let mut c = Cur::new(payload);
     let v = c.u16()?;
-    if v != 1 { return Err(WireErr::BadVersion); }
+    if v != 1 && v != 2 { return Err(WireErr::BadVersion); }
 
     let rlen = usize::from(c.u8()?);
     if rlen == 0 || rlen > MAX_RECIPIENT { return Err(WireErr::BadLength); }
@@ -92,6 +95,20 @@ pub fn parse_wire(frame: &[u8]) -> Result<WireIntent, WireErr> {
     let nonce = c.u64()?;
     let ts = c.u64()?;
 
+    // v2 adds the resource (host + path) to the signed payload; v1 has none.
+    let resource = if v == 2 {
+        let rlen = usize::from(c.u8()?);
+        if rlen > MAX_RESOURCE { return Err(WireErr::BadLength); }
+        if rlen == 0 {
+            None
+        } else {
+            let rbytes = c.take(rlen)?;
+            Some(ascii_string(rbytes)?)
+        }
+    } else {
+        None
+    };
+
     // extra bytes in payload are forbidden (strict schema, RISK-M8-3)
     if c.remaining() != 0 { return Err(WireErr::BadLength); }
 
@@ -99,7 +116,7 @@ pub fn parse_wire(frame: &[u8]) -> Result<WireIntent, WireErr> {
     sig.copy_from_slice(sig_bytes);
 
     Ok(WireIntent {
-        recipient, amount, chain_id, agent_id, nonce, ts,
+        recipient, amount, chain_id, agent_id, nonce, ts, resource,
         signed_bytes: payload.to_vec(),
         sig,
     })
@@ -142,8 +159,63 @@ mod tests {
     }
     #[test]
     fn rejects_bad_version() {
-        let f = build(2, "0xabc", "a", 1, 1);
+        let f = build(3, "0xabc", "a", 1, 1);
         assert_eq!(parse_wire(&f), Err(WireErr::BadVersion));
+    }
+
+    fn build_v2(recipient: &str, agent: &str, resource: Option<&str>) -> Vec<u8> {
+        let mut p = Vec::new();
+        p.extend_from_slice(&2u16.to_be_bytes());
+        p.push(recipient.len() as u8);
+        p.extend_from_slice(recipient.as_bytes());
+        p.extend_from_slice(&5_000_000u128.to_be_bytes());
+        p.extend_from_slice(&8453u64.to_be_bytes());
+        p.push(agent.len() as u8);
+        p.extend_from_slice(agent.as_bytes());
+        p.extend_from_slice(&7u64.to_be_bytes());
+        p.extend_from_slice(&1000u64.to_be_bytes());
+        match resource {
+            Some(r) => {
+                p.push(r.len() as u8);
+                p.extend_from_slice(r.as_bytes());
+            }
+            None => p.push(0),
+        }
+        p.extend_from_slice(&[0u8; SIG_LEN]);
+        p
+    }
+
+    #[test]
+    fn v1_frames_still_parse_without_resource() {
+        let w = parse_wire(&build(1, "0xabc", "agent-1", 7, 1000)).unwrap();
+        assert_eq!(w.resource, None);
+    }
+
+    #[test]
+    fn v2_carries_the_resource() {
+        let w = parse_wire(&build_v2("0xabc", "agent-1", Some("https://api.example.com/v1/price"))).unwrap();
+        assert_eq!(w.resource.as_deref(), Some("https://api.example.com/v1/price"));
+    }
+
+    #[test]
+    fn v2_without_resource_is_allowed() {
+        let w = parse_wire(&build_v2("0xabc", "agent-1", None)).unwrap();
+        assert_eq!(w.resource, None);
+    }
+
+    #[test]
+    fn v2_with_a_truncated_resource_is_refused() {
+        let mut f = build_v2("0xabc", "agent-1", Some("https://api.example.com/v1"));
+        let cut = f.len() - SIG_LEN - 5;
+        f.remove(cut);
+        assert_eq!(parse_wire(&f), Err(WireErr::Truncated));
+    }
+
+    #[test]
+    fn v2_trailing_bytes_are_refused() {
+        let mut f = build_v2("0xabc", "agent-1", Some("https://x/y"));
+        f.insert(f.len() - SIG_LEN, 0xAA);
+        assert_eq!(parse_wire(&f), Err(WireErr::BadLength));
     }
     #[test]
     fn rejects_too_long() {

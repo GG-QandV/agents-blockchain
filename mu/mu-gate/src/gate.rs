@@ -39,6 +39,8 @@ pub struct VerifiedIntent {
     pub chain_id: u64,
     pub agent_id: String,
     pub nonce: u64,
+    /// Resource URL from a v2 frame; `None` for v1 (the resource check is skipped).
+    pub resource: Option<String>,
 }
 
 /// Token bucket per agent.
@@ -111,6 +113,7 @@ impl Gate {
             chain_id: w.chain_id,
             agent_id: w.agent_id,
             nonce: w.nonce,
+            resource: w.resource,
         })
     }
 

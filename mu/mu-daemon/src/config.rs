@@ -64,12 +64,38 @@ struct AgentEntry {
 
 /// The connector selected by `MU_CONNECTOR`: `x402` or the default stub.
 pub fn connector_id() -> Result<ConnectorId, ConfigErr> {
-    match std::env::var("MU_CONNECTOR").as_deref() {
-        Ok("x402") => Ok(ConnectorId::Crypto),
-        Ok("") | Err(_) => Ok(ConnectorId::BankStub),
-        Ok(other) => Err(ConfigErr::Bad(format!(
+    connector_from(std::env::var("MU_CONNECTOR").ok().as_deref())
+}
+
+/// Pure mapping, so the rule can be tested without touching the process env.
+pub fn connector_from(value: Option<&str>) -> Result<ConnectorId, ConfigErr> {
+    match value {
+        Some("x402") => Ok(ConnectorId::Crypto),
+        Some("") | None => Ok(ConnectorId::BankStub),
+        Some(other) => Err(ConfigErr::Bad(format!(
             "MU_CONNECTOR={other}: expected x402 or stub"
         ))),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn x402_selects_the_crypto_connector() {
+        assert_eq!(connector_from(Some("x402")).unwrap(), ConnectorId::Crypto);
+    }
+
+    #[test]
+    fn the_default_is_the_bank_stub() {
+        assert_eq!(connector_from(None).unwrap(), ConnectorId::BankStub);
+        assert_eq!(connector_from(Some("")).unwrap(), ConnectorId::BankStub);
+    }
+
+    #[test]
+    fn an_unknown_connector_is_refused() {
+        assert!(connector_from(Some("paypal")).is_err());
     }
 }
 

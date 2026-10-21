@@ -138,6 +138,7 @@ fn handle_client(
     gate: &mut Gate,
     runtime: &mut Runtime,
     clock: &dyn Clock,
+    connector: ConnectorId,
 ) {
     let mut len_buf = [0u8; 4];
     if stream.read_exact(&mut len_buf).is_err() {
@@ -167,8 +168,8 @@ fn handle_client(
                 amount: mu_common::Amount::from_minor(vi.amount),
                 chain_id: vi.chain_id,
                 agent_id: vi.agent_id,
-                connector: ConnectorId::BankStub,
-                resource: None,
+                connector,
+                resource: vi.resource.clone(),
             };
 
             let status = runtime.process(&intent);
@@ -194,6 +195,7 @@ fn serve(
     gate: &mut Gate,
     runtime: &mut Runtime,
     clock: &dyn Clock,
+    connector: ConnectorId,
 ) -> std::io::Result<()> {
     let _ = fs::remove_file(sock_path);
     let listener = UnixListener::bind(sock_path)?;
@@ -201,7 +203,7 @@ fn serve(
     eprintln!("μ-daemon listening on {}", sock_path.display());
     for stream in listener.incoming() {
         match stream {
-            Ok(stream) => handle_client(stream, gate, runtime, clock),
+            Ok(stream) => handle_client(stream, gate, runtime, clock, connector),
             Err(e) => eprintln!("accept error: {e}"),
         }
     }
@@ -217,7 +219,7 @@ fn main() {
         }
     };
 
-    let Config { mu_path, log_path, sock_path, mu_pubkey, vault, allow, omega, delta, .. } = cfg;
+    let Config { mu_path, log_path, sock_path, mu_pubkey, vault, allow, omega, delta, connector: connector_id, .. } = cfg;
 
     let vault: &'static SoftVault = Box::leak(Box::new(vault));
 
@@ -280,7 +282,7 @@ fn main() {
         human_ttl: std::time::Duration::from_secs(120),
     };
 
-    if let Err(e) = serve(&sock_path, &mut gate, &mut runtime, &clock) {
+    if let Err(e) = serve(&sock_path, &mut gate, &mut runtime, &clock, connector_id) {
         eprintln!("serve error: {e}");
         std::process::exit(4);
     }
