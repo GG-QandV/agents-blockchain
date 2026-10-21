@@ -133,6 +133,23 @@ fn boot(
     Ok((mu, log, gate))
 }
 
+/// Response framing. A denial is one status byte (as before). A settled
+/// payment is `0x20 ‖ len:u16 LE ‖ X-PAYMENT`, so the agent gets the header.
+fn response_frame(code: u8, header: Option<String>) -> Vec<u8> {
+    match (code, header) {
+        (0x20, Some(h)) => {
+            let body = h.into_bytes();
+            let len = (body.len().min(u16::MAX as usize)) as u16;
+            let mut out = vec![0x20];
+            out.extend_from_slice(&len.to_le_bytes());
+            out.extend_from_slice(&body[..len as usize]);
+            out
+        }
+        (0x20, None) => vec![0x20, 0, 0],
+        _ => vec![code],
+    }
+}
+
 fn handle_client(
     mut stream: UnixStream,
     gate: &mut Gate,
@@ -173,16 +190,16 @@ fn handle_client(
             };
 
             let status = runtime.process(&intent);
-            let response = match status {
-                IntentStatus::DeniedOmega => 0x10u8,
-                IntentStatus::DeniedDelta => 0x11,
-                IntentStatus::DeniedHuman => 0x12,
-                IntentStatus::TimeoutHuman => 0x13,
-                IntentStatus::Settled { .. } => 0x20,
-                IntentStatus::Failed => 0x30,
-                IntentStatus::ReconcilePending => 0x40,
+            let (code, header) = match status {
+                IntentStatus::DeniedOmega => (0x10u8, None),
+                IntentStatus::DeniedDelta => (0x11, None),
+                IntentStatus::DeniedHuman => (0x12, None),
+                IntentStatus::TimeoutHuman => (0x13, None),
+                IntentStatus::Settled { .. } => (0x20, runtime.connector.take_header()),
+                IntentStatus::Failed => (0x30, None),
+                IntentStatus::ReconcilePending => (0x40, None),
             };
-            let _ = stream.write_all(&[response]);
+            let _ = stream.write_all(&response_frame(code, header));
         }
         Err(code) => {
             let _ = stream.write_all(&[code as u8]);
@@ -285,5 +302,24 @@ fn main() {
     if let Err(e) = serve(&sock_path, &mut gate, &mut runtime, &clock, connector_id) {
         eprintln!("serve error: {e}");
         std::process::exit(4);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::response_frame;
+
+    #[test]
+    fn a_denial_is_one_byte() {
+        assert_eq!(response_frame(0x11, None), vec![0x11]);
+    }
+
+    #[test]
+    fn a_settled_payment_carries_the_header_once() {
+        let f = response_frame(0x20, Some("X-PAYMENT: abc".into()));
+        assert_eq!(f[0], 0x20);
+        assert_eq!(u16::from_le_bytes([f[1], f[2]]) as usize, f.len() - 3);
+        assert_eq!(&f[3..], b"X-PAYMENT: abc");
+        assert_eq!(response_frame(0x20, None), vec![0x20, 0, 0]);
     }
 }

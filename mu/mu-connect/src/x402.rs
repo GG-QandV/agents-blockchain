@@ -354,6 +354,10 @@ impl Connector for X402Connector {
         Ok(r)
     }
 
+    fn take_header(&self) -> Option<String> {
+        X402Connector::take_header(self)
+    }
+
     fn status(&self, r: &TxRef) -> Result<TxStatus, ConnErr> {
         let valid_before = match r {
             TxRef::Authorization { valid_before, .. } => *valid_before,

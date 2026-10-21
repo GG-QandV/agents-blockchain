@@ -17,12 +17,13 @@ function buildFrame(
   agentId: string,
   nonce: number,
   ts: number,
+  resource: string | null = null,
 ): Buffer {
   const payload = Buffer.alloc(4096);
   let off = 0;
 
   // version u16 BE
-  payload.writeUInt16BE(1, off); off += 2;
+  payload.writeUInt16BE(2, off); off += 2;
   // recipient len u8 + data
   payload[off++] = recipient.length;
   payload.write(recipient, off, recipient.length, 'ascii'); off += recipient.length;
@@ -38,6 +39,10 @@ function buildFrame(
   payload.writeBigUInt64BE(BigInt(nonce), off); off += 8;
   // ts u64 BE
   payload.writeBigUInt64BE(BigInt(ts), off); off += 8;
+  // resource len u8 + data (v2; 0 = none)
+  const res = Buffer.from(resource ?? '', 'ascii');
+  payload[off++] = res.length;
+  res.copy(payload, off); off += res.length;
   // signature (test/fake)
   off += 64;
 
@@ -54,18 +59,27 @@ function main() {
     process.exit(1);
   }
 
-  const [sockPath, recipient, amountStr, agentId] = args;
+  const [sockPath, recipient, amountStr, agentId, resource] = args;
   const amount = BigInt(amountStr);
 
-  const frame = buildFrame(recipient, amount, 8453, agentId, 1, 1000);
+  const frame = buildFrame(recipient, amount, 8453, agentId, 1, 1000, resource ?? null);
   const sock = net.createConnection(sockPath);
 
   sock.on('connect', () => {
     sock.write(frame);
   });
 
+  let buf = Buffer.alloc(0);
   sock.on('data', (data: Buffer) => {
-    const code = data[0];
+    buf = Buffer.concat([buf, data]);
+    const code = buf[0];
+    if (code === 0x20 && buf.length >= 3) {
+      const n = buf.readUInt16LE(1);
+      if (buf.length < 3 + n) return; // wait for the rest
+      console.log(`OK: settled; header: ${buf.subarray(3, 3 + n).toString('utf8')}`);
+      sock.end();
+      return;
+    }
     const codes: Record<number, string> = {
       0x00: 'Parse error',
       0x01: 'Unknown agent',

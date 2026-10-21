@@ -86,6 +86,12 @@ pub trait Connector {
     fn quote(&self, i: &Intent) -> Result<Fee, ConnErr>;
     fn execute(&self, i: &Intent, signer: TxSigner) -> Result<TxRef, ConnErr>;
     fn status(&self, r: &TxRef) -> Result<TxStatus, ConnErr>;
+
+    /// The payment header produced by the last `execute`, if the connector has
+    /// one (x402). Taken once: a second call returns `None`.
+    fn take_header(&self) -> Option<String> {
+        None
+    }
 }
 
 // Реэкспорт для тестов коннектора: доступ к SoftVault-конструктору TxSigner.
