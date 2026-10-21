@@ -1,10 +1,15 @@
 //! μ Gate KSG smoke (test networks only — SoftVault, which a release build
 //! refuses). The wallet is the fixed test key 0x11…11, or, for a live payment
 //! on Base Sepolia, the key in the file `MU_PAYER_KEY_FILE` (64 hex chars,
-//! mode 600; the key is never printed).
+//! mode 600; the key is never printed). The owner's key comes from
+//! `MU_OWNER_KEY_FILE` (same format), the fixed test key otherwise.
 //!
 //!   ksg-smoke < 402.json > x-payment.txt
 //!   MU_PAYER_KEY_FILE=~/.secrets/keysingate/base-sepolia/payer.hex ksg-smoke < 402.json
+//!
+//! Limits are read from the environment, in minor units: `MU_MAX_CEILING_MINOR`
+//! (10 000 000), `MU_DAILY_LIMIT_MINOR` (5 000 000),
+//! `MU_CONFIRM_THRESHOLD_MINOR` (0), `MU_MAX_PRICE_PER_CALL_MINOR` (1 000 000).
 //!
 //! Reads an issuer's 402 answer, pays it through Ω → Δ → owner (auto-approve,
 //! threshold 0) → WAL → x402 on Base Sepolia, prints the `X-PAYMENT` header.
@@ -42,11 +47,23 @@ impl Presenter for AutoApprove {
 /// The payer's wallet key: the file named by `MU_PAYER_KEY_FILE`, else the
 /// fixed test key. A file readable by others is refused.
 fn wallet_key() -> [u8; 32] {
-    let Ok(path) = std::env::var("MU_PAYER_KEY_FILE") else {
-        return [0x11; 32];
+    key_from_env("MU_PAYER_KEY_FILE").unwrap_or([0x11; 32])
+}
+
+/// The owner's key: the file named by `MU_OWNER_KEY_FILE`, else the fixed
+/// test key. Same format and mode rules as the payer key.
+fn owner_key() -> [u8; 32] {
+    key_from_env("MU_OWNER_KEY_FILE").unwrap_or([0x02; 32])
+}
+
+/// Reads a 32-byte key file named by `var`; 64 hex characters, mode 600.
+/// `None` when the variable is not set.
+fn key_from_env(var: &str) -> Option<[u8; 32]> {
+    let Ok(path) = std::env::var(var) else {
+        return None;
     };
     let fail = |why: &str| -> ! {
-        eprintln!("MU_PAYER_KEY_FILE: {why}");
+        eprintln!("{var}: {why}");
         std::process::exit(2)
     };
     #[cfg(unix)]
@@ -60,7 +77,18 @@ fn wallet_key() -> [u8; 32] {
     let mut text = std::fs::read_to_string(&path).unwrap_or_else(|_| fail("cannot read"));
     let key = parse_key(&text);
     text.zeroize();
-    key.unwrap_or_else(|| fail("expected 32 bytes as 64 hex characters"))
+    Some(key.unwrap_or_else(|| fail("expected 32 bytes as 64 hex characters")))
+}
+
+/// A minor-units limit from `var`, or `default` when the variable is unset.
+fn limit_from_env(var: &str, default: u128) -> u128 {
+    match std::env::var(var) {
+        Ok(v) => v.trim().parse().unwrap_or_else(|_| {
+            eprintln!("{var}: expected an integer in minor units");
+            std::process::exit(2)
+        }),
+        Err(_) => default,
+    }
 }
 
 fn parse_key(text: &str) -> Option<[u8; 32]> {
@@ -91,7 +119,8 @@ fn main() {
         }
     };
     let mut key = wallet_key();
-    let vault = SoftVault::for_test([1; 32], [2; 32], key);
+    let mut owner = owner_key();
+    let vault = SoftVault::for_test([1; 32], owner, key);
     key.zeroize();
     let payer = address_of(&vault.tx_signer().expect("signer")).expect("address");
     let conn = X402Connector::on(BASE_SEPOLIA, payer);
@@ -100,20 +129,25 @@ fn main() {
     let (host, path) = split_resource(&ch.resource);
     let owner_pk = {
         use p256::ecdsa::SigningKey;
-        let sk = SigningKey::from_bytes((&[2u8; 32]).into()).unwrap();
+        let sk = SigningKey::from_bytes((&owner).into()).unwrap();
         sk.verifying_key().to_encoded_point(true).as_bytes().to_vec()
     };
+    owner.zeroize();
+    let max_ceiling = limit_from_env("MU_MAX_CEILING_MINOR", 10_000_000);
+    let daily_limit = limit_from_env("MU_DAILY_LIMIT_MINOR", 5_000_000);
+    let confirm_threshold = limit_from_env("MU_CONFIRM_THRESHOLD_MINOR", 0);
+    let max_price_per_call = limit_from_env("MU_MAX_PRICE_PER_CALL_MINOR", 1_000_000);
     let dir = tempfile::tempdir().expect("tmp");
     let mut rt = Runtime {
-        omega: Omega { connectors: vec![ConnectorId::Crypto], max_ceiling: Amount::from_minor(10_000_000) },
+        omega: Omega { connectors: vec![ConnectorId::Crypto], max_ceiling: Amount::from_minor(max_ceiling) },
         delta: Delta {
-            daily_limit: Amount::from_minor(5_000_000),
+            daily_limit: Amount::from_minor(daily_limit),
             whitelist: vec![pay_to],
-            confirm_threshold: Amount::ZERO,
+            confirm_threshold: Amount::from_minor(confirm_threshold),
             resource_allowlist: vec![ResourceRule {
                 host: host.into(),
                 path_prefix: path.into(),
-                max_price_per_call: Amount::from_minor(1_000_000),
+                max_price_per_call: Amount::from_minor(max_price_per_call),
             }],
         },
         log: Log::open(&dir.path().join("log.mulog"), &vault).expect("log"),

@@ -1,6 +1,6 @@
 # μ Gate — Don't give your AI agent your wallet. Put a rule between them.
 
-[![Version](https://img.shields.io/badge/version-0.2.1-blue)](https://github.com/GG-QandV/agents-blockchain)
+[![Version](https://img.shields.io/badge/version-0.2.0--ksg-blue)](https://github.com/GG-QandV/agents-blockchain)
 [![License](https://img.shields.io/badge/license-BSL%201.1-orange)](./LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange)](https://rust-lang.org)
 
@@ -43,7 +43,7 @@ cargo run -p mu-fixtures
 In another terminal:
 
 ```bash
-python3 mu/clients/mu-client.py /tmp/mu-daemon.sock \
+python3 clients/mu-client.py /tmp/mu-daemon.sock \
   0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 1000000 cp1-agent
 ```
 
@@ -54,10 +54,56 @@ python3 mu/clients/mu-client.py /tmp/mu-daemon.sock \
 MU_CONNECTOR=x402 MU_WALLET_ADDR=0x<your_address> ./target/debug/mu-daemon
 
 # In another terminal:
-python3 mu/clients/cp1-harness.py
+python3 clients/cp1-harness.py
 ```
 
 See `cp1-harness.py` for the 4 test cases (allowed call, wrong address denial, threshold test, log review).
+
+---
+
+## KSG edition — `0.2.0-ksg`
+
+The `keysingate` line of μ Gate. An agent pays a keysingate issuer for a repeated
+`bare`: the issuer answers `402 Payment Required`, and the payment goes through
+Ω → Δ → owner's confirmation → WAL → the x402 connector → `X-PAYMENT`, which the
+seller side (`ksg-pay-v2`) accepts.
+
+What differs from 0.2.1:
+
+- x402 connector rewritten against an independent EIP-712 implementation: the
+  0.2.1 type-hash constants were wrong, so every signature was invalid;
+- the 402 challenge must match the intent's recipient, amount, network, USDC
+  contract and EIP-712 domain, with a validity of ≤ 1 h, or nothing is signed;
+- the payer address is derived from the signing key; a key that is not the
+  configured wallet signs nothing;
+- policy may be loaded from `policy.toml`; EVM addresses are checked as EIP-55,
+  Sui addresses are gone;
+- `mu-license` crate, `ksg-smoke` binary, `ksg-bare-repeat` policy templates.
+
+### `ksg-smoke`
+
+Pays an issuer's 402 answer on Base Sepolia and prints the `X-PAYMENT` header:
+
+```bash
+cd mu
+cargo build -p ksg-smoke
+MU_PAYER_KEY_FILE=~/.secrets/keysingate/base-sepolia/payer.hex \
+  ./target/debug/ksg-smoke < 402.json > x-payment.txt
+```
+
+Keys and limits are not compiled in:
+
+| Env var | Default | Meaning |
+| --- | --- | --- |
+| `MU_PAYER_KEY_FILE` | test key `0x11…11` | payer key file, 64 hex, mode 600 |
+| `MU_OWNER_KEY_FILE` | test key `0x02…02` | owner key file, same format |
+| `MU_MAX_CEILING_MINOR` | `10000000` | Ω ceiling |
+| `MU_DAILY_LIMIT_MINOR` | `5000000` | Δ daily limit |
+| `MU_CONFIRM_THRESHOLD_MINOR` | `0` | owner confirmation threshold |
+| `MU_MAX_PRICE_PER_CALL_MINOR` | `1000000` | per-resource price cap |
+
+`master` is the main branch; the KSG line lives in `keysingate` and is merged
+into `master` for release.
 
 ---
 
@@ -125,7 +171,7 @@ Templates in `mu/policy-templates/`:
 
 ## Clients
 
-- **Python** — `mu/clients/mu-client.py`
+- **Python** — `mu/clients/mu-client.py` (run from `mu/` as `clients/mu-client.py`)
 - **TypeScript** — `mu/clients/mu-client.ts`
 - **CP1 harness** — `mu/clients/cp1-harness.py`
 
