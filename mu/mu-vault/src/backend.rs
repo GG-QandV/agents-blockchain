@@ -34,6 +34,21 @@ impl SoftVault {
             owner_auth_ok: true,
         }
     }
+
+    /// Load the three soft keys from 32-byte hex files. Dev/test only: a key
+    /// file readable by others is refused (mode must be 600).
+    pub fn from_files(
+        mu: &std::path::Path,
+        owner: &std::path::Path,
+        wallet: &std::path::Path,
+    ) -> Result<Self, VaultErr> {
+        Ok(SoftVault {
+            mu_key: Zeroizing::new(read_key_file(mu)?),
+            owner_key: Zeroizing::new(read_key_file(owner)?),
+            wallet_key: Zeroizing::new(read_key_file(wallet)?),
+            owner_auth_ok: true,
+        })
+    }
     /// RISK-M4-3 test: simulate biometric failure.
     pub fn set_owner_auth(&mut self, ok: bool) {
         self.owner_auth_ok = ok;
@@ -51,6 +66,52 @@ impl SoftVault {
         out.copy_from_slice(&b);
         Ok(P256Sig(out))
     }
+}
+
+/// Reads one 32-byte hex key file; refuses files readable by others.
+#[cfg(feature = "softvault")]
+fn read_key_file(path: &std::path::Path) -> Result<[u8; 32], VaultErr> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(path)
+            .map_err(|e| VaultErr::Backend(format!("{path:?}: {e}")))?
+            .permissions()
+            .mode();
+        if mode & 0o077 != 0 {
+            return Err(VaultErr::Backend(format!(
+                "{path:?}: must be mode 600 (readable by the owner only)"
+            )));
+        }
+    }
+    let mut text = std::fs::read_to_string(path)
+        .map_err(|e| VaultErr::Backend(format!("{path:?}: {e}")))?;
+    let t = text.trim();
+    let t = t.strip_prefix("0x").unwrap_or(t);
+    if t.len() != 64 {
+        text.clear();
+        return Err(VaultErr::Backend(format!(
+            "{path:?}: expected 32 bytes as 64 hex characters"
+        )));
+    }
+    let nib = |c: u8| (c as char).to_digit(16).map(|d| d as u8);
+    let mut key = [0u8; 32];
+    for (i, b) in key.iter_mut().enumerate() {
+        let hi = nib(t.as_bytes()[2 * i]);
+        let lo = nib(t.as_bytes()[2 * i + 1]);
+        match (hi, lo) {
+            (Some(h), Some(l)) => *b = (h << 4) | l,
+            _ => {
+                text.clear();
+                return Err(VaultErr::Backend(format!("{path:?}: not hex")));
+            }
+        }
+    }
+    text.clear();
+    if key == [0; 32] {
+        return Err(VaultErr::Backend(format!("{path:?}: the zero key")));
+    }
+    Ok(key)
 }
 
 #[cfg(feature = "softvault")]

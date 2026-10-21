@@ -15,6 +15,8 @@ mu-human = { path = "../mu-human" }
 mu-policy = { path = "../mu-policy" }
 mu-license = { path = "../mu-license" }
 sha2 = "=0.10.8"
+serde = { version = "=1.0.217", features = ["derive"] }
+toml = "=0.5.11"
 
 [features]
 # softvault — ТОЛЬКО для тестов/CI. В release защёлка даёт compile_error.
@@ -22,3 +24,6 @@ softvault = ["mu-vault/softvault"]
 
 #[cfg(all(not(debug_assertions), feature = "softvault"))]
 #compile_error!("softvault запрещён в release");
+
+[dev-dependencies]
+tempfile = "3"

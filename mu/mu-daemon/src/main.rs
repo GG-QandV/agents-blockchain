@@ -1,16 +1,21 @@
 //! µ-daemon — boot-протокол M6 §4 + unix socket транспорт M8.
 //!
 //! Boot-порядок (строгий):
+//!   0. Config::load (MU_HOME: ключи 0600, agents.toml, policy.toml) → ✗ = exit(6)
 //!   1. M1: load + verify + verify_against_log   → ✗ = exit(2)
 //!   2. M5: Log::open + verify_chain              → ✗ = exit(3)
 //!   3. M5: pending() → M7a.status → reconcile
 //!   4. M8: gate.restore_nonce з NonceSnapshot лога
 //!   5. Слухати unix socket → кадри → Gate::accept → Runtime::process
+//!
+//! Ключі та політика не зашиті в код: без файлів у MU_HOME демон не стартує.
 
 #![forbid(unsafe_code)]
 
 #[cfg(all(not(debug_assertions), feature = "softvault"))]
 compile_error!("softvault запрещён в release");
+
+mod config;
 
 use std::fs;
 use std::io::{Read, Write};
@@ -31,24 +36,10 @@ use mu_log::{Log, LogErr};
 use mu_runtime::{IntentStatus, Runtime};
 use mu_vault::backend::SoftVault;
 
-// ── Конфіґ (MVP: хардкод; прод: env/конфіґ) ─────────────────────────────
+use crate::config::Config;
 
-const MU_PATH: &str = "mu.bin";
-const LOG_PATH: &str = "mu.log";
-const SOCK_PATH: &str = "/tmp/mu-daemon.sock";
-const MU_PUBKEY_HEX: &str = "026ff03b949241ce1dadd43519e6960e0a85b41a69a05c328103aa2bce1594ca16";
 const BUCKET_CAP: u32 = 10;
 const TS_WINDOW_SECS: u64 = 60;
-
-// ── Допоміжні ───────────────────────────────────────────────────────────
-
-fn hex_decode(s: &str) -> Vec<u8> {
-    let s = s.strip_prefix("0x").unwrap_or(s);
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
 
 fn hex20(s: &str) -> [u8; 20] {
     let s = s.strip_prefix("0x").unwrap_or(s);
@@ -58,8 +49,6 @@ fn hex20(s: &str) -> [u8; 20] {
     }
     a
 }
-
-// ── Presenter-заглушка (M9) ─────────────────────────────────────────────
 
 struct CliPresenter;
 
@@ -73,13 +62,10 @@ impl Presenter for CliPresenter {
     }
 }
 
-// ── Boot-протокол (до виходу на сокет) ──────────────────────────────────
-
 #[derive(Debug)]
 enum BootErr {
     Mu(CoreErr),
     Log(LogErr),
-    Vault(String),
     Io(std::io::Error),
 }
 
@@ -97,7 +83,9 @@ fn boot(
     mu_path: &Path,
     log_path: &Path,
     mu_pubkey: &[u8],
-) -> Result<(Mu, Log, Gate, SoftVault, StubConnector, CliPresenter, SysClock), BootErr> {
+    allow: AllowList,
+    vault: &'static SoftVault,
+) -> Result<(Mu, Log, Gate), BootErr> {
     // ── Крок 0: License check ──────────────────────────────────────────
     let license_path = Path::new("license.key");
     match License::load(license_path) {
@@ -120,8 +108,7 @@ fn boot(
     mu.verify(mu_pubkey).map_err(BootErr::Mu)?;
 
     // ── Крок 2: M5 — Log::open + verify_chain (RISK-M5-2) ────────────
-    let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [3u8; 32]);
-    let log = Log::open(log_path, &vault)?;
+    let log = Log::open(log_path, vault)?;
     log.verify_chain()?;
 
     // verify_against_log: log_head == хвіст лога (RISK-M1-2)
@@ -136,15 +123,6 @@ fn boot(
     }
 
     // ── Крок 4: M8 — restore_nonce з NonceSnapshot логу (RISK-M8-1) ──
-    let mut allow = AllowList::new();
-    // SMOKE: додаємо тестового агента (seed [42;32])
-    let agent_pubkey: [u8; 32] = [
-        0x19, 0x7f, 0x6b, 0x23, 0xe1, 0x6c, 0x85, 0x32,
-        0xc6, 0xab, 0xc8, 0x38, 0xfa, 0xcd, 0x5e, 0xa7,
-        0x89, 0xbe, 0x0c, 0x76, 0xb2, 0x92, 0x03, 0x34,
-        0x03, 0x9b, 0xfa, 0x8b, 0x3d, 0x36, 0x8d, 0x61,
-    ];
-    allow.add("agent-1", agent_pubkey);
     let mut gate = Gate::new(allow, BUCKET_CAP, TS_WINDOW_SECS);
     for e in log.entries() {
         if let Kind::NonceSnapshot { agent_id, nonce } = &e.kind {
@@ -152,10 +130,8 @@ fn boot(
         }
     }
 
-    Ok((mu, log, gate, vault, stub, CliPresenter, SysClock))
+    Ok((mu, log, gate))
 }
-
-// ── Транспорт M8: unix socket ───────────────────────────────────────────
 
 fn handle_client(
     mut stream: UnixStream,
@@ -232,46 +208,45 @@ fn serve(
     Ok(())
 }
 
-// ── Main ────────────────────────────────────────────────────────────────
-
 fn main() {
-    let mu_path = Path::new(MU_PATH);
-    let log_path = Path::new(LOG_PATH);
-    let sock_path = Path::new(SOCK_PATH);
-    let mu_pubkey = hex_decode(MU_PUBKEY_HEX);
+    let cfg = match Config::load() {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("FATAL: config: {e}");
+            std::process::exit(6);
+        }
+    };
 
-    let (mu, mut log, mut gate, vault, stub, presenter, clock) =
-        match boot(mu_path, log_path, &mu_pubkey) {
-            Ok(v) => v,
-            Err(BootErr::Mu(CoreErr::LogHeadMismatch)) => {
-                eprintln!("FATAL: log_head mismatch — стара копія mu.bin");
-                std::process::exit(2);
-            }
-            Err(BootErr::Mu(e)) => {
-                eprintln!("FATAL: mu error: {e:?}");
-                std::process::exit(2);
-            }
-            Err(BootErr::Log(LogErr::ChainBroken { at_seq })) => {
-                eprintln!("FATAL: log chain broken at seq {at_seq}");
-                std::process::exit(3);
-            }
-            Err(BootErr::Log(e)) => {
-                eprintln!("FATAL: log error: {e:?}");
-                std::process::exit(3);
-            }
-            Err(BootErr::Vault(e)) => {
-                eprintln!("FATAL: vault error: {e}");
-                std::process::exit(5);
-            }
-            Err(BootErr::Io(e)) => {
-                eprintln!("FATAL: io error: {e}");
-                std::process::exit(6);
-            }
-        };
+    let Config { mu_path, log_path, sock_path, mu_pubkey, vault, allow, omega, delta, .. } = cfg;
 
-    // Leak об'єкти, яким потрібен статичний час життя для Runtime
     let vault: &'static SoftVault = Box::leak(Box::new(vault));
-    let presenter: &'static CliPresenter = Box::leak(Box::new(presenter));
+
+    let (mu, log, mut gate) = match boot(&mu_path, &log_path, &mu_pubkey, allow, vault) {
+        Ok(v) => v,
+        Err(BootErr::Mu(CoreErr::LogHeadMismatch)) => {
+            eprintln!("FATAL: log_head mismatch — стара копія mu.bin");
+            std::process::exit(2);
+        }
+        Err(BootErr::Mu(e)) => {
+            eprintln!("FATAL: mu error: {e:?}");
+            std::process::exit(2);
+        }
+        Err(BootErr::Log(LogErr::ChainBroken { at_seq })) => {
+            eprintln!("FATAL: log chain broken at seq {at_seq}");
+            std::process::exit(3);
+        }
+        Err(BootErr::Log(e)) => {
+            eprintln!("FATAL: log error: {e:?}");
+            std::process::exit(3);
+        }
+        Err(BootErr::Io(e)) => {
+            eprintln!("FATAL: io error: {e}");
+            std::process::exit(6);
+        }
+    };
+
+    let presenter: &'static CliPresenter = Box::leak(Box::new(CliPresenter));
+    let clock = SysClock;
 
     // Вибір коннектора: MU_CONNECTOR=x402 або за замовчуванням stub
     let connector: &'static dyn Connector = match std::env::var("MU_CONNECTOR").as_deref() {
@@ -279,7 +254,6 @@ fn main() {
             let wallet_hex = std::env::var("MU_WALLET_ADDR")
                 .expect("MU_WALLET_ADDR required for x402 connector");
             let wallet = hex20(&wallet_hex);
-            // MU_X402_NETWORK: base (default, real money) | base-sepolia (test network).
             let net = match std::env::var("MU_X402_NETWORK").as_deref() {
                 Ok("base-sepolia") => mu_connect::x402::BASE_SEPOLIA,
                 Ok("base") | Err(_) => mu_connect::x402::BASE,
@@ -290,23 +264,8 @@ fn main() {
         }
         _ => {
             eprintln!("Connector: Stub (set MU_CONNECTOR=x402 for real payments)");
-            Box::leak(Box::new(stub))
+            Box::leak(Box::new(StubConnector::new("bank_stub")))
         }
-    };
-
-    let omega = mu_runtime::policy::Omega {
-        connectors: vec![ConnectorId::BankStub, ConnectorId::CardStub],
-        max_ceiling: mu_common::Amount::from_minor(10_000_000_000),
-    };
-    let delta = mu_runtime::policy::Delta {
-        daily_limit: mu_common::Amount::from_minor(5_000_000_000),
-        whitelist: vec![
-            mu_common::CanonAddress::canon(
-                "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed000000000000000000000000", 8453
-            ).unwrap(),
-        ],
-        confirm_threshold: mu_common::Amount::from_minor(1_000_000_000),
-        resource_allowlist: vec![],
     };
 
     let mut runtime = Runtime {
