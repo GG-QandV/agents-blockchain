@@ -139,6 +139,11 @@ impl Vault for SoftVault {
     fn tx_signer_p256(&self) -> Result<crate::signer::TxSignerP256, VaultErr> {
         Ok(crate::signer::TxSignerP256::from_bytes(*self.wallet_key))
     }
+    fn owner_pubkey(&self) -> Option<Vec<u8>> {
+        let sk = P256Signing::from_bytes((&*self.owner_key).into()).ok()?;
+        Some(sk.verifying_key().to_encoded_point(true).as_bytes().to_vec())
+    }
+
     fn attest(&self) -> VaultInfo {
         VaultInfo { backend: "softvault", hw_backed: false }
     }

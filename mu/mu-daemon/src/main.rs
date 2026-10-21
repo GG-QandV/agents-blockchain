@@ -35,6 +35,7 @@ use mu_log::Kind;
 use mu_log::{Log, LogErr};
 use mu_runtime::{IntentStatus, Runtime};
 use mu_vault::backend::SoftVault;
+use mu_vault::Vault;
 
 use crate::config::Config;
 
@@ -50,15 +51,43 @@ fn hex20(s: &str) -> [u8; 20] {
     a
 }
 
-struct CliPresenter;
+/// Owner confirmation over stdin: the daemon prints the payment and waits for
+/// `y`/`yes`/`approve` or `n`/`no`/`deny` within the budget. The proof itself
+/// is signed by the vault's owner key in `confirm_payment`; the presenter only
+/// returns the owner's intent.
+struct StdinPresenter;
 
-impl Presenter for CliPresenter {
+impl Presenter for StdinPresenter {
     fn present(
         &self,
-        _req: &mu_human::PayConfirm,
-        _budget: std::time::Duration,
+        req: &mu_human::PayConfirm,
+        budget: std::time::Duration,
     ) -> mu_human::PresenterChoice {
-        mu_human::PresenterChoice::Deny
+        eprintln!("{}", mu_human::render_recipient_line(req));
+        eprintln!(
+            "amount: {} minor; budget: {}s — confirm? [y/N]",
+            req.amount.minor(),
+            budget.as_secs()
+        );
+        let (tx, rx) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let mut line = String::new();
+            let _ = std::io::stdin().read_line(&mut line);
+            let _ = tx.send(line);
+        });
+        match rx.recv_timeout(budget) {
+            Ok(line) => parse_decision(&line),
+            Err(_) => mu_human::PresenterChoice::NoResponse,
+        }
+    }
+}
+
+/// The owner's answer: only an explicit yes approves; anything else denies.
+fn parse_decision(line: &str) -> mu_human::PresenterChoice {
+    match line.trim().to_ascii_lowercase().as_str() {
+        "y" | "yes" | "approve" | "a" => mu_human::PresenterChoice::Approve,
+        "n" | "no" | "deny" | "d" => mu_human::PresenterChoice::Deny,
+        _ => mu_human::PresenterChoice::NoResponse,
     }
 }
 
@@ -264,7 +293,7 @@ fn main() {
         }
     };
 
-    let presenter: &'static CliPresenter = Box::leak(Box::new(CliPresenter));
+    let presenter: &'static StdinPresenter = Box::leak(Box::new(StdinPresenter));
     let clock = SysClock;
 
     // Вибір коннектора: MU_CONNECTOR=x402 або за замовчуванням stub
@@ -295,7 +324,9 @@ fn main() {
         connector,
         presenter,
         clock: &clock,
-        owner_pubkey: mu.owner_pubkey().to_vec(),
+        owner_pubkey: vault
+            .owner_pubkey()
+            .unwrap_or_else(|| mu.owner_pubkey().to_vec()),
         human_ttl: std::time::Duration::from_secs(120),
     };
 
@@ -307,7 +338,44 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use super::response_frame;
+    use super::{parse_decision, response_frame};
+
+    #[test]
+    fn a_zero_budget_is_a_timeout() {
+        use mu_common::{Amount, CanonAddress, Hash32};
+        use mu_human::{PayConfirm, Presenter, PresenterChoice};
+        let req = PayConfirm {
+            recipient: CanonAddress::canon(
+                "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+                8453,
+            )
+            .unwrap(),
+            wl_label: None,
+            amount: Amount::from_minor(1),
+            gas_est: Amount::ZERO,
+            agent_id: "agent-1".into(),
+            remaining_window: Amount::ZERO,
+            intent_hash: Hash32([0; 32]),
+            first_payment_to_recipient: false,
+        };
+        let p = super::StdinPresenter;
+        assert_eq!(
+            p.present(&req, std::time::Duration::from_millis(0)),
+            PresenterChoice::NoResponse
+        );
+    }
+
+    #[test]
+    fn only_an_explicit_yes_approves() {
+        use mu_human::PresenterChoice::*;
+        assert_eq!(parse_decision("y\n"), Approve);
+        assert_eq!(parse_decision("YES"), Approve);
+        assert_eq!(parse_decision("approve"), Approve);
+        assert_eq!(parse_decision("n"), Deny);
+        assert_eq!(parse_decision("no"), Deny);
+        assert_eq!(parse_decision(""), NoResponse);
+        assert_eq!(parse_decision("maybe"), NoResponse);
+    }
 
     #[test]
     fn a_denial_is_one_byte() {

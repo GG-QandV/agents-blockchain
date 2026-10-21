@@ -66,4 +66,10 @@ pub trait Vault: Send + Sync {
     }
 
     fn attest(&self) -> VaultInfo;
+
+    /// Owner public key (SEC1), when the backend can expose it. The daemon
+    /// verifies owner auth proofs against this key; `None` = use μ object.
+    fn owner_pubkey(&self) -> Option<Vec<u8>> {
+        None
+    }
 }
