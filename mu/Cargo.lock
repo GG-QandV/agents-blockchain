@@ -405,7 +405,10 @@ dependencies = [
  "mu-policy",
  "mu-runtime",
  "mu-vault",
+ "serde",
  "sha2",
+ "tempfile",
+ "toml",
 ]
 
 [[package]]
