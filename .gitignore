@@ -10,3 +10,6 @@ agent.key
 *.tar.gz
 arch-backup/
 docs/language/
+
+__pycache__/
+*.pyc
