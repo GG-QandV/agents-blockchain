@@ -13,7 +13,13 @@ pub enum Kind {
     /// x402 reserve with the authorization parameters known BEFORE the money
     /// moves: reconcile can ask the chain about `nonce` and close the reserve
     /// after `valid_before` even if the daemon died before the answer.
-    PendingAuth { intent_hash: Hash32, amount_total: u128, nonce: [u8; 32], valid_before: u64 },
+    PendingAuth {
+        intent_hash: Hash32,
+        amount_total: u128,
+        nonce: [u8; 32],
+        valid_after: u64,
+        valid_before: u64,
+    },
     Settled { intent_hash: Hash32, tx_hash: [u8; 32], effective_gas: u128 },
     Failed { intent_hash: Hash32 },
     Simulated { intent_hash: Hash32, connector: &'static str },
@@ -65,10 +71,11 @@ impl Kind {
                 b.extend(agent_id.as_bytes()); b.extend(nonce.to_be_bytes());
             }
             Kind::Alert { code } => { b.push(11); b.extend(code.to_be_bytes()); }
-            Kind::PendingAuth { intent_hash, amount_total, nonce, valid_before } => {
+            Kind::PendingAuth { intent_hash, amount_total, nonce, valid_after, valid_before } => {
                 b.push(12); b.extend(intent_hash.0);
                 b.extend(amount_total.to_be_bytes());
                 b.extend(nonce);
+                b.extend(valid_after.to_be_bytes());
                 b.extend(valid_before.to_be_bytes());
             }
         }

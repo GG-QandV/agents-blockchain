@@ -235,6 +235,79 @@ impl X402Connector {
         self.last_auth.lock().unwrap().take().map(|a| a.to_header())
     }
 
+    /// `authorizationState(address,bytes32)` on two independent RPC nodes.
+    /// Node URLs come from `MU_X402_RPC_1` and `MU_X402_RPC_2`; without both
+    /// the answer is `Unknown` (the reserve is kept, not released on a guess).
+    fn authorization_state(&self, authorizer: [u8; 20], nonce: [u8; 32]) -> Result<bool, ConnErr> {
+        let urls: Vec<String> = ["MU_X402_RPC_1", "MU_X402_RPC_2"]
+            .iter()
+            .filter_map(|k| std::env::var(k).ok())
+            .filter(|v| !v.trim().is_empty())
+            .collect();
+        if urls.len() < 2 {
+            return Err(ConnErr::Unknown(
+                "authorizationState needs two RPC nodes: MU_X402_RPC_1/2".into(),
+            ));
+        }
+        let data = self.authorization_state_call(authorizer, nonce);
+        let mut answers = Vec::new();
+        for url in urls.iter().take(2) {
+            answers.push(self.eth_call_bool(url, &data)?);
+        }
+        if answers[0] != answers[1] {
+            return Err(ConnErr::Unknown("two RPC nodes disagree on authorizationState".into()));
+        }
+        Ok(answers[0])
+    }
+
+    fn authorization_state_call(&self, authorizer: [u8; 20], nonce: [u8; 32]) -> String {
+        let mut data = Vec::with_capacity(4 + 32 + 32);
+        data.extend_from_slice(&keccak(&[b"authorizationState(address,bytes32)"])[..4]);
+        data.extend_from_slice(&[0u8; 12]);
+        data.extend_from_slice(&authorizer);
+        data.extend_from_slice(&nonce);
+        let mut call = Vec::with_capacity(20 + data.len());
+        call.extend_from_slice(&self.network.usdc);
+        call.extend_from_slice(&data);
+        format!("0x{}", hex(&call))
+    }
+
+    fn eth_call_bool(&self, url: &str, data_hex: &str) -> Result<bool, ConnErr> {
+        let body = serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "eth_call",
+            "params": [{
+                "to": format!("0x{}", hex(&self.network.usdc)),
+                "data": data_hex,
+            }, "latest"]
+        })
+        .to_string();
+        let resp = ureq::post(url)
+            .timeout(std::time::Duration::from_secs(10))
+            .set("Content-Type", "application/json")
+            .send_string(&body)
+            .map_err(|e| ConnErr::Unknown(format!("rpc {url}: {e}")))?;
+        let text = resp
+            .into_string()
+            .map_err(|e| ConnErr::Unknown(format!("rpc {url}: {e}")))?;
+        let v: serde_json::Value = serde_json::from_str(&text)
+            .map_err(|e| ConnErr::Unknown(format!("rpc {url}: {e}")))?;
+        if let Some(err) = v.get("error") {
+            return Err(ConnErr::Unknown(format!("rpc {url}: {err}")));
+        }
+        let result = v
+            .get("result")
+            .and_then(|r| r.as_str())
+            .ok_or_else(|| ConnErr::Unknown(format!("rpc {url}: no result")))?;
+        let trimmed = result.trim_start_matches("0x");
+        if trimmed.is_empty() || trimmed.chars().any(|c| c != '0') {
+            // Any non-zero word means the nonce was used.
+            return Ok(trimmed.chars().any(|c| c != '0'));
+        }
+        Ok(false)
+    }
+
     /// The 402 challenge the next `execute` answers. Checked against the
     /// intent at `execute`, not here.
     pub fn set_challenge(&self, challenge: &X402Challenge) {
@@ -346,15 +419,11 @@ impl Connector for X402Connector {
         if let Some(c) = self.challenge.lock().unwrap().take() {
             c.matches(i, &self.network)?;
         }
-        let now = SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map_err(|e| ConnErr::Unknown(format!("clock: {e:?}")))?
-            .as_secs();
         let auth = self.authorize(
             &signer,
             *i.recipient.bytes(),
             i.amount.minor(),
-            now.saturating_sub(VALID_AFTER_SKEW),
+            params.valid_after,
             params.valid_before,
             params.nonce,
         )?;
@@ -371,20 +440,25 @@ impl Connector for X402Connector {
         X402Connector::take_header(self)
     }
 
+    /// Reads `authorizationState(authorizer, nonce)` from the chain. Two
+    /// independent nodes must agree (RISK-M7-3); a disagreement or an
+    /// unavailable node is `Unknown`, never a guess.
     fn status(&self, r: &TxRef) -> Result<TxStatus, ConnErr> {
-        let valid_before = match r {
-            TxRef::Authorization { valid_before, .. } => *valid_before,
+        let (nonce, valid_before) = match r {
+            TxRef::Authorization { nonce, valid_before } => (*nonce, *valid_before),
             TxRef::Real { .. } => return Err(ConnErr::Config("x402 got Real txref".into())),
             TxRef::Simulated { .. } => {
                 return Ok(TxStatus::Failed { reason: crate::FailReason::Simulated })
             }
         };
+        let used = self.authorization_state(self.wallet_addr, nonce)?;
+        if used {
+            return Ok(TxStatus::Settled { block: 0, effective_gas: 0 });
+        }
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map_err(|e| ConnErr::Unknown(format!("clock: {e:?}")))?
             .as_secs();
-        // Without a chain reader (authorizationState) the time window is all
-        // we know: past validBefore the authorization can never settle.
         if now >= valid_before {
             Ok(TxStatus::Failed { reason: crate::FailReason::NonceConsumedByOther })
         } else {
@@ -523,7 +597,7 @@ mod tests {
 
     fn params(n: u8) -> crate::AuthParams {
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-        crate::AuthParams { nonce: [n; 32], valid_before: now + 300 }
+        crate::AuthParams { nonce: [n; 32], valid_after: now.saturating_sub(60), valid_before: now + 300 }
     }
 
     fn challenge(pay_to: &str, amount: &str) -> X402Challenge {
@@ -570,6 +644,92 @@ mod tests {
         assert_eq!(sig, SIG, "RFC 6979 is deterministic: same key, same digest, same signature");
     }
 
+    use std::io::{Read as _, Write as _};
+    use std::sync::Mutex;
+
+    static RPC_ENV: Mutex<()> = Mutex::new(());
+
+    /// A one-shot JSON-RPC node: answers `result` to any POST.
+    fn fake_node(result: &'static str) -> String {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        std::thread::spawn(move || {
+            for _ in 0..4 {
+                let Ok((mut s, _)) = listener.accept() else { return };
+                let mut buf = [0u8; 4096];
+                let _ = s.read(&mut buf);
+                let body = format!("{{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":\"{result}\"}}");
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    body.len(),
+                    body
+                );
+                let _ = s.write_all(resp.as_bytes());
+            }
+        });
+        format!("http://{addr}")
+    }
+
+    fn with_nodes(a: &str, b: &str) {
+        std::env::set_var("MU_X402_RPC_1", a);
+        std::env::set_var("MU_X402_RPC_2", b);
+    }
+
+    fn status_of(nonce: [u8; 32], valid_before: u64) -> Result<TxStatus, ConnErr> {
+        let c = sepolia();
+        c.status(&TxRef::Authorization { nonce, valid_before })
+    }
+
+    #[test]
+    fn a_used_nonce_settles() {
+        let _g = RPC_ENV.lock().unwrap();
+        let a = fake_node("0x0000000000000000000000000000000000000000000000000000000000000001");
+        let b = fake_node("0x0000000000000000000000000000000000000000000000000000000000000001");
+        with_nodes(&a, &b);
+        assert_eq!(
+            status_of([1; 32], u64::MAX).unwrap(),
+            TxStatus::Settled { block: 0, effective_gas: 0 }
+        );
+    }
+
+    #[test]
+    fn an_unused_nonce_stays_pending_inside_the_window() {
+        let _g = RPC_ENV.lock().unwrap();
+        let z = "0x0000000000000000000000000000000000000000000000000000000000000000";
+        with_nodes(&fake_node(z), &fake_node(z));
+        assert_eq!(status_of([2; 32], u64::MAX).unwrap(), TxStatus::Pending);
+    }
+
+    #[test]
+    fn an_unused_nonce_expires_to_failed() {
+        let _g = RPC_ENV.lock().unwrap();
+        let z = "0x0000000000000000000000000000000000000000000000000000000000000000";
+        with_nodes(&fake_node(z), &fake_node(z));
+        assert!(matches!(
+            status_of([3; 32], 1).unwrap(),
+            TxStatus::Failed { .. }
+        ));
+    }
+
+    #[test]
+    fn nodes_that_disagree_are_unknown() {
+        let _g = RPC_ENV.lock().unwrap();
+        with_nodes(
+            &fake_node("0x0000000000000000000000000000000000000000000000000000000000000001"),
+            &fake_node("0x0000000000000000000000000000000000000000000000000000000000000000"),
+        );
+        assert!(matches!(status_of([4; 32], u64::MAX), Err(ConnErr::Unknown(_))));
+    }
+
+    #[test]
+    fn one_node_is_unknown_not_a_guess() {
+        let _g = RPC_ENV.lock().unwrap();
+        std::env::remove_var("MU_X402_RPC_2");
+        std::env::set_var("MU_X402_RPC_1", "http://127.0.0.1:9");
+        assert!(matches!(status_of([5; 32], u64::MAX), Err(ConnErr::Unknown(_))));
+        std::env::remove_var("MU_X402_RPC_1");
+    }
+
     #[test]
     fn execute_without_a_wal_nonce_is_refused() {
         let c = sepolia();
@@ -596,7 +756,7 @@ mod tests {
         let v = vault([0x11; 32]);
         let i = intent(ISSUER, 100_000, BASE_SEPOLIA.chain_id);
         let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
-        let p = AuthParams { nonce: [0xab; 32], valid_before: now + 300 };
+        let p = AuthParams { nonce: [0xab; 32], valid_after: now.saturating_sub(60), valid_before: now + 300 };
         let mut headers = Vec::new();
         for _ in 0..2 {
             let c = sepolia();
@@ -737,16 +897,21 @@ mod tests {
     }
 
     #[test]
-    fn status_follows_the_time_window() {
+    fn status_without_two_nodes_is_unknown_not_a_time_guess() {
+        let _g = RPC_ENV.lock().unwrap();
+        std::env::remove_var("MU_X402_RPC_1");
+        std::env::remove_var("MU_X402_RPC_2");
         let c = sepolia();
+        // P0-8: the chain says whether the nonce is used; without two nodes the
+        // answer is Unknown, so the reserve is kept.
         assert!(matches!(
-            c.status(&TxRef::Authorization { nonce: [1; 32], valid_before: 1 }).unwrap(),
-            TxStatus::Failed { .. }
+            c.status(&TxRef::Authorization { nonce: [1; 32], valid_before: 1 }),
+            Err(ConnErr::Unknown(_))
         ));
-        assert_eq!(
-            c.status(&TxRef::Authorization { nonce: [1; 32], valid_before: u64::MAX }).unwrap(),
-            TxStatus::Pending
-        );
+        assert!(matches!(
+            c.status(&TxRef::Authorization { nonce: [1; 32], valid_before: u64::MAX }),
+            Err(ConnErr::Unknown(_))
+        ));
         assert!(matches!(
             c.status(&TxRef::Simulated { id: [0; 16] }).unwrap(),
             TxStatus::Failed { .. }

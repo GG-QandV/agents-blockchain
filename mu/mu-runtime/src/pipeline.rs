@@ -80,6 +80,7 @@ fn write_wal(
             intent_hash,
             amount_total: amount_total.minor(),
             nonce: a.nonce,
+            valid_after: a.valid_after,
             valid_before: a.valid_before,
         },
         None => Kind::Pending {
@@ -214,6 +215,7 @@ impl<'a> Runtime<'a> {
                 .unwrap_or(now);
             Some(AuthParams {
                 nonce,
+                valid_after: wall.saturating_sub(60),
                 valid_before: wall.saturating_add(AUTH_WINDOW_SECS),
             })
         } else {

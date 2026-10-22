@@ -87,6 +87,9 @@ pub struct Fee {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AuthParams {
     pub nonce: [u8; 32],
+    /// Both time bounds are stored, so a retry after a crash signs the very
+    /// same digest and yields the very same header.
+    pub valid_after: u64,
     pub valid_before: u64,
 }
 

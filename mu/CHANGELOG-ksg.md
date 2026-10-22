@@ -3,7 +3,8 @@
 ## 0.2.1-ksg — 2026-10-20 — journal format 2
 
 ### Changed (journal format 2)
-- New `Kind::PendingAuth` record (tag 12): `intent_hash ‖ amount_total:u128 ‖ nonce[32] ‖ valid_before:u64`.
+- New `Kind::PendingAuth` record (tag 12): `intent_hash ‖ amount_total:u128 ‖ nonce[32] ‖ valid_after:u64 ‖ valid_before:u64`.
+  Both time bounds are stored, so a retry signs the same digest and yields the same header.
   x402 writes it instead of `Pending`, so the single-use authorization nonce is on disk
   before the money moves. Old journals and `Pending` records (Sui/EVM) are read as before;
   the hash chain stays valid because the new tag has its own offsets.
@@ -12,6 +13,10 @@
   invents a nonce inside `execute`.
 - The authorization window is fixed before the WAL: 300 s, checked against the challenge
   (never more than an hour).
+- x402 `status` reads `authorizationState(authorizer, nonce)` from **two** RPC nodes
+  (`MU_X402_RPC_1`, `MU_X402_RPC_2`). Nodes disagreeing, one node missing or an
+  unavailable node → `Unknown`: the reserve is kept, nothing is released on a guess.
+  The previous time-window guess is gone.
 - Reconcile on start: `PendingAuth` → connector status; used → `Settled` (nonce is the chain key),
   failed → `Failed`, still pending after `valid_before + 60 s` → `Failed` (reserve released).
   Two nodes disagreeing or unavailable → reserve kept, `Alert 0x0A02`.

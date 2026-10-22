@@ -256,8 +256,9 @@ fn decode_kind(b: &[u8]) -> Option<Kind> {
             let amt = u128::from_be_bytes(r.get(32..48)?.try_into().ok()?);
             let mut nonce = [0u8; 32];
             nonce.copy_from_slice(r.get(48..80)?);
-            let valid_before = u64::from_be_bytes(r.get(80..88)?.try_into().ok()?);
-            Some(Kind::PendingAuth { intent_hash: ih, amount_total: amt, nonce, valid_before })
+            let valid_after = u64::from_be_bytes(r.get(80..88)?.try_into().ok()?);
+            let valid_before = u64::from_be_bytes(r.get(88..96)?.try_into().ok()?);
+            Some(Kind::PendingAuth { intent_hash: ih, amount_total: amt, nonce, valid_after, valid_before })
         }
         _ => None,
     }

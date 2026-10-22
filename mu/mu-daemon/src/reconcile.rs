@@ -111,6 +111,7 @@ mod tests {
                 intent_hash: Hash32([7; 32]),
                 amount_total: 100_000,
                 nonce,
+                valid_after: valid_before.saturating_sub(360),
                 valid_before,
             },
             ts,
