@@ -11,9 +11,13 @@
 - `Connector::pre_auth()` and `Connector::execute_auth(intent, signer, Option<AuthParams>)`.
   x402 returns `true` and refuses to sign without parameters written to the WAL; it no longer
   invents a nonce inside `execute`.
-- The authorization window is fixed before the WAL: `min(300 s, maxTimeoutSeconds)` from the
-  challenge, never more than an hour. The connector refuses to sign a window longer than the
-  challenge allows, so a stricter issuer is respected instead of overrun.
+- The 402 offer travels **with the execution**, not in connector state: `ExecCtx { auth: Option<AuthParams>, offer: Option<X402Challenge> }`. `X402Connector::set_challenge()` is gone, so an offer of the previous intent cannot leak into the next payment.
+  No offer → `Rejected(NoChallenge)` and nothing is signed. The window is exactly
+  `maxTimeoutSeconds` (no 300 s default), never more than an hour; a WAL window
+  longer than the offer is refused.
+- One offer pays once: a second payment on the same 402 answer is
+  `Rejected(OfferAlreadyUsed)`. The `X-PAYMENT` header stays one-shot, and a failed
+  attempt clears it.
 - x402 `status` reads `authorizationState(authorizer, nonce)` from **two** RPC nodes
   (`MU_X402_RPC_1`, `MU_X402_RPC_2`). Nodes disagreeing, one node missing or an
   unavailable node → `Unknown`: the reserve is kept, nothing is released on a guess.

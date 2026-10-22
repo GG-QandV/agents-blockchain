@@ -73,6 +73,10 @@ pub enum RejectReason {
     WalletMismatch,
     /// x402: the 402 challenge does not match the intent (network, token, recipient, amount).
     ChallengeMismatch,
+    /// x402: no 402 offer was supplied for this intent, so nothing may be signed.
+    NoChallenge,
+    /// x402: this offer was already paid once; a second payment needs a new 402.
+    OfferAlreadyUsed,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -82,11 +86,18 @@ pub struct Fee {
 
 /// Контракт коннектора. execute принимает TxSigner ПО MOVE (RISK-M4-1):
 /// после execute хэндл ключа уничтожен, повторно подписать нельзя.
-/// Default authorization window, when the connector names no shorter one.
-pub const AUTH_WINDOW_DEFAULT: u64 = 300;
-
 /// Authorization parameters fixed before the WAL: the nonce is single-use on
 /// chain, so a retry after a crash reuses it and cannot pay twice.
+/// Everything one execution needs besides the intent: the authorization
+/// parameters already written to the WAL and the 402 offer they answer.
+/// The offer travels per intent, so an old challenge cannot leak into the
+/// next payment.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct ExecCtx {
+    pub auth: Option<AuthParams>,
+    pub offer: Option<crate::x402::X402Challenge>,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AuthParams {
     pub nonce: [u8; 32],
@@ -113,21 +124,16 @@ pub trait Connector {
         false
     }
 
-    /// The longest authorization window the connector may ask for. The
-    /// pipeline never writes a `valid_before` beyond it, so a 402 answer that
-    /// allows a shorter window is respected instead of being overrun.
-    fn auth_window_secs(&self) -> u64 {
-        AUTH_WINDOW_DEFAULT
+    /// The authorization window for this offer, or `None` when the connector
+    /// cannot pay it. There is no default: x402 takes the window from the 402
+    /// answer only, so a missing or stale offer never turns into a payment.
+    fn auth_window_secs(&self, _offer: Option<&crate::x402::X402Challenge>) -> Option<u64> {
+        None
     }
 
     /// Execute with parameters that were already written to the WAL. The
     /// default ignores them and calls `execute`.
-    fn execute_auth(
-        &self,
-        i: &Intent,
-        signer: TxSigner,
-        _auth: Option<AuthParams>,
-    ) -> Result<TxRef, ConnErr> {
+    fn execute_auth(&self, i: &Intent, signer: TxSigner, _ctx: ExecCtx) -> Result<TxRef, ConnErr> {
         self.execute(i, signer)
     }
 }

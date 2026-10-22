@@ -1,7 +1,8 @@
 //! Конвейер: Ω → Δ → [human] → WAL → execute → Settled/Failed/ReconcilePending.
 use crate::policy::{delta_check, needs_human, omega_check, resource_check, Delta, Omega};
 use mu_common::{Amount, CanonAddress, Clock, ConnectorId, Hash32};
-use mu_connect::{AuthParams, ConnErr, Connector, Intent as ConnIntent, TxRef, TxStatus};
+use mu_connect::{AuthParams, ConnErr, Connector, ExecCtx, Intent as ConnIntent, TxRef, TxStatus};
+use mu_connect::x402::X402Challenge;
 use mu_human::{confirm_payment, verify_auth_proof, HumanDecision, PayConfirm, Presenter};
 use mu_log::{Kind, Log};
 use mu_vault::Vault;
@@ -98,9 +99,9 @@ fn exec_after_wal(
     connector: &dyn Connector,
     intent: &ConnIntent,
     signer: mu_vault::TxSigner,
-    auth: Option<AuthParams>,
+    ctx: ExecCtx,
 ) -> (Hash32, Result<TxRef, ConnErr>) {
-    let r = connector.execute_auth(intent, signer, auth);
+    let r = connector.execute_auth(intent, signer, ctx);
     (proof.intent_hash, r)
 }
 
@@ -119,7 +120,16 @@ pub struct Runtime<'a> {
 impl<'a> Runtime<'a> {
     /// Обработка одного intent'а. &mut self = сериализация (RISK-M6-3):
     /// второй process не начнётся, пока не завершён первый.
+    /// An intent with no 402 offer: a connector that needs one refuses, so
+    /// nothing is signed and nothing is paid.
     pub fn process(&mut self, i: &RtIntent) -> IntentStatus {
+        self.process_offer(i, None)
+    }
+
+    /// The offer is the 402 answer for *this* intent. It is passed down to the
+    /// connector with the execution, never stored, so it cannot leak into the
+    /// next payment.
+    pub fn process_offer(&mut self, i: &RtIntent, offer: Option<X402Challenge>) -> IntentStatus {
         let now = self.clock.now_unix();
         let ih = i.hash();
 
@@ -203,6 +213,10 @@ impl<'a> Runtime<'a> {
         // after execute reuses the same single-use nonce instead of minting a
         // second authorization.
         let auth = if self.connector.pre_auth() {
+            // No offer → no window → nothing is signed, nothing is paid.
+            let Some(window) = self.connector.auth_window_secs(offer.as_ref()) else {
+                return IntentStatus::Failed;
+            };
             let mut nonce = [0u8; 32];
             if rand_core::RngCore::try_fill_bytes(&mut rand_core::OsRng, &mut nonce).is_err() {
                 return IntentStatus::Failed;
@@ -216,11 +230,8 @@ impl<'a> Runtime<'a> {
             Some(AuthParams {
                 nonce,
                 valid_after: wall.saturating_sub(60),
-                // Bounded by the connector: a challenge that allows less than
-                // the default window must be respected, not overrun.
-                valid_before: wall.saturating_add(
-                    AUTH_WINDOW_SECS.min(self.connector.auth_window_secs()).max(1),
-                ),
+                // Exactly the window the 402 answer allows.
+                valid_before: wall.saturating_add(window),
             })
         } else {
             None
@@ -231,7 +242,13 @@ impl<'a> Runtime<'a> {
         };
 
         // 6. исполнение
-        let (ih2, res) = exec_after_wal(wal, self.connector, &conn_intent, signer, auth);
+        let (ih2, res) = exec_after_wal(
+        wal,
+        self.connector,
+        &conn_intent,
+        signer,
+        ExecCtx { auth, offer },
+    );
         match res {
             Ok(TxRef::Real { tx_hash, .. }) => {
                 // 7. финальность: Settled только при консенсусе status (RISK-M6-2/M7-3)
@@ -287,7 +304,7 @@ impl<'a> Runtime<'a> {
 /// as the policy's `path_prefix` is written; the query is not part of it.
 /// The x402 authorization window written before the money moves; the challenge
 /// may shorten it, never lengthen it (changelog 2026-10-20).
-pub const AUTH_WINDOW_SECS: u64 = 300;
+
 
 pub fn split_resource(resource: &str) -> (&str, &str) {
     let r = resource

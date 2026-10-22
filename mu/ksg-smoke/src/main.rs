@@ -124,7 +124,6 @@ fn main() {
     key.zeroize();
     let payer = address_of(&vault.tx_signer().expect("signer")).expect("address");
     let conn = X402Connector::on(BASE_SEPOLIA, payer);
-    conn.set_challenge(&ch);
     let pay_to = CanonAddress::canon(&ch.pay_to, BASE_SEPOLIA.chain_id).expect("payTo");
     let (host, path) = split_resource(&ch.resource);
     let owner_pk = {
@@ -159,14 +158,14 @@ fn main() {
         human_ttl: Duration::from_secs(5),
     };
     let amount: u128 = ch.max_amount_required.parse().expect("amount");
-    let st = rt.process(&RtIntent {
+    let st = rt.process_offer(&RtIntent {
         recipient: pay_to,
         amount: Amount::from_minor(amount),
         chain_id: BASE_SEPOLIA.chain_id,
         agent_id: "ksg-smoke".into(),
         connector: ConnectorId::Crypto,
         resource: Some(ch.resource.clone()),
-    });
+    }, Some(ch.clone()));
     match conn.take_header() {
         Some(h) => {
             eprintln!("pipeline: {st:?}");

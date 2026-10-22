@@ -153,6 +153,26 @@ impl X402Challenge {
 
 /// The longest an authorization may stay valid.
 pub const MAX_VALIDITY_SECONDS: u64 = 3600;
+
+/// Identity of one 402 offer: what the seller asked for, in canonical bytes.
+fn offer_digest(c: &X402Challenge) -> [u8; 32] {
+    let mut s = String::new();
+    for part in [
+        &c.scheme,
+        &c.network,
+        &c.max_amount_required,
+        &c.pay_to,
+        &c.asset,
+        &c.resource,
+        &c.domain_name,
+        &c.domain_version,
+    ] {
+        s.push_str(part);
+        s.push('\u{1f}');
+    }
+    s.push_str(&c.max_timeout_seconds.to_string());
+    keccak(&[s.as_bytes()])
+}
 const DEFAULT_VALIDITY_SECONDS: u64 = 300;
 /// Clock skew allowance before now.
 const VALID_AFTER_SKEW: u64 = 60;
@@ -209,8 +229,12 @@ pub struct X402Connector {
     pub network: X402Network,
     /// The wallet this connector pays from; the signing key must be its key.
     pub wallet_addr: [u8; 20],
-    challenge: Mutex<Option<X402Challenge>>,
+    /// The header of the last authorization, handed out exactly once.
     last_auth: Mutex<Option<SignedAuthorization>>,
+    /// Digests of the offers already paid. One 402 answer pays once; a second
+    /// payment needs a new offer. Bounded ring, so a long-running process does
+    /// not grow.
+    used_offers: Mutex<Vec<[u8; 32]>>,
 }
 
 impl X402Connector {
@@ -225,8 +249,8 @@ impl X402Connector {
             chain_id: network.chain_id,
             network,
             wallet_addr,
-            challenge: Mutex::new(None),
             last_auth: Mutex::new(None),
+            used_offers: Mutex::new(Vec::new()),
         }
     }
 
@@ -306,12 +330,6 @@ impl X402Connector {
             return Ok(trimmed.chars().any(|c| c != '0'));
         }
         Ok(false)
-    }
-
-    /// The 402 challenge the next `execute` answers. Checked against the
-    /// intent at `execute`, not here.
-    pub fn set_challenge(&self, challenge: &X402Challenge) {
-        *self.challenge.lock().unwrap() = Some(challenge.clone());
     }
 
     /// The EIP-712 digest of an authorization on this connector's network.
@@ -396,13 +414,15 @@ impl Connector for X402Connector {
         true
     }
 
-    /// The pipeline must not sign a window longer than the 402 answer allows:
-    /// `min(default, maxTimeoutSeconds)`, at least one second.
-    fn auth_window_secs(&self) -> u64 {
-        match self.challenge.lock().unwrap().as_ref() {
-            Some(c) => crate::AUTH_WINDOW_DEFAULT.min(c.max_timeout_seconds).max(1),
-            None => crate::AUTH_WINDOW_DEFAULT,
+    /// The window is exactly what the 402 answer allows: no default, no
+    /// minimum. Without an offer, or with one over the protocol ceiling, there
+    /// is no window and the pipeline does not pay.
+    fn auth_window_secs(&self, offer: Option<&X402Challenge>) -> Option<u64> {
+        let c = offer?;
+        if c.max_timeout_seconds == 0 || c.max_timeout_seconds > MAX_VALIDITY_SECONDS {
+            return None;
         }
+        Some(c.max_timeout_seconds)
     }
 
     /// x402 never invents a nonce: the pipeline must pass one that is already
@@ -417,26 +437,42 @@ impl Connector for X402Connector {
         &self,
         i: &Intent,
         signer: TxSigner,
-        auth: Option<crate::AuthParams>,
+        ctx: crate::ExecCtx,
     ) -> Result<TxRef, ConnErr> {
+        // One-shot: a failed attempt never leaves a header behind.
+        *self.last_auth.lock().unwrap() = None;
         if i.chain_id != self.chain_id || i.recipient.chain_id() != self.chain_id {
             return Err(ConnErr::Rejected(RejectReason::ChainMismatch));
         }
-        let params = auth.ok_or_else(|| {
+        let offer = ctx
+            .offer
+            .ok_or(ConnErr::Rejected(RejectReason::NoChallenge))?;
+        let params = ctx.auth.ok_or_else(|| {
             ConnErr::Config("x402 requires a nonce written to the WAL".into())
         })?;
-        if let Some(c) = self.challenge.lock().unwrap().take() {
-            c.matches(i, &self.network)?;
-            // The authorization may not outlive what the issuer accepts, and
-            // never more than the protocol ceiling.
-            let now = SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .map_err(|e| ConnErr::Unknown(format!("clock: {e:?}")))?
-                .as_secs();
-            let window = params.valid_before.saturating_sub(now);
-            if window > c.max_timeout_seconds || window > MAX_VALIDITY_SECONDS {
-                return Err(ConnErr::Rejected(RejectReason::ChallengeMismatch));
+        // Network, asset, domain, recipient, amount and the timeout ceiling.
+        offer.matches(i, &self.network)?;
+        // One 402 answer pays once: the same offer cannot fund a second payment.
+        let digest = offer_digest(&offer);
+        {
+            let mut used = self.used_offers.lock().unwrap();
+            if used.contains(&digest) {
+                return Err(ConnErr::Rejected(RejectReason::OfferAlreadyUsed));
             }
+            if used.len() >= 256 {
+                used.remove(0);
+            }
+            used.push(digest);
+        }
+        // The authorization may not outlive what the issuer accepts, and never
+        // more than the protocol ceiling.
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map_err(|e| ConnErr::Unknown(format!("clock: {e:?}")))?
+            .as_secs();
+        let window = params.valid_before.saturating_sub(now);
+        if window > offer.max_timeout_seconds || window > MAX_VALIDITY_SECONDS {
+            return Err(ConnErr::Rejected(RejectReason::ChallengeMismatch));
         }
         let auth = self.authorize(
             &signer,
@@ -619,6 +655,10 @@ mod tests {
         crate::AuthParams { nonce: [n; 32], valid_after: now.saturating_sub(60), valid_before: now + 300 }
     }
 
+    fn ctx(n: u8, ch: X402Challenge) -> crate::ExecCtx {
+        crate::ExecCtx { auth: Some(params(n)), offer: Some(ch) }
+    }
+
     fn challenge(pay_to: &str, amount: &str) -> X402Challenge {
         challenge_t(pay_to, amount, 300)
     }
@@ -754,21 +794,24 @@ mod tests {
     }
 
     #[test]
-    fn the_window_follows_the_challenge() {
+    fn the_window_comes_only_from_the_offer() {
         let c = sepolia();
-        assert_eq!(c.auth_window_secs(), crate::AUTH_WINDOW_DEFAULT);
-        c.set_challenge(&challenge_t(ISSUER, "100000", 60));
-        assert_eq!(c.auth_window_secs(), 60, "a shorter issuer window wins");
+        assert_eq!(c.auth_window_secs(None), None, "no offer, no window");
+        let ch = challenge_t(ISSUER, "100000", 60);
+        assert_eq!(c.auth_window_secs(Some(&ch)), Some(60));
+        let mut over = challenge_t(ISSUER, "100000", MAX_VALIDITY_SECONDS + 1);
+        assert_eq!(c.auth_window_secs(Some(&over)), None, "over an hour is no window");
+        over.max_timeout_seconds = 0;
+        assert_eq!(c.auth_window_secs(Some(&over)), None);
     }
 
     #[test]
-    fn a_window_longer_than_the_challenge_is_refused() {
+    fn a_window_longer_than_the_offer_is_refused() {
         // The issuer allows 60 s, the WAL carries 300 s: refuse instead of
         // signing an authorization the seller will reject.
         let i = intent(ISSUER, 100_000, 84532);
         let c = sepolia();
-        c.set_challenge(&challenge_t(ISSUER, "100000", 60));
-        match c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), Some(params(0xac))) {
+        match c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), ctx(0xac, challenge_t(ISSUER, "100000", 60))) {
             Err(ConnErr::Rejected(RejectReason::ChallengeMismatch)) => {}
             other => panic!("expected ChallengeMismatch, got {other:?}"),
         }
@@ -776,11 +819,55 @@ mod tests {
     }
 
     #[test]
+    fn without_an_offer_nothing_is_signed() {
+        let c = sepolia();
+        let i = intent(ISSUER, 100_000, 84532);
+        let ctx = crate::ExecCtx { auth: Some(params(0xab)), offer: None };
+        match c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), ctx) {
+            Err(ConnErr::Rejected(RejectReason::NoChallenge)) => {}
+            other => panic!("expected NoChallenge, got {other:?}"),
+        }
+        assert!(c.take_header().is_none(), "nothing is signed without an offer");
+    }
+
+    #[test]
+    fn an_offer_of_the_previous_intent_does_not_leak_into_the_next() {
+        let c = sepolia();
+        let v = vault([0x11; 32]);
+        let first = intent(ISSUER, 100_000, 84532);
+        let offer = challenge(ISSUER, "100000");
+        // The first payment answers this offer.
+        c.execute_auth(&first, v.tx_signer().unwrap(), ctx(0xab, offer.clone())).unwrap();
+        // A different intent has to bring its own offer: the connector kept none.
+        let second = intent("0x1111111111111111111111111111111111111111", 100_000, 84532);
+        match c.execute_auth(&second, v.tx_signer().unwrap(), ctx(0xcd, offer)) {
+            Err(ConnErr::Rejected(RejectReason::ChallengeMismatch)) => {}
+            other => panic!("expected ChallengeMismatch, got {other:?}"),
+        }
+        assert!(c.take_header().is_none(), "a refused attempt leaves no header");
+    }
+
+    #[test]
+    fn one_offer_pays_once() {
+        let c = sepolia();
+        let v = vault([0x11; 32]);
+        let i = intent(ISSUER, 100_000, 84532);
+        let offer = challenge(ISSUER, "100000");
+        c.execute_auth(&i, v.tx_signer().unwrap(), ctx(0xab, offer.clone())).unwrap();
+        assert!(c.take_header().is_some());
+        // Same 402 answer, second payment: refused, a new offer is needed.
+        match c.execute_auth(&i, v.tx_signer().unwrap(), ctx(0xcd, offer)) {
+            Err(ConnErr::Rejected(RejectReason::OfferAlreadyUsed)) => {}
+            other => panic!("expected OfferAlreadyUsed, got {other:?}"),
+        }
+        assert!(c.take_header().is_none(), "the second attempt signs nothing");
+    }
+
+    #[test]
     fn execute_without_a_wal_nonce_is_refused() {
         let c = sepolia();
         let i = intent(ISSUER, 100_000, BASE_SEPOLIA.chain_id);
         let v = vault([0x11; 32]);
-        c.set_challenge(&challenge(ISSUER, "100000"));
         match c.execute(&i, v.tx_signer().unwrap()) {
             Err(ConnErr::Config(m)) => assert!(m.contains("execute_auth"), "{m}"),
             other => panic!("expected a refusal, got {other:?}"),
@@ -792,7 +879,8 @@ mod tests {
         let c = sepolia();
         let i = intent(ISSUER, 100_000, BASE_SEPOLIA.chain_id);
         let v = vault([0x11; 32]);
-        assert!(c.execute_auth(&i, v.tx_signer().unwrap(), None).is_err());
+        let ctx = crate::ExecCtx { auth: None, offer: Some(challenge(ISSUER, "100000")) };
+        assert!(c.execute_auth(&i, v.tx_signer().unwrap(), ctx).is_err());
     }
 
     #[test]
@@ -804,9 +892,11 @@ mod tests {
         let p = AuthParams { nonce: [0xab; 32], valid_after: now.saturating_sub(60), valid_before: now + 300 };
         let mut headers = Vec::new();
         for _ in 0..2 {
+            // A fresh process after a crash: the same WAL nonce signs the same
+            // digest, so the headers match and the seller cannot charge twice.
             let c = sepolia();
-            c.set_challenge(&challenge(ISSUER, "100000"));
-            c.execute_auth(&i, v.tx_signer().unwrap(), Some(p)).expect("pay");
+            let c2 = crate::ExecCtx { auth: Some(p), offer: Some(challenge(ISSUER, "100000")) };
+            c.execute_auth(&i, v.tx_signer().unwrap(), c2).expect("pay");
             headers.push(c.take_header().expect("header"));
         }
         assert_eq!(headers[0], headers[1], "same nonce, same signature, no second payment");
@@ -839,7 +929,9 @@ mod tests {
     fn a_key_that_is_not_the_wallet_signs_nothing() {
         let c = sepolia();
         let i = intent(ISSUER, 100_000, 84532);
-        let e = c.execute_auth(&i, vault([0x22; 32]).tx_signer().unwrap(), Some(params(0xab))).unwrap_err();
+        let e = c
+            .execute_auth(&i, vault([0x22; 32]).tx_signer().unwrap(), ctx(0xab, challenge(ISSUER, "100000")))
+            .unwrap_err();
         assert_eq!(e, ConnErr::Rejected(RejectReason::WalletMismatch));
         assert!(c.take_header().is_none());
     }
@@ -848,8 +940,9 @@ mod tests {
     fn execute_answers_a_matching_challenge_once() {
         let c = sepolia();
         let i = intent(ISSUER, 100_000, 84532);
-        c.set_challenge(&challenge(ISSUER, "100000"));
-        let r = c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), Some(params(0xab))).unwrap();
+        let r = c
+            .execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), ctx(0xab, challenge(ISSUER, "100000")))
+            .unwrap();
         assert!(matches!(r, TxRef::Authorization { .. }));
         assert!(c.take_header().is_some());
         assert!(c.take_header().is_none(), "the header is handed out once");
@@ -862,8 +955,7 @@ mod tests {
         let other = "0x1111111111111111111111111111111111111111";
         let i = intent(ISSUER, 100_000, 84532);
         let c = sepolia();
-        c.set_challenge(&challenge(other, "100000"));
-        match c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), Some(params(0xab))) {
+        match c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), ctx(0xab, challenge(other, "100000"))) {
             Err(ConnErr::Rejected(RejectReason::ChallengeMismatch)) => {}
             other => panic!("expected ChallengeMismatch, got {other:?}"),
         }
@@ -889,13 +981,24 @@ mod tests {
             },
             {
                 let mut c = challenge(ISSUER, "100000");
+                c.network = "base".into(); // another network
+                c
+            },
+            {
+                let mut c = challenge(ISSUER, "100000");
+                c.domain_version = "1".into(); // another domain version
+                c
+            },
+            {
+                let mut c = challenge(ISSUER, "100000");
                 c.max_timeout_seconds = MAX_VALIDITY_SECONDS + 1;
                 c
             },
         ] {
             let c = sepolia();
-            c.set_challenge(&ch);
-            let e = c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), Some(params(0xab))).unwrap_err();
+            let e = c
+                .execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), ctx(0xab, ch.clone()))
+                .unwrap_err();
             assert_eq!(e, ConnErr::Rejected(RejectReason::ChallengeMismatch), "{ch:?}");
             assert!(c.take_header().is_none());
         }
@@ -920,7 +1023,8 @@ mod tests {
         let c = sepolia();
         let i = intent(ISSUER, 1, 84532);
         let p = params(0xcd);
-        match c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), Some(p)).unwrap() {
+        let c1 = crate::ExecCtx { auth: Some(p), offer: Some(challenge(ISSUER, "1")) };
+        match c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), c1).unwrap() {
             TxRef::Authorization { nonce, valid_before } => {
                 assert_eq!(nonce, p.nonce);
                 assert_eq!(valid_before, p.valid_before);
@@ -934,7 +1038,7 @@ mod tests {
         let c = sepolia();
         let i = intent(ISSUER, 1, 8453);
         assert_eq!(
-            c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), Some(params(0xab))).unwrap_err(),
+            c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), crate::ExecCtx::default()).unwrap_err(),
             ConnErr::Rejected(RejectReason::ChainMismatch)
         );
         assert_eq!(c.quote(&i).unwrap_err(), ConnErr::Rejected(RejectReason::ChainMismatch));

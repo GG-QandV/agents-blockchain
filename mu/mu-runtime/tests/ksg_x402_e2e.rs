@@ -100,13 +100,22 @@ fn pay_t(
     amount: u128,
     timeout: u64,
 ) -> (IntentStatus, Option<String>, Vec<Kind>) {
+    pay_with(owner, delta, amount, Some(timeout))
+}
+
+/// `offer = None` is the daemon path: an intent arrives with no 402 answer.
+fn pay_with(
+    owner: PresenterChoice,
+    delta: Delta,
+    amount: u128,
+    timeout: Option<u64>,
+) -> (IntentStatus, Option<String>, Vec<Kind>) {
     let vault = SoftVault::for_test([1; 32], [2; 32], [0x11; 32]);
     let payer: [u8; 20] = hex::decode(&PAYER[2..]).unwrap().try_into().unwrap();
     let conn = X402Connector::on(BASE_SEPOLIA, payer);
-    conn.set_challenge(
-        &X402Challenge::from_402_body(&answer_402_t(&amount.to_string(), timeout), &BASE_SEPOLIA)
-            .unwrap(),
-    );
+    let offer = timeout.map(|t| {
+        X402Challenge::from_402_body(&answer_402_t(&amount.to_string(), t), &BASE_SEPOLIA).unwrap()
+    });
     let dir = tempfile::tempdir().unwrap();
     let presenter = Owner(owner);
     let clock = Now(1_760_000_100);
@@ -121,14 +130,14 @@ fn pay_t(
         owner_pubkey: owner_pk(),
         human_ttl: Duration::from_secs(5),
     };
-    let st = rt.process(&RtIntent {
+    let st = rt.process_offer(&RtIntent {
         recipient: issuer(),
         amount: Amount::from_minor(amount),
         chain_id: 84532,
         agent_id: "ksg-holder-agent".into(),
         connector: ConnectorId::Crypto,
         resource: Some(RESOURCE.into()),
-    });
+    }, offer);
     let kinds = rt.log.entries().iter().map(|e| e.kind.clone()).collect();
     (st, conn.take_header(), kinds)
 }
@@ -168,6 +177,16 @@ fn an_issuer_not_in_the_policy_is_not_paid() {
     let (st, header, _) = pay(PresenterChoice::Approve, delta(5_000_000, vec![]), 100_000);
     assert_eq!(st, IntentStatus::DeniedDelta);
     assert!(header.is_none());
+}
+
+#[test]
+fn without_a_402_offer_nothing_is_paid() {
+    // The daemon receives intents without the seller's 402 answer. x402 must
+    // refuse instead of signing an authorization nobody asked for.
+    let (st, header, log) = pay_with(PresenterChoice::Approve, delta(5_000_000, vec![issuer()]), 100_000, None);
+    assert_eq!(st, IntentStatus::Failed);
+    assert!(header.is_none(), "no X-PAYMENT without an offer");
+    assert!(!log.iter().any(|k| matches!(k, Kind::PendingAuth { .. })), "no WAL record for a payment that cannot happen");
 }
 
 #[test]
