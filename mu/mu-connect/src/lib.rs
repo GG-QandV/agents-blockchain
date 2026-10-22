@@ -82,6 +82,9 @@ pub struct Fee {
 
 /// Контракт коннектора. execute принимает TxSigner ПО MOVE (RISK-M4-1):
 /// после execute хэндл ключа уничтожен, повторно подписать нельзя.
+/// Default authorization window, when the connector names no shorter one.
+pub const AUTH_WINDOW_DEFAULT: u64 = 300;
+
 /// Authorization parameters fixed before the WAL: the nonce is single-use on
 /// chain, so a retry after a crash reuses it and cannot pay twice.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -108,6 +111,13 @@ pub trait Connector {
     /// WAL is written (x402). The pipeline then writes `PendingAuth` first.
     fn pre_auth(&self) -> bool {
         false
+    }
+
+    /// The longest authorization window the connector may ask for. The
+    /// pipeline never writes a `valid_before` beyond it, so a 402 answer that
+    /// allows a shorter window is respected instead of being overrun.
+    fn auth_window_secs(&self) -> u64 {
+        AUTH_WINDOW_DEFAULT
     }
 
     /// Execute with parameters that were already written to the WAL. The

@@ -11,8 +11,9 @@
 - `Connector::pre_auth()` and `Connector::execute_auth(intent, signer, Option<AuthParams>)`.
   x402 returns `true` and refuses to sign without parameters written to the WAL; it no longer
   invents a nonce inside `execute`.
-- The authorization window is fixed before the WAL: 300 s, checked against the challenge
-  (never more than an hour).
+- The authorization window is fixed before the WAL: `min(300 s, maxTimeoutSeconds)` from the
+  challenge, never more than an hour. The connector refuses to sign a window longer than the
+  challenge allows, so a stricter issuer is respected instead of overrun.
 - x402 `status` reads `authorizationState(authorizer, nonce)` from **two** RPC nodes
   (`MU_X402_RPC_1`, `MU_X402_RPC_2`). Nodes disagreeing, one node missing or an
   unavailable node → `Unknown`: the reserve is kept, nothing is released on a guess.

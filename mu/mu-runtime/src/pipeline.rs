@@ -216,7 +216,11 @@ impl<'a> Runtime<'a> {
             Some(AuthParams {
                 nonce,
                 valid_after: wall.saturating_sub(60),
-                valid_before: wall.saturating_add(AUTH_WINDOW_SECS),
+                // Bounded by the connector: a challenge that allows less than
+                // the default window must be respected, not overrun.
+                valid_before: wall.saturating_add(
+                    AUTH_WINDOW_SECS.min(self.connector.auth_window_secs()).max(1),
+                ),
             })
         } else {
             None

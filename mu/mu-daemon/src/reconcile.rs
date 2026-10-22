@@ -71,7 +71,7 @@ mod tests {
     use mu_vault::backend::SoftVault;
 
     #[derive(Clone, Copy)]
-    enum Out { Pending, Settled, Unknown }
+    enum Out { Pending, Settled, Unknown, Diverge }
 
     struct Fake {
         out: Out,
@@ -89,7 +89,10 @@ mod tests {
             match self.out {
                 Out::Pending => Ok(TxStatus::Pending),
                 Out::Settled => Ok(TxStatus::Settled { block: 1, effective_gas: 0 }),
-                Out::Unknown => Err(ConnErr::Unknown("two nodes disagree".into())),
+                Out::Unknown => Err(ConnErr::Unknown("both RPC nodes are unavailable".into())),
+                Out::Diverge => Err(ConnErr::Unknown(
+                    "two RPC nodes disagree on authorizationState".into(),
+                )),
             }
         }
         fn pre_auth(&self) -> bool {
@@ -145,6 +148,35 @@ mod tests {
         let c = Fake { out: Out::Settled, pre: true };
         reconcile(&mut log, &c, &v, 1_000);
         assert!(closed(&log, &Kind::Settled { intent_hash: Hash32([7; 32]), tx_hash: [9; 32], effective_gas: 0 }));
+    }
+
+    #[test]
+    fn an_authorization_inside_its_window_keeps_the_reserve() {
+        // Unused nonce, the window is still open: nothing is closed and no
+        // alert is written — the payment may still settle.
+        let dir = tempfile::tempdir().unwrap();
+        let v = vault();
+        let mut log = open_log(dir.path(), &v);
+        append_auth(&mut log, &v, [9; 32], 10_000, 900);
+        let before = log.entries().len();
+        let c = Fake { out: Out::Pending, pre: true };
+        reconcile(&mut log, &c, &v, 1_000);
+        assert_eq!(log.pending().len(), 1, "the reserve is kept");
+        assert_eq!(log.entries().len(), before, "no record is written");
+        assert!(!closed(&log, &Kind::Alert { code: 0x0A02 }));
+    }
+
+    #[test]
+    fn diverging_nodes_keep_the_reserve_and_alert() {
+        let dir = tempfile::tempdir().unwrap();
+        let v = vault();
+        let mut log = open_log(dir.path(), &v);
+        append_auth(&mut log, &v, [9; 32], 10_000, 900);
+        let c = Fake { out: Out::Diverge, pre: true };
+        reconcile(&mut log, &c, &v, 1_000);
+        assert_eq!(log.pending().len(), 1, "no guess about the money");
+        assert!(closed(&log, &Kind::Alert { code: 0x0A02 }));
+        assert!(!closed(&log, &Kind::Failed { intent_hash: Hash32([7; 32]) }));
     }
 
     #[test]

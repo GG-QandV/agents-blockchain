@@ -396,6 +396,15 @@ impl Connector for X402Connector {
         true
     }
 
+    /// The pipeline must not sign a window longer than the 402 answer allows:
+    /// `min(default, maxTimeoutSeconds)`, at least one second.
+    fn auth_window_secs(&self) -> u64 {
+        match self.challenge.lock().unwrap().as_ref() {
+            Some(c) => crate::AUTH_WINDOW_DEFAULT.min(c.max_timeout_seconds).max(1),
+            None => crate::AUTH_WINDOW_DEFAULT,
+        }
+    }
+
     /// x402 never invents a nonce: the pipeline must pass one that is already
     /// in the WAL, so a crash cannot produce a second authorization.
     fn execute(&self, _i: &Intent, _signer: TxSigner) -> Result<TxRef, ConnErr> {
@@ -418,6 +427,16 @@ impl Connector for X402Connector {
         })?;
         if let Some(c) = self.challenge.lock().unwrap().take() {
             c.matches(i, &self.network)?;
+            // The authorization may not outlive what the issuer accepts, and
+            // never more than the protocol ceiling.
+            let now = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_err(|e| ConnErr::Unknown(format!("clock: {e:?}")))?
+                .as_secs();
+            let window = params.valid_before.saturating_sub(now);
+            if window > c.max_timeout_seconds || window > MAX_VALIDITY_SECONDS {
+                return Err(ConnErr::Rejected(RejectReason::ChallengeMismatch));
+            }
         }
         let auth = self.authorize(
             &signer,
@@ -601,13 +620,17 @@ mod tests {
     }
 
     fn challenge(pay_to: &str, amount: &str) -> X402Challenge {
+        challenge_t(pay_to, amount, 300)
+    }
+
+    fn challenge_t(pay_to: &str, amount: &str, timeout: u64) -> X402Challenge {
         X402Challenge::from_402_body(
             &serde_json::json!({
                 "x402Version": 1,
                 "accepts": [{
                     "scheme": "exact", "network": "base-sepolia",
                     "maxAmountRequired": amount, "resource": "https://issuer.example/bare/issue",
-                    "payTo": pay_to, "maxTimeoutSeconds": 300,
+                    "payTo": pay_to, "maxTimeoutSeconds": timeout,
                     "asset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
                     "extra": {"name": "USDC", "version": "2"}
                 }]
@@ -728,6 +751,28 @@ mod tests {
         std::env::set_var("MU_X402_RPC_1", "http://127.0.0.1:9");
         assert!(matches!(status_of([5; 32], u64::MAX), Err(ConnErr::Unknown(_))));
         std::env::remove_var("MU_X402_RPC_1");
+    }
+
+    #[test]
+    fn the_window_follows_the_challenge() {
+        let c = sepolia();
+        assert_eq!(c.auth_window_secs(), crate::AUTH_WINDOW_DEFAULT);
+        c.set_challenge(&challenge_t(ISSUER, "100000", 60));
+        assert_eq!(c.auth_window_secs(), 60, "a shorter issuer window wins");
+    }
+
+    #[test]
+    fn a_window_longer_than_the_challenge_is_refused() {
+        // The issuer allows 60 s, the WAL carries 300 s: refuse instead of
+        // signing an authorization the seller will reject.
+        let i = intent(ISSUER, 100_000, 84532);
+        let c = sepolia();
+        c.set_challenge(&challenge_t(ISSUER, "100000", 60));
+        match c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), Some(params(0xac))) {
+            Err(ConnErr::Rejected(RejectReason::ChallengeMismatch)) => {}
+            other => panic!("expected ChallengeMismatch, got {other:?}"),
+        }
+        assert!(c.take_header().is_none(), "nothing is signed");
     }
 
     #[test]

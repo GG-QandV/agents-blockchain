@@ -50,6 +50,10 @@ fn issuer() -> CanonAddress {
 
 /// The issuer's 402 answer, as `ksg-pay-v2::payment_required` writes it.
 fn answer_402(amount: &str) -> String {
+    answer_402_t(amount, 300)
+}
+
+fn answer_402_t(amount: &str, timeout: u64) -> String {
     serde_json::json!({
         "x402Version": 1,
         "error": "X-PAYMENT header is required",
@@ -61,7 +65,7 @@ fn answer_402(amount: &str) -> String {
             "description": "a repeated bare",
             "mimeType": "application/json",
             "payTo": ISSUER.to_lowercase(),
-            "maxTimeoutSeconds": 300,
+            "maxTimeoutSeconds": timeout,
             "asset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
             "extra": {"name": "USDC", "version": "2"}
         }]
@@ -87,10 +91,22 @@ fn pay(
     delta: Delta,
     amount: u128,
 ) -> (IntentStatus, Option<String>, Vec<Kind>) {
+    pay_t(owner, delta, amount, 300)
+}
+
+fn pay_t(
+    owner: PresenterChoice,
+    delta: Delta,
+    amount: u128,
+    timeout: u64,
+) -> (IntentStatus, Option<String>, Vec<Kind>) {
     let vault = SoftVault::for_test([1; 32], [2; 32], [0x11; 32]);
     let payer: [u8; 20] = hex::decode(&PAYER[2..]).unwrap().try_into().unwrap();
     let conn = X402Connector::on(BASE_SEPOLIA, payer);
-    conn.set_challenge(&X402Challenge::from_402_body(&answer_402(&amount.to_string()), &BASE_SEPOLIA).unwrap());
+    conn.set_challenge(
+        &X402Challenge::from_402_body(&answer_402_t(&amount.to_string(), timeout), &BASE_SEPOLIA)
+            .unwrap(),
+    );
     let dir = tempfile::tempdir().unwrap();
     let presenter = Owner(owner);
     let clock = Now(1_760_000_100);
@@ -152,6 +168,27 @@ fn an_issuer_not_in_the_policy_is_not_paid() {
     let (st, header, _) = pay(PresenterChoice::Approve, delta(5_000_000, vec![]), 100_000);
     assert_eq!(st, IntentStatus::DeniedDelta);
     assert!(header.is_none());
+}
+
+#[test]
+fn the_written_window_follows_the_issuers_limit() {
+    // The issuer allows 60 s. The WAL must not promise a longer authorization,
+    // otherwise the seller rejects what we signed.
+    let (st, _header, log) = pay_t(PresenterChoice::Approve, delta(5_000_000, vec![issuer()]), 100_000, 60);
+    assert_eq!(st, IntentStatus::ReconcilePending);
+    let valid_before = log
+        .iter()
+        .find_map(|k| match k {
+            Kind::PendingAuth { valid_before, .. } => Some(*valid_before),
+            _ => None,
+        })
+        .expect("PendingAuth is written before the money moves");
+    let wall = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    assert!(valid_before <= wall + 60, "window {} outlives the challenge {}", valid_before, wall + 60);
+    assert!(valid_before + 10 >= wall + 60, "window {} is far shorter than 60 s", valid_before);
 }
 
 #[test]
