@@ -380,8 +380,10 @@ fn main() {
             let wallet = hex20(&wallet_hex);
             let net = match std::env::var("MU_X402_NETWORK").as_deref() {
                 Ok("base-sepolia") => mu_connect::x402::BASE_SEPOLIA,
-                Ok("base") | Err(_) => mu_connect::x402::BASE,
+                Ok("base") => mu_connect::x402::BASE,
                 Ok(other) => panic!("MU_X402_NETWORK={other}: base | base-sepolia"),
+                // config.rs already refused a missing value; no silent default here.
+                Err(_) => panic!("MU_X402_NETWORK is required for the x402 connector"),
             };
             eprintln!("Connector: X402 on {} (wallet: {wallet_hex}; the signing key must be this wallet)", net.name);
             Box::leak(Box::new(X402Connector::on(net, wallet)))

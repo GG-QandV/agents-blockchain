@@ -131,11 +131,22 @@ fn read_text(path: &Path) -> Result<String, ConfigErr> {
     })
 }
 
+/// The chain a named x402 network pays on.
+pub fn network_chain_id(name: &str) -> Option<u64> {
+    match name {
+        "base" => Some(mu_connect::x402::BASE.chain_id),
+        "base-sepolia" => Some(mu_connect::x402::BASE_SEPOLIA.chain_id),
+        _ => None,
+    }
+}
+
 impl Config {
     pub fn load() -> Result<Self, ConfigErr> {
-        let home = std::env::var("MU_HOME")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("/tmp/mu"));
+        // No implicit defaults: a daemon that guesses where its keys are is a
+        // daemon that can pay with the wrong ones.
+        let home = std::env::var("MU_HOME").map(PathBuf::from).map_err(|_| {
+            ConfigErr::Bad("MU_HOME is required (directory with keys/, agents.toml, policy.toml)".into())
+        })?;
         let keys = home.join("keys");
         let mu_pubkey = hex_decode(
             &read_text(&keys.join("mu.pub"))?,
@@ -152,9 +163,24 @@ impl Config {
         .map_err(|e| ConfigErr::Bad(format!("vault: {e:?}")))?;
 
         let chain_id: u64 = std::env::var("MU_CHAIN_ID")
-            .ok()
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(8453);
+            .map_err(|_| ConfigErr::Bad("MU_CHAIN_ID is required".into()))?
+            .parse()
+            .map_err(|_| ConfigErr::Bad("MU_CHAIN_ID must be a number".into()))?;
+        let connector = connector_id()?;
+        // The network the connector pays on and the chain in the intents must
+        // be the same chain, or the money would go to another network.
+        if connector == ConnectorId::Crypto {
+            let net = std::env::var("MU_X402_NETWORK").map_err(|_| {
+                ConfigErr::Bad("MU_X402_NETWORK is required for MU_CONNECTOR=x402 (base | base-sepolia)".into())
+            })?;
+            let expected = network_chain_id(&net)
+                .ok_or_else(|| ConfigErr::Bad(format!("MU_X402_NETWORK={net}: base | base-sepolia")))?;
+            if expected != chain_id {
+                return Err(ConfigErr::Bad(format!(
+                    "MU_X402_NETWORK={net} is chain {expected}, MU_CHAIN_ID is {chain_id}"
+                )));
+            }
+        }
 
         let agents = read_text(&home.join("agents.toml"))?;
         let parsed: AgentsFile = toml::from_str(&agents)
@@ -185,7 +211,6 @@ impl Config {
             resource_allowlist: policy.resource_allowlist.clone(),
         };
 
-        let connector = connector_id()?;
         let max_ceiling: u128 = std::env::var("MU_MAX_CEILING_MINOR")
             .ok()
             .and_then(|v| v.parse().ok())

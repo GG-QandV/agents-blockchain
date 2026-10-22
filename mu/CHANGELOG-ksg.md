@@ -54,6 +54,14 @@
   payment left μ.log_head behind the chain, and the next start failed with `log_head
   mismatch` — the daemon could not be restarted after its first payment.
 
+### Safe defaults (batch C)
+- The daemon refuses to start without `MU_HOME` and `MU_CHAIN_ID`; there are no silent
+  fallbacks to `/tmp/mu` or chain 8453.
+- With `MU_CONNECTOR=x402`, `MU_X402_NETWORK` is required (`base` | `base-sepolia`) and its
+  chain must equal `MU_CHAIN_ID`, so a mainnet network can never run with testnet intents.
+- Key files are already refused above mode 600 by `SoftVault::from_files`; the daemon-level
+  test now pins that refusal.
+
 ### Alerts
 - `Kind::AlertAbout` (tag 14) ties an alert to an intent. `reconcile` writes it once per
   `(code, intent)` transition; a restart with the same unresolved reserve reports on stderr

@@ -14,7 +14,9 @@ const BIN: &str = env!("CARGO_BIN_EXE_mu-daemon");
 fn run(home: &Path) -> (i32, String) {
     let out = Command::new(BIN)
         .env("MU_HOME", home)
+        .env("MU_CHAIN_ID", "8453")
         .env_remove("MU_CONNECTOR")
+        .env_remove("MU_X402_NETWORK")
         .current_dir(home)
         .output()
         .expect("spawn daemon");
@@ -85,6 +87,74 @@ fn a_complete_config_gets_past_the_file_stage() {
     let (code, text) = run(dir.path());
     // No mu.bin yet: the daemon must fail on the μ object (2), not on config (6).
     assert_eq!(code, 2, "expected μ error after config, got {code}: {text}");
+}
+
+fn run_with(home: &Path, extra: &[(&str, &str)]) -> (i32, String) {
+    let mut cmd = Command::new(BIN);
+    cmd.env("MU_HOME", home).current_dir(home);
+    for (k, v) in extra {
+        cmd.env(k, v);
+    }
+    let out = cmd.output().expect("spawn daemon");
+    let code = out.status.code().unwrap_or(-1);
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    (code, text)
+}
+
+#[test]
+fn a_missing_chain_id_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    full_config(dir.path(), 0o600);
+    let out = Command::new(BIN)
+        .env("MU_HOME", dir.path())
+        .env_remove("MU_CHAIN_ID")
+        .current_dir(dir.path())
+        .output()
+        .expect("spawn");
+    let text = format!(
+        "{}{}",
+        String::from_utf8_lossy(&out.stdout),
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert_eq!(out.status.code(), Some(6), "{text}");
+    assert!(text.contains("MU_CHAIN_ID is required"), "{text}");
+}
+
+#[test]
+fn a_network_on_another_chain_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    full_config(dir.path(), 0o600);
+    let (code, text) = run_with(
+        dir.path(),
+        &[
+            ("MU_CHAIN_ID", "8453"),
+            ("MU_CONNECTOR", "x402"),
+            ("MU_X402_NETWORK", "base-sepolia"),
+            ("MU_WALLET_ADDR", "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"),
+        ],
+    );
+    assert_eq!(code, 6, "got {code}: {text}");
+    assert!(text.contains("is chain 84532"), "{text}");
+}
+
+#[test]
+fn x402_without_a_network_is_refused() {
+    let dir = tempfile::tempdir().unwrap();
+    full_config(dir.path(), 0o600);
+    let (code, text) = run_with(
+        dir.path(),
+        &[
+            ("MU_CHAIN_ID", "84532"),
+            ("MU_CONNECTOR", "x402"),
+            ("MU_WALLET_ADDR", "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed"),
+        ],
+    );
+    assert_eq!(code, 6, "got {code}: {text}");
+    assert!(text.contains("MU_X402_NETWORK is required"), "{text}");
 }
 
 #[test]
