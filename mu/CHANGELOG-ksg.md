@@ -82,6 +82,18 @@
   record or another agent's). `IntentStatus::Authorized` carries the header, the nonce and
   `valid_before` out of the pipeline.
 
+### Batch E (part 1): the offer actually reaches the pipeline
+- `VerifiedIntent` carries `offer` from a v3 frame; `handle_client` parses it with
+  `network_for_chain(chain_id)` and calls `process_offer(&intent, offer)`. Before this the
+  daemon always called `process(..)`, so x402 answered `DeniedNoOffer` and `Authorized` was
+  unreachable over the socket — only `ksg-smoke` paid.
+- A header now leaves the daemon only after its `AuthHeader` record is on disk: a failed
+  append answers `0x30` without the header instead of silently handing it out.
+- Token buckets are refilled every 60 s in the main loop; previously the agent was locked out
+  after `BUCKET_CAP` requests until a restart.
+- The policy socket path no longer falls back to `/tmp/mu`: it always comes from the config's
+  `MU_HOME`.
+
 ### Encrypted file vault (batch D, part 1)
 - `FileVault` (`--features filevault`): keys encrypted at rest with Argon2id (64 MiB, t=3)
   and XChaCha20-Poly1305, file `MUVFILE1 ‖ salt ‖ nonce ‖ ciphertext`, mode 0600, atomic

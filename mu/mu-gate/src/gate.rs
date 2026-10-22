@@ -39,8 +39,11 @@ pub struct VerifiedIntent {
     pub chain_id: u64,
     pub agent_id: String,
     pub nonce: u64,
-    /// Resource URL from a v2 frame; `None` for v1 (the resource check is skipped).
+    /// Resource URL from a v2/v3 frame; `None` for v1.
     pub resource: Option<String>,
+    /// The 402 offer from a v3 frame (raw JSON, inside the signature). The
+    /// daemon parses it; without it x402 refuses to sign.
+    pub offer: Option<String>,
 }
 
 /// Token bucket per agent.
@@ -114,6 +117,7 @@ impl Gate {
             agent_id: w.agent_id,
             nonce: w.nonce,
             resource: w.resource,
+            offer: w.offer,
         })
     }
 

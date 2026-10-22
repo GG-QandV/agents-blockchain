@@ -257,7 +257,26 @@ fn handle_client(
             };
 
             let intent_hash = intent.hash();
-            let status = runtime.process(&intent);
+            // The 402 offer travels inside the signed v3 payload. Without it
+            // x402 refuses; the pipeline records DeniedNoOffer.
+            let offer = match vi.offer.as_deref() {
+                None => None,
+                Some(json) => match mu_connect::x402::network_for_chain(vi.chain_id) {
+                    Some(net) => match mu_connect::x402::X402Challenge::from_402_body(json, &net) {
+                        Ok(c) => Some(c),
+                        Err(e) => {
+                            eprintln!("offer rejected: {e:?}");
+                            let _ = stream.write_all(&[0x11]);
+                            return;
+                        }
+                    },
+                    None => {
+                        let _ = stream.write_all(&[0x11]);
+                        return;
+                    }
+                },
+            };
+            let status = runtime.process_offer(&intent, offer);
             let (code, header) = match status {
                 IntentStatus::DeniedOmega => (0x10u8, None),
                 IntentStatus::DeniedDelta => (0x11, None),
@@ -268,7 +287,9 @@ fn handle_client(
                 IntentStatus::Settled { .. } => (0x20, None),
                 // The header goes out only after its journal record (tag 16).
                 IntentStatus::Authorized { header, nonce, valid_before } => {
-                    let _ = runtime.log.append(
+                    // The rule is "header after its record is on disk": a failed
+                    // append must not hand anything out.
+                    match runtime.log.append(
                         Kind::AuthHeader {
                             agent_id: intent.agent_id.clone(),
                             req_nonce: vi.nonce,
@@ -279,8 +300,13 @@ fn handle_client(
                         },
                         now,
                         runtime.vault,
-                    );
-                    (0x21, Some(header))
+                    ) {
+                        Ok(_) => (0x21, Some(header)),
+                        Err(e) => {
+                            eprintln!("audit write failed, no header: {e:?}");
+                            (0x30, None)
+                        }
+                    }
                 }
                 IntentStatus::Failed => (0x30, None),
                 IntentStatus::ReconcilePending => (0x40, None),
@@ -331,7 +357,15 @@ fn serve(
     fs::set_permissions(sock_path, fs::Permissions::from_mode(mode))?;
     listener.set_nonblocking(true)?;
     eprintln!("μ-daemon listening on {}", sock_path.display());
+    let refill_every = std::time::Duration::from_secs(60);
+    let mut last_refill = std::time::Instant::now();
     loop {
+        // Without this the bucket never comes back and the agent is locked out
+        // after BUCKET_CAP requests until a restart.
+        if last_refill.elapsed() >= refill_every {
+            gate.refill();
+            last_refill = std::time::Instant::now();
+        }
         // Commit a policy the owner confirmed on the socket: journal (fsync),
         // then the policy.toml cache, then μ. Any failure is answered to the
         // waiting composer and leaves the previous policy in force.
@@ -417,7 +451,7 @@ fn main() {
 
     let Config {
         mu_path, log_path, sock_path, mu_pubkey, vault, allow, omega, delta: _file_delta,
-        policy: _policy_delta, policy_path, chain_id, connector: connector_id, ..
+        policy: _policy_delta, policy_path, chain_id, connector: connector_id, home, ..
     } = cfg;
 
     let vault: &'static dyn mu_vault::Vault = Box::leak(vault);
@@ -504,9 +538,7 @@ fn main() {
         human_ttl: std::time::Duration::from_secs(120),
     };
 
-    let policy_sock = policy::sock_path(std::path::Path::new(
-        std::env::var("MU_HOME").as_deref().unwrap_or("/tmp/mu"),
-    ));
+    let policy_sock = policy::sock_path(&home);
     let (policy_tx, policy_rx) = std::sync::mpsc::channel();
     let policy_state = composer_core::endpoint::DaemonPolicy {
         current: policy_now.delta.clone(),
