@@ -82,6 +82,20 @@
   record or another agent's). `IntentStatus::Authorized` carries the header, the nonce and
   `valid_before` out of the pipeline.
 
+### Encrypted file vault (batch D, part 1)
+- `FileVault` (`--features filevault`): keys encrypted at rest with Argon2id (64 MiB, t=3)
+  and XChaCha20-Poly1305, file `MUVFILE1 ‖ salt ‖ nonce ‖ ciphertext`, mode 0600, atomic
+  replace, keys decrypted into `Zeroizing`. `hw_backed` stays false: this removes plaintext
+  keys from disk, not the key from process memory.
+- `MU_VAULT=file` reads `<MU_HOME>/keys/vault.enc` with the passphrase from
+  `MU_VAULT_PASSPHRASE_FILE` (mode 0600). Empty `MU_VAULT` still uses the dev-only softvault.
+- The daemon and its config hold `&dyn Vault`, not `SoftVault`.
+- Release builds prove the split: `cargo build --release -p mu-daemon --features filevault`
+  succeeds, and the same build with `--features softvault` stops on the existing
+  `compile_error!`.
+- The canonical test command now names the daemon features too:
+  `cargo test --workspace --features mu-vault/softvault,mu-vault/filevault,mu-daemon/softvault,mu-daemon/filevault`.
+
 ### Safe defaults (batch C)
 - The daemon refuses to start without `MU_HOME` and `MU_CHAIN_ID`; there are no silent
   fallbacks to `/tmp/mu` or chain 8453.

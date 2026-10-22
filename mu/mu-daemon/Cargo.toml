@@ -22,6 +22,8 @@ toml = "=0.5.11"
 [features]
 # softvault — ТОЛЬКО для тестов/CI. В release защёлка даёт compile_error.
 softvault = ["mu-vault/softvault"]
+# Keys encrypted at rest: Argon2id + XChaCha20-Poly1305. The production choice.
+filevault = ["mu-vault/filevault"]
 
 #[cfg(all(not(debug_assertions), feature = "softvault"))]
 #compile_error!("softvault запрещён в release");

@@ -15,6 +15,20 @@ use zeroize::Zeroizing;
 // RISK-M4-4: release profile MUST NOT enable feature "softvault".
 // This is checked in the daemon's lib.rs via compile_error! (see comment below).
 // ─────────────────────────────────────────────────────────────────────────
+/// P-256 sign over the tagged digest. Shared by every software backend.
+pub(crate) fn p256_sign(key: &[u8; 32], tag: DomainTag, digest: &Hash32) -> Result<P256Sig, VaultErr> {
+    let tagged = tagged_digest(tag, digest);
+    let sk = P256Signing::from_bytes(key.into())
+        .map_err(|e| VaultErr::Backend(format!("p256 key: {e}")))?;
+    let sig: p256::ecdsa::Signature = sk
+        .sign_prehash(&tagged.0)
+        .map_err(|e| VaultErr::Backend(format!("p256 sign: {e}")))?;
+    let b = sig.to_bytes();
+    let mut out = [0u8; 64];
+    out.copy_from_slice(&b);
+    Ok(P256Sig(out))
+}
+
 #[cfg(feature = "softvault")]
 pub struct SoftVault {
     mu_key: Zeroizing<[u8; 32]>,

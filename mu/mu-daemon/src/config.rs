@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 use mu_common::{Amount, ConnectorId};
 use mu_gate::AllowList;
 use mu_runtime::policy::{Delta, Omega};
-use mu_vault::backend::SoftVault;
+use mu_vault::Vault;
 use serde::Deserialize;
 
 #[derive(Debug)]
@@ -43,7 +43,8 @@ pub struct Config {
     pub log_path: PathBuf,
     pub sock_path: PathBuf,
     pub mu_pubkey: Vec<u8>,
-    pub vault: SoftVault,
+    /// The secret backend: `SoftVault` in tests, `FileVault` in production.
+    pub vault: Box<dyn Vault>,
     pub allow: AllowList,
     pub omega: Omega,
     pub delta: Delta,
@@ -131,6 +132,75 @@ fn read_text(path: &Path) -> Result<String, ConfigErr> {
     })
 }
 
+/// The secret backend. `MU_VAULT=file` reads one encrypted file and a passphrase
+/// file; anything else falls back to the dev-only softvault, which a release
+/// build refuses at compile time.
+fn open_vault(home: &std::path::Path, keys: &std::path::Path) -> Result<Box<dyn Vault>, ConfigErr> {
+    match std::env::var("MU_VAULT").as_deref() {
+        Ok("file") => open_file_vault(home),
+        Ok(other) => Err(ConfigErr::Bad(format!(
+            "MU_VAULT={other}: expected file or empty (softvault, dev only)"
+        ))),
+        Err(_) => open_soft_vault(keys),
+    }
+}
+
+#[cfg(feature = "filevault")]
+fn open_file_vault(home: &std::path::Path) -> Result<Box<dyn Vault>, ConfigErr> {
+    use mu_vault::filevault::FileVault;
+    let pass_file = std::env::var("MU_VAULT_PASSPHRASE_FILE").map_err(|_| {
+        ConfigErr::Bad("MU_VAULT=file requires MU_VAULT_PASSPHRASE_FILE (mode 600)".into())
+    })?;
+    let pass = read_secret(std::path::Path::new(&pass_file))?;
+    let v = FileVault::open(&home.join("keys").join("vault.enc"), pass.as_bytes())
+        .map_err(|e| ConfigErr::Bad(format!("vault: {e:?}")))?;
+    Ok(Box::new(v))
+}
+
+#[cfg(not(feature = "filevault"))]
+fn open_file_vault(_home: &std::path::Path) -> Result<Box<dyn Vault>, ConfigErr> {
+    Err(ConfigErr::Bad(
+        "MU_VAULT=file needs a build with --features filevault".into(),
+    ))
+}
+
+#[cfg(feature = "softvault")]
+fn open_soft_vault(keys: &std::path::Path) -> Result<Box<dyn Vault>, ConfigErr> {
+    use mu_vault::backend::SoftVault;
+    let v = SoftVault::from_files(
+        &keys.join("mu.hex"),
+        &keys.join("owner.hex"),
+        &keys.join("wallet.hex"),
+    )
+    .map_err(|e| ConfigErr::Bad(format!("vault: {e:?}")))?;
+    Ok(Box::new(v))
+}
+
+#[cfg(not(feature = "softvault"))]
+fn open_soft_vault(_keys: &std::path::Path) -> Result<Box<dyn Vault>, ConfigErr> {
+    Err(ConfigErr::Bad(
+        "no vault: set MU_VAULT=file with a build that has --features filevault".into(),
+    ))
+}
+
+/// A secret file: mode 0600, trimmed.
+fn read_secret(path: &std::path::Path) -> Result<String, ConfigErr> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mode = std::fs::metadata(path)
+            .map_err(|e| ConfigErr::Bad(format!("{path:?}: {e}")))?
+            .permissions()
+            .mode();
+        if mode & 0o077 != 0 {
+            return Err(ConfigErr::Bad(format!("{path:?}: must be mode 600")));
+        }
+    }
+    let s = std::fs::read_to_string(path)
+        .map_err(|e| ConfigErr::Bad(format!("{path:?}: {e}")))?;
+    Ok(s.trim_end_matches(['\n', '\r']).to_string())
+}
+
 /// The chain a named x402 network pays on.
 pub fn network_chain_id(name: &str) -> Option<u64> {
     match name {
@@ -155,12 +225,7 @@ impl Config {
         if mu_pubkey.len() != 33 {
             return Err(ConfigErr::Bad("keys/mu.pub: expected 33 bytes".into()));
         }
-        let vault = SoftVault::from_files(
-            &keys.join("mu.hex"),
-            &keys.join("owner.hex"),
-            &keys.join("wallet.hex"),
-        )
-        .map_err(|e| ConfigErr::Bad(format!("vault: {e:?}")))?;
+        let vault = open_vault(&home, &keys)?;
 
         let chain_id: u64 = std::env::var("MU_CHAIN_ID")
             .map_err(|_| ConfigErr::Bad("MU_CHAIN_ID is required".into()))?

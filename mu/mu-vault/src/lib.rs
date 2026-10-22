@@ -9,6 +9,8 @@
 pub mod domain;
 pub mod signer;
 pub mod backend;
+#[cfg(feature = "filevault")]
+pub mod filevault;
 
 pub use domain::DomainTag;
 pub use signer::{TxSigner, TxSignerP256};

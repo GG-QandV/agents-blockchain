@@ -1,7 +1,7 @@
 # μ Gate KSG — чеклист плана
 
 Ветка `keysingate`, зеркало в `origin/keysingate-wip`. Обновлено 2026-10-22 (оффер, политика, алерты). Команда проверки:
-`cargo test --workspace --features mu-vault/softvault`.
+`cargo test --workspace --features mu-vault/softvault,mu-vault/filevault,mu-daemon/softvault,mu-daemon/filevault`.
 
 ## P0 — блокеры production
 

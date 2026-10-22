@@ -39,7 +39,6 @@ use mu_license::License;
 use mu_log::Kind;
 use mu_log::{Log, LogErr};
 use mu_runtime::{IntentStatus, Runtime};
-use mu_vault::backend::SoftVault;
 use mu_vault::Vault;
 
 use crate::config::Config;
@@ -120,7 +119,7 @@ fn boot(
     log_path: &Path,
     mu_pubkey: &[u8],
     allow: AllowList,
-    vault: &'static SoftVault,
+    vault: &'static dyn mu_vault::Vault,
     connector: &dyn Connector,
 ) -> Result<(Mu, Log, Gate), BootErr> {
     // ── Крок 0: License check ──────────────────────────────────────────
@@ -408,7 +407,7 @@ fn main() {
         policy: _policy_delta, policy_path, chain_id, connector: connector_id, ..
     } = cfg;
 
-    let vault: &'static SoftVault = Box::leak(Box::new(vault));
+    let vault: &'static dyn mu_vault::Vault = Box::leak(vault);
 
     // Вибір коннектора: MU_CONNECTOR=x402 або за замовчуванням stub
     let connector: &'static dyn Connector = match std::env::var("MU_CONNECTOR").as_deref() {
