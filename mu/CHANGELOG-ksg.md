@@ -54,6 +54,19 @@
   payment left μ.log_head behind the chain, and the next start failed with `log_head
   mismatch` — the daemon could not be restarted after its first payment.
 
+### Real settlement lookup (batch B)
+- x402 `status` no longer asks `authorizationState`. It searches `eth_getLogs` for
+  `AuthorizationUsed(address,bytes32)` (topic0 `0x98de5035…b10a5`, topic1 the payer, topic2 the
+  authorization nonce) on both RPC nodes, over a window of `MU_X402_LOG_WINDOW` blocks
+  (default 5000), then reads the receipt.
+- `Settled` only when both nodes return the same transaction, both receipts are `0x1`, and the
+  transfer has at least `MU_X402_CONFIRMATIONS` confirmations (default 12) on the smaller of
+  the two heads. Otherwise the record stays pending and reconcile writes `AlertAbout`.
+- `block` in `Settled` is now the real block of `AuthorizationUsed`; `effective_gas` stays 0 by
+  design, because the facilitator pays the gas.
+- The topic constant is pinned by a test that recomputes its keccak, and the live Base Sepolia
+  tx is the fixture.
+
 ### Wire v3/v4: the header reaches the agent (batch A)
 - Payload v3 = `v=3 ‖ recipient ‖ amount ‖ chain_id ‖ agent ‖ nonce ‖ ts ‖ resource ‖
   offer_len:u16 BE ‖ offer JSON`. The 402 offer is inside the signed bytes, at most 2048

@@ -204,6 +204,24 @@ fn an_issuer_not_in_the_policy_is_not_paid() {
 }
 
 #[test]
+fn a_crash_before_the_journal_write_leaves_no_header() {
+    // The pipeline signs and returns the header; the journal record (tag 16) is
+    // the daemon's step. If the daemon dies between the two, nothing was handed
+    // out — and a retry is a new intent with a new nonce, hence a new header.
+    let first = pay_t(PresenterChoice::Approve, delta(5_000_000, vec![issuer()]), 100_000, 300);
+    let second = pay_t(PresenterChoice::Approve, delta(5_000_000, vec![issuer()]), 100_000, 300);
+    let h1 = first.1.clone().expect("header");
+    let h2 = second.1.clone().expect("header");
+    assert_ne!(h1, h2, "a retry must not reuse the old authorization");
+    for (_, _, log) in [&first, &second] {
+        assert!(
+            !log.iter().any(|k| matches!(k, Kind::AuthHeader { .. })),
+            "the pipeline alone never records a header"
+        );
+    }
+}
+
+#[test]
 fn without_a_402_offer_nothing_is_paid() {
     // The daemon receives intents without the seller's 402 answer. x402 must
     // refuse instead of signing an authorization nobody asked for.

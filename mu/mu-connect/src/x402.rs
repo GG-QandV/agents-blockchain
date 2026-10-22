@@ -235,6 +235,59 @@ pub struct X402Connector {
     used_offers: Mutex<Vec<[u8; 32]>>,
 }
 
+/// `AuthorizationUsed(address,bytes32)`: emitted by the USDC contract when an
+/// EIP-3009 authorization is spent. Topic verified on the live Base Sepolia tx.
+pub const AUTHORIZATION_USED_TOPIC: &str =
+    "0x98de503528ee59b575ef0c0a2576a82497bfc029a5685b209e9ec333479b10a5";
+
+/// What the chain says about one authorization.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Usage {
+    Unused,
+    Used { block: u64 },
+    Unconfirmed,
+}
+
+/// The two nodes the chain is read from. One node is never enough to close a
+/// reserve, so a missing one is `Unknown`.
+fn rpc_urls() -> Result<Vec<String>, ConnErr> {
+    let urls: Vec<String> = ["MU_X402_RPC_1", "MU_X402_RPC_2"]
+        .iter()
+        .filter_map(|k| std::env::var(k).ok())
+        .filter(|v| !v.trim().is_empty())
+        .collect();
+    if urls.len() < 2 {
+        return Err(ConnErr::Unknown(
+            "the chain is read from two RPC nodes: set MU_X402_RPC_1 and MU_X402_RPC_2".into(),
+        ));
+    }
+    Ok(urls)
+}
+
+fn env_u64(name: &str, default: u64) -> u64 {
+    std::env::var(name).ok().and_then(|v| v.parse().ok()).unwrap_or(default)
+}
+
+fn parse_u64(s: Option<&str>) -> Result<u64, ConnErr> {
+    let s = s.ok_or_else(|| ConnErr::Unknown("rpc: expected a quantity".into()))?;
+    u64::from_str_radix(s.trim_start_matches("0x"), 16)
+        .map_err(|_| ConnErr::Unknown(format!("rpc: bad quantity {s}")))
+}
+
+fn parse_h32(s: Option<&str>) -> Result<[u8; 32], ConnErr> {
+    let s = s.ok_or_else(|| ConnErr::Unknown("rpc: expected a hash".into()))?;
+    let h = s.trim_start_matches("0x");
+    if h.len() != 64 {
+        return Err(ConnErr::Unknown(format!("rpc: bad hash {s}")));
+    }
+    let mut out = [0u8; 32];
+    for (i, b) in out.iter_mut().enumerate() {
+        *b = u8::from_str_radix(&h[2 * i..2 * i + 2], 16)
+            .map_err(|_| ConnErr::Unknown(format!("rpc: bad hash {s}")))?;
+    }
+    Ok(out)
+}
+
 impl X402Connector {
     /// Base mainnet (0.2.1 behaviour).
     pub fn new(wallet_addr: [u8; 20]) -> Self {
@@ -251,77 +304,89 @@ impl X402Connector {
         }
     }
 
-    /// `authorizationState(address,bytes32)` on two independent RPC nodes.
-    /// Node URLs come from `MU_X402_RPC_1` and `MU_X402_RPC_2`; without both
-    /// the answer is `Unknown` (the reserve is kept, not released on a guess).
-    fn authorization_state(&self, authorizer: [u8; 20], nonce: [u8; 32]) -> Result<bool, ConnErr> {
-        let urls: Vec<String> = ["MU_X402_RPC_1", "MU_X402_RPC_2"]
-            .iter()
-            .filter_map(|k| std::env::var(k).ok())
-            .filter(|v| !v.trim().is_empty())
-            .collect();
-        if urls.len() < 2 {
+    /// How the chain sees this authorization: unused, used and confirmed, or
+    /// used but still short of confirmations. Two nodes must agree on the
+    /// transaction; confirmations are the smaller count of the two.
+    fn usage(&self, nonce: [u8; 32]) -> Result<Usage, ConnErr> {
+        let urls = rpc_urls()?;
+        let window = env_u64("MU_X402_LOG_WINDOW", 5_000);
+        let a = self.logs_once(&urls[0], nonce, window)?;
+        let b = self.logs_once(&urls[1], nonce, window)?;
+        if a != b {
             return Err(ConnErr::Unknown(
-                "authorizationState needs two RPC nodes: MU_X402_RPC_1/2".into(),
+                "two RPC nodes disagree on AuthorizationUsed".into(),
             ));
         }
-        let data = self.authorization_state_call(authorizer, nonce);
-        let mut answers = Vec::new();
+        let Some((hash, block)) = a else { return Ok(Usage::Unused) };
+        let need = env_u64("MU_X402_CONFIRMATIONS", 12);
+        let mut conf = u64::MAX;
         for url in urls.iter().take(2) {
-            answers.push(self.eth_call_bool(url, &data)?);
+            if !self.receipt_ok(url, hash)? {
+                return Err(ConnErr::Unknown("the receipt is not successful".into()));
+            }
+            conf = conf.min(self.block_number(url)?.saturating_sub(block) + 1);
         }
-        if answers[0] != answers[1] {
-            return Err(ConnErr::Unknown("two RPC nodes disagree on authorizationState".into()));
+        if conf < need {
+            return Ok(Usage::Unconfirmed);
         }
-        Ok(answers[0])
+        Ok(Usage::Used { block })
     }
 
-    fn authorization_state_call(&self, authorizer: [u8; 20], nonce: [u8; 32]) -> String {
-        let mut data = Vec::with_capacity(4 + 32 + 32);
-        data.extend_from_slice(&keccak(&[b"authorizationState(address,bytes32)"])[..4]);
-        data.extend_from_slice(&[0u8; 12]);
-        data.extend_from_slice(&authorizer);
-        data.extend_from_slice(&nonce);
-        let mut call = Vec::with_capacity(20 + data.len());
-        call.extend_from_slice(&self.network.usdc);
-        call.extend_from_slice(&data);
-        format!("0x{}", hex(&call))
+    /// The `AuthorizationUsed` log for this nonce, if any, on one node.
+    fn logs_once(&self, url: &str, nonce: [u8; 32], window: u64) -> Result<Option<([u8; 32], u64)>, ConnErr> {
+        let head = self.block_number(url)?;
+        let from = head.saturating_sub(window);
+        let logs = self.rpc(url, "eth_getLogs", serde_json::json!([{
+            "address": format!("0x{}", hex(&self.network.usdc)),
+            "fromBlock": format!("0x{from:x}"),
+            "toBlock": format!("0x{head:x}"),
+            "topics": [
+                AUTHORIZATION_USED_TOPIC,
+                format!("0x{}{}", "0".repeat(24), hex(&self.wallet_addr)),
+                format!("0x{}", hex(&nonce)),
+            ],
+        }]))?;
+        let arr = logs.as_array().ok_or_else(|| ConnErr::Unknown("logs: not an array".into()))?;
+        if arr.is_empty() {
+            return Ok(None);
+        }
+        if arr.len() > 1 {
+            return Err(ConnErr::Unknown("several AuthorizationUsed logs for one nonce".into()));
+        }
+        let l = &arr[0];
+        let hash = parse_h32(l.get("transactionHash").and_then(|x| x.as_str()))?;
+        let block = parse_u64(l.get("blockNumber").and_then(|x| x.as_str()))?;
+        Ok(Some((hash, block)))
     }
 
-    fn eth_call_bool(&self, url: &str, data_hex: &str) -> Result<bool, ConnErr> {
-        let body = serde_json::json!({
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "eth_call",
-            "params": [{
-                "to": format!("0x{}", hex(&self.network.usdc)),
-                "data": data_hex,
-            }, "latest"]
-        })
-        .to_string();
+    fn receipt_ok(&self, url: &str, hash: [u8; 32]) -> Result<bool, ConnErr> {
+        let r = self.rpc(url, "eth_getTransactionReceipt", serde_json::json!([format!("0x{}", hex(&hash))]))?;
+        let status = r
+            .get("status")
+            .and_then(|s| s.as_str())
+            .ok_or_else(|| ConnErr::Unknown("receipt without status".into()))?;
+        Ok(status.eq_ignore_ascii_case("0x1"))
+    }
+
+    fn block_number(&self, url: &str) -> Result<u64, ConnErr> {
+        let v = self.rpc(url, "eth_blockNumber", serde_json::json!([]))?;
+        parse_u64(v.as_str())
+    }
+
+    fn rpc(&self, url: &str, method: &str, params: serde_json::Value) -> Result<serde_json::Value, ConnErr> {
+        let body = serde_json::json!({"jsonrpc": "2.0", "id": 1, "method": method, "params": params}).to_string();
         let resp = ureq::post(url)
             .timeout(std::time::Duration::from_secs(10))
             .set("Content-Type", "application/json")
             .send_string(&body)
             .map_err(|e| ConnErr::Unknown(format!("rpc {url}: {e}")))?;
-        let text = resp
-            .into_string()
-            .map_err(|e| ConnErr::Unknown(format!("rpc {url}: {e}")))?;
+        let text = resp.into_string().map_err(|e| ConnErr::Unknown(format!("rpc {url}: {e}")))?;
         let v: serde_json::Value = serde_json::from_str(&text)
             .map_err(|e| ConnErr::Unknown(format!("rpc {url}: {e}")))?;
         if let Some(err) = v.get("error") {
             return Err(ConnErr::Unknown(format!("rpc {url}: {err}")));
         }
-        let result = v
-            .get("result")
-            .and_then(|r| r.as_str())
-            .ok_or_else(|| ConnErr::Unknown(format!("rpc {url}: no result")))?;
-        let trimmed = result.trim_start_matches("0x");
-        if trimmed.is_empty() || trimmed.chars().any(|c| c != '0') {
-            // Any non-zero word means the nonce was used.
-            return Ok(trimmed.chars().any(|c| c != '0'));
-        }
-        Ok(false)
+        v.get("result").cloned().ok_or_else(|| ConnErr::Unknown(format!("rpc {url}: no result")))
     }
 
     /// The EIP-712 digest of an authorization on this connector's network.
@@ -493,9 +558,12 @@ impl Connector for X402Connector {
                 return Ok(TxStatus::Failed { reason: crate::FailReason::Simulated })
             }
         };
-        let used = self.authorization_state(self.wallet_addr, nonce)?;
-        if used {
-            return Ok(TxStatus::Settled { block: 0, effective_gas: 0 });
+        match self.usage(nonce)? {
+            // The facilitator pays the gas, so the owner's effective gas is 0 by
+            // design: this field is not a placeholder.
+            Usage::Used { block } => return Ok(TxStatus::Settled { block, effective_gas: 0 }),
+            Usage::Unconfirmed => return Ok(TxStatus::Pending),
+            Usage::Unused => {}
         }
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -699,16 +767,47 @@ mod tests {
 
     static RPC_ENV: Mutex<()> = Mutex::new(());
 
-    /// A one-shot JSON-RPC node: answers `result` to any POST.
-    fn fake_node(result: &'static str) -> String {
+    /// A JSON-RPC node that routes by method: head, the AuthorizationUsed log
+    /// (if any) and the receipt status.
+    fn fake_rpc(log: Option<(&'static str, u64)>, receipt: &'static str, head: u64) -> String {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap();
         std::thread::spawn(move || {
-            for _ in 0..4 {
+            for _ in 0..8 {
                 let Ok((mut s, _)) = listener.accept() else { return };
-                let mut buf = [0u8; 4096];
-                let _ = s.read(&mut buf);
-                let body = format!("{{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":\"{result}\"}}");
+                // Headers and body may arrive in separate reads.
+                let _ = s.set_read_timeout(Some(std::time::Duration::from_millis(200)));
+                let mut buf = Vec::new();
+                let mut chunk = [0u8; 4096];
+                loop {
+                    match s.read(&mut chunk) {
+                        Ok(0) => break,
+                        Ok(n) => {
+                            buf.extend_from_slice(&chunk[..n]);
+                            if String::from_utf8_lossy(&buf).contains("eth_") {
+                                break;
+                            }
+                        }
+                        Err(_) => break,
+                    }
+                }
+                let req = String::from_utf8_lossy(&buf).to_string();
+                let result = if req.contains("eth_blockNumber") {
+                    serde_json::json!(format!("0x{head:x}"))
+                } else if req.contains("eth_getLogs") {
+                    match log {
+                        None => serde_json::json!([]),
+                        Some((hash, block)) => serde_json::json!([{
+                            "transactionHash": hash,
+                            "blockNumber": format!("0x{block:x}"),
+                        }]),
+                    }
+                } else if req.contains("eth_getTransactionReceipt") {
+                    serde_json::json!({"status": receipt})
+                } else {
+                    serde_json::Value::Null
+                };
+                let body = serde_json::json!({"jsonrpc":"2.0","id":1,"result": result}).to_string();
                 let resp = format!(
                     "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
                     body.len(),
@@ -719,6 +818,9 @@ mod tests {
         });
         format!("http://{addr}")
     }
+
+    const TX: &str = "0x1111111111111111111111111111111111111111111111111111111111111111";
+    const TX2: &str = "0x2222222222222222222222222222222222222222222222222222222222222222";
 
     fn with_nodes(a: &str, b: &str) {
         std::env::set_var("MU_X402_RPC_1", a);
@@ -731,42 +833,69 @@ mod tests {
     }
 
     #[test]
-    fn a_used_nonce_settles() {
+    fn the_authorization_used_topic_is_the_real_one() {
+        // Pinned against the live Base Sepolia tx
+        // 0x225f62faae475777f96927671eaf4121df38b5c91d48614079b1185b4dcf221e.
+        let k = keccak(&[b"AuthorizationUsed(address,bytes32)"]);
+        assert_eq!(format!("0x{}", hex(&k)), AUTHORIZATION_USED_TOPIC);
+    }
+
+    #[test]
+    fn a_confirmed_authorization_settles_with_its_block() {
         let _g = RPC_ENV.lock().unwrap();
-        let a = fake_node("0x0000000000000000000000000000000000000000000000000000000000000001");
-        let b = fake_node("0x0000000000000000000000000000000000000000000000000000000000000001");
-        with_nodes(&a, &b);
+        // head 100, the log at 80: 21 confirmations, above the default 12.
+        with_nodes(
+            &fake_rpc(Some((TX, 80)), "0x1", 100),
+            &fake_rpc(Some((TX, 80)), "0x1", 100),
+        );
         assert_eq!(
             status_of([1; 32], u64::MAX).unwrap(),
-            TxStatus::Settled { block: 0, effective_gas: 0 }
+            TxStatus::Settled { block: 80, effective_gas: 0 },
+            "the facilitator pays the gas, so effective_gas is 0 by design"
         );
+    }
+
+    #[test]
+    fn a_used_nonce_without_enough_confirmations_stays_pending() {
+        let _g = RPC_ENV.lock().unwrap();
+        // Same tx, but seen one block ago: not 12 confirmations yet.
+        with_nodes(
+            &fake_rpc(Some((TX, 99)), "0x1", 100),
+            &fake_rpc(Some((TX, 99)), "0x1", 100),
+        );
+        assert_eq!(status_of([1; 32], u64::MAX).unwrap(), TxStatus::Pending);
+    }
+
+    #[test]
+    fn a_failed_receipt_is_not_settled() {
+        let _g = RPC_ENV.lock().unwrap();
+        with_nodes(
+            &fake_rpc(Some((TX, 10)), "0x0", 100),
+            &fake_rpc(Some((TX, 10)), "0x0", 100),
+        );
+        assert!(matches!(status_of([1; 32], u64::MAX), Err(ConnErr::Unknown(_))));
     }
 
     #[test]
     fn an_unused_nonce_stays_pending_inside_the_window() {
         let _g = RPC_ENV.lock().unwrap();
-        let z = "0x0000000000000000000000000000000000000000000000000000000000000000";
-        with_nodes(&fake_node(z), &fake_node(z));
+        with_nodes(&fake_rpc(None, "0x1", 100), &fake_rpc(None, "0x1", 100));
         assert_eq!(status_of([2; 32], u64::MAX).unwrap(), TxStatus::Pending);
     }
 
     #[test]
     fn an_unused_nonce_expires_to_failed() {
         let _g = RPC_ENV.lock().unwrap();
-        let z = "0x0000000000000000000000000000000000000000000000000000000000000000";
-        with_nodes(&fake_node(z), &fake_node(z));
-        assert!(matches!(
-            status_of([3; 32], 1).unwrap(),
-            TxStatus::Failed { .. }
-        ));
+        with_nodes(&fake_rpc(None, "0x1", 100), &fake_rpc(None, "0x1", 100));
+        assert!(matches!(status_of([3; 32], 1).unwrap(), TxStatus::Failed { .. }));
     }
 
     #[test]
-    fn nodes_that_disagree_are_unknown() {
+    fn nodes_that_disagree_on_the_tx_are_unknown() {
         let _g = RPC_ENV.lock().unwrap();
         with_nodes(
-            &fake_node("0x0000000000000000000000000000000000000000000000000000000000000001"),
-            &fake_node("0x0000000000000000000000000000000000000000000000000000000000000000"),
+            &fake_rpc(Some((TX, 80)), "0x1", 100),
+            &fake_rpc(Some((TX2, 80)), "0x1", 100),
         );
         assert!(matches!(status_of([4; 32], u64::MAX), Err(ConnErr::Unknown(_))));
     }

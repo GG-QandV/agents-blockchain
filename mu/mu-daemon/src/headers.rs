@@ -85,4 +85,30 @@ mod tests {
         let log = log_with_header(dir.path(), &v);
         assert_eq!(header_answer(&log, "agent-1", 7, 2_001), HeaderAnswer::Expired);
     }
+
+    #[test]
+    fn a_header_survives_a_restart() {
+        let dir = tempfile::tempdir().unwrap();
+        let v = vault();
+        let path = dir.path().join("l.mulog");
+        {
+            let mut log = Log::open(&path, &v).unwrap();
+            log.append(
+                Kind::AuthHeader {
+                    agent_id: "agent-1".into(),
+                    req_nonce: 7,
+                    intent_hash: Hash32([1; 32]),
+                    auth_nonce: [2; 32],
+                    valid_before: 2_000,
+                    header: "X-PAYMENT-abc".into(),
+                },
+                1_000,
+                &v,
+            )
+            .unwrap();
+            // The daemon died before answering: the record is already on disk.
+        }
+        let log = Log::open(&path, &v).unwrap();
+        assert_eq!(header_answer(&log, "agent-1", 7, 1_500), HeaderAnswer::Found("X-PAYMENT-abc".into()));
+    }
 }
