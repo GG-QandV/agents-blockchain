@@ -651,6 +651,21 @@ mod tests {
     }
 
     #[test]
+    fn a_challenge_for_another_recipient_is_refused_by_the_self_check() {
+        // P0-9: the challenge names a different recipient than the intent.
+        // The connector must refuse; it must not compare the intent with itself.
+        let other = "0x1111111111111111111111111111111111111111";
+        let i = intent(ISSUER, 100_000, 84532);
+        let c = sepolia();
+        c.set_challenge(&challenge(other, "100000"));
+        match c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), Some(params(0xab))) {
+            Err(ConnErr::Rejected(RejectReason::ChallengeMismatch)) => {}
+            other => panic!("expected ChallengeMismatch, got {other:?}"),
+        }
+        assert!(c.take_header().is_none(), "nothing is signed");
+    }
+
+    #[test]
     fn a_challenge_that_differs_from_the_intent_signs_nothing() {
         let other = "0x1111111111111111111111111111111111111111";
         let i = intent(ISSUER, 100_000, 84532);

@@ -27,6 +27,17 @@ impl RtIntent {
         h.update(self.recipient.chain_id().to_be_bytes());
         h.update(self.amount.minor().to_be_bytes());
         h.update(self.agent_id.as_bytes());
+        // P0-10: the owner proof is bound to the connector and the resource too,
+        // otherwise two intents differing only there share one proof.
+        h.update([self.connector as u8]);
+        match &self.resource {
+            Some(r) => {
+                h.update([1u8]);
+                h.update((r.len() as u32).to_be_bytes());
+                h.update(r.as_bytes());
+            }
+            None => h.update([0u8]),
+        }
         let out = h.finalize();
         let mut d = [0u8; 32];
         d.copy_from_slice(&out);
@@ -286,11 +297,43 @@ pub fn split_resource(resource: &str) -> (&str, &str) {
 
 #[cfg(test)]
 mod resource_tests {
-    use super::split_resource;
+    use super::{split_resource, RtIntent};
+    use mu_common::{Amount, CanonAddress, ConnectorId};
     #[test]
     fn resources_split_into_host_and_slash_path() {
         assert_eq!(split_resource("https://issuer.example/bare/issue?x=1"), ("issuer.example", "/bare/issue"));
         assert_eq!(split_resource("api.coingecko.com/api/v3/simple/price"), ("api.coingecko.com", "/api/v3/simple/price"));
         assert_eq!(split_resource("issuer.example"), ("issuer.example", "/"));
+    }
+
+    fn intent(connector: ConnectorId, resource: Option<&str>) -> RtIntent {
+        RtIntent {
+            recipient: CanonAddress::canon(
+                "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+                8453,
+            )
+            .unwrap(),
+            amount: Amount::from_minor(1),
+            chain_id: 8453,
+            agent_id: "agent-1".into(),
+            connector,
+            resource: resource.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn the_hash_binds_the_connector() {
+        assert_ne!(
+            intent(ConnectorId::Crypto, None).hash(),
+            intent(ConnectorId::BankStub, None).hash()
+        );
+    }
+
+    #[test]
+    fn the_hash_binds_the_resource() {
+        let a = intent(ConnectorId::Crypto, Some("https://a.example/x"));
+        let b = intent(ConnectorId::Crypto, Some("https://b.example/x"));
+        assert_ne!(a.hash(), b.hash());
+        assert_ne!(a.hash(), intent(ConnectorId::Crypto, None).hash());
     }
 }
