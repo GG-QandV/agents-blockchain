@@ -166,7 +166,11 @@ fn main() {
         connector: ConnectorId::Crypto,
         resource: Some(ch.resource.clone()),
     }, Some(ch.clone()));
-    match conn.take_header() {
+    let header = match &st {
+        mu_runtime::pipeline::IntentStatus::Authorized { header, .. } => Some(header.clone()),
+        _ => None,
+    };
+    match header {
         Some(h) => {
             eprintln!("pipeline: {st:?}");
             println!("{h}");

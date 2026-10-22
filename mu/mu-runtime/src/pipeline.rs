@@ -1,7 +1,7 @@
 //! Конвейер: Ω → Δ → [human] → WAL → execute → Settled/Failed/ReconcilePending.
 use crate::policy::{delta_check, needs_human, omega_check, resource_check, Delta, Omega};
 use mu_common::{Amount, CanonAddress, Clock, ConnectorId, Hash32};
-use mu_connect::{AuthParams, ConnErr, Connector, ExecCtx, Intent as ConnIntent, TxRef, TxStatus};
+use mu_connect::{AuthParams, ConnErr, Connector, ExecCtx, Executed, Intent as ConnIntent, TxRef, TxStatus};
 use mu_connect::x402::X402Challenge;
 use mu_human::{confirm_payment, verify_auth_proof, HumanDecision, PayConfirm, Presenter};
 use mu_log::{Kind, Log};
@@ -55,6 +55,9 @@ pub enum IntentStatus {
     DeniedHuman,
     TimeoutHuman,
     Settled { tx_hash: [u8; 32] },
+    /// x402: the authorization is signed and its header is in hand. The daemon
+    /// must record it (tag 16) and only then hand it to the agent.
+    Authorized { header: String, nonce: [u8; 32], valid_before: u64 },
     Failed,
     /// RISK-M6-5: исход неизвестен; резерв держится (Pending в логе), решает reconcile.
     ReconcilePending,
@@ -102,7 +105,7 @@ fn exec_after_wal(
     intent: &ConnIntent,
     signer: mu_vault::TxSigner,
     ctx: ExecCtx,
-) -> (Hash32, Result<TxRef, ConnErr>) {
+) -> (Hash32, Result<Executed, ConnErr>) {
     let r = connector.execute_auth(intent, signer, ctx);
     (proof.intent_hash, r)
 }
@@ -268,7 +271,7 @@ impl<'a> Runtime<'a> {
         ExecCtx { auth, offer },
     );
         match res {
-            Ok(TxRef::Real { tx_hash, .. }) => {
+            Ok(Executed { tx: TxRef::Real { tx_hash, .. }, .. }) => {
                 // 7. финальность: Settled только при консенсусе status (RISK-M6-2/M7-3)
                 match self.connector.status(&TxRef::Real { tx_hash, chain_nonce: 0 }) {
                     Ok(TxStatus::Settled { effective_gas, .. }) => {
@@ -287,7 +290,7 @@ impl<'a> Runtime<'a> {
                     _ => IntentStatus::ReconcilePending,
                 }
             }
-            Ok(TxRef::Simulated { .. }) => {
+            Ok(Executed { tx: TxRef::Simulated { .. }, .. }) => {
                 // стаб: помечаем Simulated; окно НЕ трогает (RISK-M7S-1)
                 let _ = self.log.append(Kind::Failed { intent_hash: ih2 }, self.clock.now_unix(), self.vault);
                 let _ = self.log.append(
@@ -297,11 +300,14 @@ impl<'a> Runtime<'a> {
                 );
                 IntentStatus::Failed
             }
-            Ok(TxRef::Authorization { .. }) => {
-                // x402: авторизація підписана, фасилітатор проведе платіж.
-                // Статус визначається пізніше через connector.status().
-                // nonce — ключ для authorizationState.
-                IntentStatus::ReconcilePending
+            Ok(Executed { tx: TxRef::Authorization { nonce, valid_before }, header }) => {
+                // x402: the authorization is signed. With the header in hand the
+                // daemon can answer Authorized; the settlement status is looked up
+                // later via connector.status(), keyed by the nonce.
+                match header {
+                    Some(header) => IntentStatus::Authorized { header, nonce, valid_before },
+                    None => IntentStatus::ReconcilePending,
+                }
             }
             Err(ConnErr::Rejected(_)) => {
                 // достоверный неуход → закрываем Pending (rollback резерва)

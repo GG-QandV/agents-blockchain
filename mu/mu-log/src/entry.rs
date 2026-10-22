@@ -28,6 +28,16 @@ pub enum Kind {
     TailTruncated { lost_from_seq: u64 },
     NonceSnapshot { agent_id: String, nonce: u64 },
     Alert { code: u16 },
+    /// The X-PAYMENT the daemon may hand to the agent for one request, written
+    /// after signing and before the agent sees it.
+    AuthHeader {
+        agent_id: String,
+        req_nonce: u64,
+        intent_hash: Hash32,
+        auth_nonce: [u8; 32],
+        valid_before: u64,
+        header: String,
+    },
     /// x402 refused because no 402 offer was supplied for the intent.
     DeniedNoOffer { intent_hash: Hash32 },
     /// An alert about one intent: written once per state transition, so a
@@ -86,6 +96,17 @@ impl Kind {
                 b.extend(agent_id.as_bytes()); b.extend(nonce.to_be_bytes());
             }
             Kind::Alert { code } => { b.push(11); b.extend(code.to_be_bytes()); }
+            Kind::AuthHeader { agent_id, req_nonce, intent_hash, auth_nonce, valid_before, header } => {
+                b.push(16);
+                b.push(agent_id.len() as u8);
+                b.extend(agent_id.as_bytes());
+                b.extend(req_nonce.to_be_bytes());
+                b.extend(intent_hash.0);
+                b.extend(auth_nonce);
+                b.extend(valid_before.to_be_bytes());
+                b.extend((header.len() as u16).to_be_bytes());
+                b.extend(header.as_bytes());
+            }
             Kind::DeniedNoOffer { intent_hash } => {
                 b.push(15);
                 b.extend(intent_hash.0);

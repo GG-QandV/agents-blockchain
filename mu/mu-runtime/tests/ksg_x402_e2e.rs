@@ -159,7 +159,11 @@ fn pay_res(
         resource: intent_resource.map(str::to_string),
     }, offer);
     let kinds = rt.log.entries().iter().map(|e| e.kind.clone()).collect();
-    (st, conn.take_header(), kinds)
+    let header = match &st {
+        IntentStatus::Authorized { header, .. } => Some(header.clone()),
+        _ => None,
+    };
+    (st, header, kinds)
 }
 
 #[test]
@@ -167,7 +171,7 @@ fn a_repeated_bare_is_paid_with_the_owners_consent() {
     let (st, header, log) = pay(PresenterChoice::Approve, delta(5_000_000, vec![issuer()]), 100_000);
     // Paid by authorization: the issuer's facilitator settles it, so the
     // reserve stays held until then (RISK-M6-5).
-    assert_eq!(st, IntentStatus::ReconcilePending);
+    assert!(matches!(st, IntentStatus::Authorized { .. }), "the header is in the result: {st:?}");
     assert!(log.iter().any(|k| matches!(k, Kind::HumanDecision { approved: true, .. })));
     // x402 now writes the authorization parameters before the money moves.
     assert!(log.iter().any(|k| matches!(k, Kind::PendingAuth { amount_total: 100_000, .. })));
@@ -245,7 +249,7 @@ fn the_written_window_follows_the_issuers_limit() {
     // The issuer allows 60 s. The WAL must not promise a longer authorization,
     // otherwise the seller rejects what we signed.
     let (st, _header, log) = pay_t(PresenterChoice::Approve, delta(5_000_000, vec![issuer()]), 100_000, 60);
-    assert_eq!(st, IntentStatus::ReconcilePending);
+    assert!(matches!(st, IntentStatus::Authorized { .. }), "{st:?}");
     let valid_before = log
         .iter()
         .find_map(|k| match k {

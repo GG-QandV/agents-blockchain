@@ -241,6 +241,24 @@ fn decode_kind(b: &[u8]) -> Option<Kind> {
             let connector: &'static str = match s { "bank_stub" => "bank_stub", "card_stub" => "card_stub", _ => "stub" };
             Some(Kind::Simulated { intent_hash: ih, connector })
         }
+        16 => {
+            let alen = *r.first()? as usize;
+            let agent_id = std::str::from_utf8(r.get(1..1 + alen)?).ok()?.to_string();
+            let mut i = 1 + alen;
+            let req_nonce = u64::from_be_bytes(r.get(i..i + 8)?.try_into().ok()?);
+            i += 8;
+            let intent_hash = h32(r.get(i..i + 32)?)?;
+            i += 32;
+            let mut auth_nonce = [0u8; 32];
+            auth_nonce.copy_from_slice(r.get(i..i + 32)?);
+            i += 32;
+            let valid_before = u64::from_be_bytes(r.get(i..i + 8)?.try_into().ok()?);
+            i += 8;
+            let hlen = u16::from_be_bytes(r.get(i..i + 2)?.try_into().ok()?) as usize;
+            i += 2;
+            let header = std::str::from_utf8(r.get(i..i + hlen)?).ok()?.to_string();
+            Some(Kind::AuthHeader { agent_id, req_nonce, intent_hash, auth_nonce, valid_before, header })
+        }
         15 => Some(Kind::DeniedNoOffer { intent_hash: h32(r)? }),
         14 => {
             let code = u16::from_be_bytes(r.get(0..2)?.try_into().ok()?);

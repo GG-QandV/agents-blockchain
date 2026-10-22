@@ -17,6 +17,7 @@ compile_error!("softvault запрещён в release");
 
 mod config;
 mod boot_guard;
+mod headers;
 mod policy;
 mod policy_state;
 mod reconcile;
@@ -218,6 +219,26 @@ fn handle_client(
     }
 
     let now = clock.now_unix();
+    // v4 asks for the header of an earlier request; everything else is an intent.
+    if let Ok(mu_gate::wire::Frame::HeaderRequest(_)) = mu_gate::wire::parse_frame(&frame) {
+        match gate.accept_header_request(&frame, now) {
+            Ok(req) => match crate::headers::header_answer(&runtime.log, &req.agent_id, req.ref_nonce, now) {
+                crate::headers::HeaderAnswer::Found(header) => {
+                    let _ = stream.write_all(&response_frame(0x21, Some(header)));
+                }
+                crate::headers::HeaderAnswer::Expired => {
+                    let _ = stream.write_all(&[0x22]);
+                }
+                crate::headers::HeaderAnswer::Missing => {
+                    let _ = stream.write_all(&[0x23]);
+                }
+            },
+            Err(code) => {
+                let _ = stream.write_all(&[code as u8]);
+            }
+        }
+        return;
+    }
     match gate.accept(&frame, now) {
         Ok(vi) => {
             let Ok(recipient) = mu_common::CanonAddress::canon(&vi.recipient, vi.chain_id)
@@ -235,6 +256,7 @@ fn handle_client(
                 resource: vi.resource.clone(),
             };
 
+            let intent_hash = intent.hash();
             let status = runtime.process(&intent);
             let (code, header) = match status {
                 IntentStatus::DeniedOmega => (0x10u8, None),
@@ -243,7 +265,23 @@ fn handle_client(
                 IntentStatus::DeniedNoOffer => (0x15, None),
                 IntentStatus::DeniedHuman => (0x12, None),
                 IntentStatus::TimeoutHuman => (0x13, None),
-                IntentStatus::Settled { .. } => (0x20, runtime.connector.take_header()),
+                IntentStatus::Settled { .. } => (0x20, None),
+                // The header goes out only after its journal record (tag 16).
+                IntentStatus::Authorized { header, nonce, valid_before } => {
+                    let _ = runtime.log.append(
+                        Kind::AuthHeader {
+                            agent_id: intent.agent_id.clone(),
+                            req_nonce: vi.nonce,
+                            intent_hash,
+                            auth_nonce: nonce,
+                            valid_before,
+                            header: header.clone(),
+                        },
+                        now,
+                        runtime.vault,
+                    );
+                    (0x21, Some(header))
+                }
                 IntentStatus::Failed => (0x30, None),
                 IntentStatus::ReconcilePending => (0x40, None),
             };
@@ -367,7 +405,7 @@ fn main() {
 
     let Config {
         mu_path, log_path, sock_path, mu_pubkey, vault, allow, omega, delta: _file_delta,
-        policy: policy_delta, policy_path, chain_id, connector: connector_id, ..
+        policy: _policy_delta, policy_path, chain_id, connector: connector_id, ..
     } = cfg;
 
     let vault: &'static SoftVault = Box::leak(Box::new(vault));
@@ -545,4 +583,5 @@ mod tests {
         assert_eq!(&f[3..], b"X-PAYMENT: abc");
         assert_eq!(response_frame(0x20, None), vec![0x20, 0, 0]);
     }
+
 }

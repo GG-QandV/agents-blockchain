@@ -88,6 +88,15 @@ pub struct Fee {
 /// после execute хэндл ключа уничтожен, повторно подписать нельзя.
 /// Authorization parameters fixed before the WAL: the nonce is single-use on
 /// chain, so a retry after a crash reuses it and cannot pay twice.
+/// What one execution produced: the on-chain reference and, for x402, the
+/// payment header. The header travels with the result — there is no connector
+/// state to read it from, so an old header cannot leak into the next payment.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Executed {
+    pub tx: TxRef,
+    pub header: Option<String>,
+}
+
 /// Everything one execution needs besides the intent: the authorization
 /// parameters already written to the WAL and the 402 offer they answer.
 /// The offer travels per intent, so an old challenge cannot leak into the
@@ -112,12 +121,6 @@ pub trait Connector {
     fn execute(&self, i: &Intent, signer: TxSigner) -> Result<TxRef, ConnErr>;
     fn status(&self, r: &TxRef) -> Result<TxStatus, ConnErr>;
 
-    /// The payment header produced by the last `execute`, if the connector has
-    /// one (x402). Taken once: a second call returns `None`.
-    fn take_header(&self) -> Option<String> {
-        None
-    }
-
     /// True when the connector needs its authorization parameters before the
     /// WAL is written (x402). The pipeline then writes `PendingAuth` first.
     fn pre_auth(&self) -> bool {
@@ -133,8 +136,8 @@ pub trait Connector {
 
     /// Execute with parameters that were already written to the WAL. The
     /// default ignores them and calls `execute`.
-    fn execute_auth(&self, i: &Intent, signer: TxSigner, _ctx: ExecCtx) -> Result<TxRef, ConnErr> {
-        self.execute(i, signer)
+    fn execute_auth(&self, i: &Intent, signer: TxSigner, _ctx: ExecCtx) -> Result<Executed, ConnErr> {
+        Ok(Executed { tx: self.execute(i, signer)?, header: None })
     }
 }
 

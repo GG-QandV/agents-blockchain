@@ -54,6 +54,21 @@
   payment left μ.log_head behind the chain, and the next start failed with `log_head
   mismatch` — the daemon could not be restarted after its first payment.
 
+### Wire v3/v4: the header reaches the agent (batch A)
+- Payload v3 = `v=3 ‖ recipient ‖ amount ‖ chain_id ‖ agent ‖ nonce ‖ ts ‖ resource ‖
+  offer_len:u16 BE ‖ offer JSON`. The 402 offer is inside the signed bytes, at most 2048
+  bytes, and parsed strictly: unknown keys are refused.
+- Frame v4 = `v=4 ‖ agent ‖ nonce ‖ ts ‖ ref_nonce:u64`, signed by the agent. It asks for the
+  header of an earlier request; the request nonce is not consumed, so repeating it is safe.
+- New `Kind::AuthHeader` (tag 16): agent, request nonce, intent hash, authorization nonce,
+  `valid_before`, header. Written with fsync right after signing; the agent gets the header
+  only after this record exists.
+- `X402Connector::execute_auth` returns `Executed { tx, header }`. Connector state for the
+  header (`last_auth`, `take_header`) is gone — the same reason `set_challenge` went.
+- Wire answers: `0x21 ‖ len:u16 LE ‖ header` (Authorized), `0x22` (expired), `0x23` (no such
+  record or another agent's). `IntentStatus::Authorized` carries the header, the nonce and
+  `valid_before` out of the pipeline.
+
 ### Safe defaults (batch C)
 - The daemon refuses to start without `MU_HOME` and `MU_CHAIN_ID`; there are no silent
   fallbacks to `/tmp/mu` or chain 8453.

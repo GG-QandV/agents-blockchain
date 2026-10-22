@@ -229,8 +229,6 @@ pub struct X402Connector {
     pub network: X402Network,
     /// The wallet this connector pays from; the signing key must be its key.
     pub wallet_addr: [u8; 20],
-    /// The header of the last authorization, handed out exactly once.
-    last_auth: Mutex<Option<SignedAuthorization>>,
     /// Digests of the offers already paid. One 402 answer pays once; a second
     /// payment needs a new offer. Bounded ring, so a long-running process does
     /// not grow.
@@ -249,14 +247,8 @@ impl X402Connector {
             chain_id: network.chain_id,
             network,
             wallet_addr,
-            last_auth: Mutex::new(None),
             used_offers: Mutex::new(Vec::new()),
         }
-    }
-
-    /// The `X-PAYMENT` header of the last authorization, once.
-    pub fn take_header(&self) -> Option<String> {
-        self.last_auth.lock().unwrap().take().map(|a| a.to_header())
     }
 
     /// `authorizationState(address,bytes32)` on two independent RPC nodes.
@@ -438,9 +430,7 @@ impl Connector for X402Connector {
         i: &Intent,
         signer: TxSigner,
         ctx: crate::ExecCtx,
-    ) -> Result<TxRef, ConnErr> {
-        // One-shot: a failed attempt never leaves a header behind.
-        *self.last_auth.lock().unwrap() = None;
+    ) -> Result<crate::Executed, ConnErr> {
         if i.chain_id != self.chain_id || i.recipient.chain_id() != self.chain_id {
             return Err(ConnErr::Rejected(RejectReason::ChainMismatch));
         }
@@ -486,13 +476,10 @@ impl Connector for X402Connector {
         if auth.to != *i.recipient.bytes() || auth.value != i.amount.minor() {
             return Err(ConnErr::Config("x402 self-check: auth mismatch".into()));
         }
+        // The header is produced here and returned; the daemon writes it to the
+        // journal before the agent may see it.
         let r = TxRef::Authorization { nonce: auth.nonce, valid_before: auth.valid_before };
-        *self.last_auth.lock().unwrap() = Some(auth);
-        Ok(r)
-    }
-
-    fn take_header(&self) -> Option<String> {
-        X402Connector::take_header(self)
+        Ok(crate::Executed { tx: r, header: Some(auth.to_header()) })
     }
 
     /// Reads `authorizationState(authorizer, nonce)` from the chain. Two
@@ -815,7 +802,7 @@ mod tests {
             Err(ConnErr::Rejected(RejectReason::ChallengeMismatch)) => {}
             other => panic!("expected ChallengeMismatch, got {other:?}"),
         }
-        assert!(c.take_header().is_none(), "nothing is signed");
+        // nothing is signed: the error came back instead of an Executed
     }
 
     #[test]
@@ -827,7 +814,7 @@ mod tests {
             Err(ConnErr::Rejected(RejectReason::NoChallenge)) => {}
             other => panic!("expected NoChallenge, got {other:?}"),
         }
-        assert!(c.take_header().is_none(), "nothing is signed without an offer");
+
     }
 
     #[test]
@@ -844,7 +831,7 @@ mod tests {
             Err(ConnErr::Rejected(RejectReason::ChallengeMismatch)) => {}
             other => panic!("expected ChallengeMismatch, got {other:?}"),
         }
-        assert!(c.take_header().is_none(), "a refused attempt leaves no header");
+
     }
 
     #[test]
@@ -854,13 +841,11 @@ mod tests {
         let i = intent(ISSUER, 100_000, 84532);
         let offer = challenge(ISSUER, "100000");
         c.execute_auth(&i, v.tx_signer().unwrap(), ctx(0xab, offer.clone())).unwrap();
-        assert!(c.take_header().is_some());
         // Same 402 answer, second payment: refused, a new offer is needed.
         match c.execute_auth(&i, v.tx_signer().unwrap(), ctx(0xcd, offer)) {
             Err(ConnErr::Rejected(RejectReason::OfferAlreadyUsed)) => {}
             other => panic!("expected OfferAlreadyUsed, got {other:?}"),
         }
-        assert!(c.take_header().is_none(), "the second attempt signs nothing");
     }
 
     #[test]
@@ -896,8 +881,8 @@ mod tests {
             // digest, so the headers match and the seller cannot charge twice.
             let c = sepolia();
             let c2 = crate::ExecCtx { auth: Some(p), offer: Some(challenge(ISSUER, "100000")) };
-            c.execute_auth(&i, v.tx_signer().unwrap(), c2).expect("pay");
-            headers.push(c.take_header().expect("header"));
+            let ex = c.execute_auth(&i, v.tx_signer().unwrap(), c2).expect("pay");
+            headers.push(ex.header.expect("header"));
         }
         assert_eq!(headers[0], headers[1], "same nonce, same signature, no second payment");
     }
@@ -933,7 +918,6 @@ mod tests {
             .execute_auth(&i, vault([0x22; 32]).tx_signer().unwrap(), ctx(0xab, challenge(ISSUER, "100000")))
             .unwrap_err();
         assert_eq!(e, ConnErr::Rejected(RejectReason::WalletMismatch));
-        assert!(c.take_header().is_none());
     }
 
     #[test]
@@ -943,9 +927,8 @@ mod tests {
         let r = c
             .execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), ctx(0xab, challenge(ISSUER, "100000")))
             .unwrap();
-        assert!(matches!(r, TxRef::Authorization { .. }));
-        assert!(c.take_header().is_some());
-        assert!(c.take_header().is_none(), "the header is handed out once");
+        assert!(matches!(r.tx, TxRef::Authorization { .. }));
+        assert!(r.header.is_some(), "the header comes back with the result");
     }
 
     #[test]
@@ -959,7 +942,7 @@ mod tests {
             Err(ConnErr::Rejected(RejectReason::ChallengeMismatch)) => {}
             other => panic!("expected ChallengeMismatch, got {other:?}"),
         }
-        assert!(c.take_header().is_none(), "nothing is signed");
+        // nothing is signed: the error came back instead of an Executed
     }
 
     #[test]
@@ -1000,7 +983,6 @@ mod tests {
                 .execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), ctx(0xab, ch.clone()))
                 .unwrap_err();
             assert_eq!(e, ConnErr::Rejected(RejectReason::ChallengeMismatch), "{ch:?}");
-            assert!(c.take_header().is_none());
         }
     }
 
@@ -1024,7 +1006,7 @@ mod tests {
         let i = intent(ISSUER, 1, 84532);
         let p = params(0xcd);
         let c1 = crate::ExecCtx { auth: Some(p), offer: Some(challenge(ISSUER, "1")) };
-        match c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), c1).unwrap() {
+        match c.execute_auth(&i, vault([0x11; 32]).tx_signer().unwrap(), c1).unwrap().tx {
             TxRef::Authorization { nonce, valid_before } => {
                 assert_eq!(nonce, p.nonce);
                 assert_eq!(valid_before, p.valid_before);

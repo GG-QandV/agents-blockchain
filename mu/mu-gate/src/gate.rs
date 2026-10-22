@@ -117,6 +117,27 @@ impl Gate {
         })
     }
 
+    /// v4: verify a header request. It reads one journal record, so its nonce
+    /// is not consumed by the bucket or the replay window — repeating it must
+    /// return the same header.
+    pub fn accept_header_request(
+        &self,
+        frame: &[u8],
+        now: u64,
+    ) -> Result<crate::wire::HeaderRequest, DenyCode> {
+        let req = match crate::wire::parse_frame(frame).map_err(|_| DenyCode::Parse)? {
+            crate::wire::Frame::HeaderRequest(r) => r,
+            crate::wire::Frame::Intent(_) => return Err(DenyCode::Parse),
+        };
+        let vk = self.allow.get(&req.agent_id).ok_or(DenyCode::UnknownAgent)?;
+        let sig = Signature::from_bytes(&req.sig);
+        vk.verify(&req.signed_bytes, &sig).map_err(|_| DenyCode::BadSignature)?;
+        if now.abs_diff(req.ts) > self.ts_window_secs {
+            return Err(DenyCode::StaleTimestamp);
+        }
+        Ok(req)
+    }
+
     /// Refill buckets (called by ticker periodically).
     pub fn refill(&mut self) {
         for b in self.buckets.values_mut() {

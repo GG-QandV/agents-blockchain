@@ -591,6 +591,7 @@ version = "0.2.0-ksg"
 dependencies = [
  "ed25519-dalek",
  "mu-common",
+ "serde_json",
  "sha2",
 ]
 
