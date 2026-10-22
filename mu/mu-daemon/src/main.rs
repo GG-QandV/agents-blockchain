@@ -18,6 +18,7 @@ compile_error!("softvault запрещён в release");
 mod config;
 mod boot_guard;
 mod headers;
+mod peer;
 mod policy;
 mod policy_state;
 mod reconcile;
@@ -322,9 +323,12 @@ fn serve(
     mu: &mut Mu,
     ctx: &mut PolicyCtx,
 ) -> std::io::Result<()> {
-    let _ = fs::remove_file(sock_path);
+    let allowed = peer::allowed_uids();
+    peer::prepare_socket(sock_path, !allowed.is_empty())?;
     let listener = UnixListener::bind(sock_path)?;
-    fs::set_permissions(sock_path, fs::Permissions::from_mode(0o600))?;
+    // 0660 when an agent allow-list exists, 0600 otherwise.
+    let mode = if allowed.is_empty() { 0o600 } else { 0o660 };
+    fs::set_permissions(sock_path, fs::Permissions::from_mode(mode))?;
     listener.set_nonblocking(true)?;
     eprintln!("μ-daemon listening on {}", sock_path.display());
     loop {
@@ -382,6 +386,15 @@ fn serve(
         match listener.accept() {
             Ok((stream, _)) => {
                 let _ = stream.set_nonblocking(false);
+                // Second wall after file permissions: the peer's uid.
+                let me = peer::daemon_uid();
+                match peer::peer_uid(&stream) {
+                    Some(uid) if peer::peer_allowed(uid, me, &allowed) => {}
+                    other => {
+                        eprintln!("refused a client: peer uid {other:?} is not allowed");
+                        continue;
+                    }
+                }
                 handle_client(stream, gate, runtime, clock, connector);
                 advance_mu(mu, &runtime.log, runtime.vault, &ctx.mu_path);
             }

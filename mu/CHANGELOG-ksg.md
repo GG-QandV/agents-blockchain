@@ -93,6 +93,12 @@
 - Release builds prove the split: `cargo build --release -p mu-daemon --features filevault`
   succeeds, and the same build with `--features softvault` stops on the existing
   `compile_error!`.
+- Peer isolation: the socket directory is 0700, the socket is 0660 when
+  `MU_AGENT_UIDS` names agent uids (0600 otherwise), and every accepted connection is checked
+  with `SO_PEERCRED` through `nix` — a uid that is neither the daemon's own nor listed is
+  dropped before a single byte is read. Our crates keep `forbid(unsafe_code)`; the `unsafe`
+  lives in the dependency. Group ownership of the socket is left to the operator (`chgrp` or a
+  tmpfiles rule): the daemon does not run as root.
 - The canonical test command now names the daemon features too:
   `cargo test --workspace --features mu-vault/softvault,mu-vault/filevault,mu-daemon/softvault,mu-daemon/filevault`.
 
