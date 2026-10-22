@@ -16,6 +16,7 @@
 compile_error!("softvault запрещён в release");
 
 mod config;
+mod policy;
 mod reconcile;
 
 use std::fs;
@@ -244,18 +245,41 @@ fn serve(
     runtime: &mut Runtime,
     clock: &dyn Clock,
     connector: ConnectorId,
+    policy_rx: std::sync::mpsc::Receiver<policy::Applied>,
 ) -> std::io::Result<()> {
     let _ = fs::remove_file(sock_path);
     let listener = UnixListener::bind(sock_path)?;
     fs::set_permissions(sock_path, fs::Permissions::from_mode(0o600))?;
+    listener.set_nonblocking(true)?;
     eprintln!("μ-daemon listening on {}", sock_path.display());
-    for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => handle_client(stream, gate, runtime, clock, connector),
+    loop {
+        // Apply a policy the owner confirmed while the socket was idle.
+        while let Ok(applied) = policy_rx.try_recv() {
+            let now = clock.now_unix();
+            let _ = runtime.log.append(
+                Kind::DeltaChanged { old_hash: applied.old_hash, new_hash: applied.new_hash },
+                now,
+                runtime.vault,
+            );
+            runtime.delta = mu_runtime::policy::Delta {
+                daily_limit: applied.delta.daily_limit,
+                whitelist: applied.delta.whitelist.iter().map(|w| w.address).collect(),
+                confirm_threshold: applied.delta.confirm_threshold,
+                resource_allowlist: applied.delta.resource_allowlist,
+            };
+            eprintln!("policy applied: {}", policy::hex(&applied.new_hash));
+        }
+        match listener.accept() {
+            Ok((stream, _)) => {
+                let _ = stream.set_nonblocking(false);
+                handle_client(stream, gate, runtime, clock, connector);
+            }
+            Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
             Err(e) => eprintln!("accept error: {e}"),
         }
     }
-    Ok(())
 }
 
 fn main() {
@@ -267,7 +291,10 @@ fn main() {
         }
     };
 
-    let Config { mu_path, log_path, sock_path, mu_pubkey, vault, allow, omega, delta, connector: connector_id, .. } = cfg;
+    let Config {
+        mu_path, log_path, sock_path, mu_pubkey, vault, allow, omega, delta,
+        policy: policy_delta, chain_id, connector: connector_id, ..
+    } = cfg;
 
     let vault: &'static SoftVault = Box::leak(Box::new(vault));
 
@@ -332,7 +359,24 @@ fn main() {
         human_ttl: std::time::Duration::from_secs(120),
     };
 
-    if let Err(e) = serve(&sock_path, &mut gate, &mut runtime, &clock, connector_id) {
+    let policy_sock = policy::sock_path(std::path::Path::new(
+        std::env::var("MU_HOME").as_deref().unwrap_or("/tmp/mu"),
+    ));
+    let (policy_tx, policy_rx) = std::sync::mpsc::channel();
+    let policy_state = composer_core::endpoint::DaemonPolicy {
+        current: policy_delta,
+        omega: mu_policy::OmegaView {
+            max_ceiling: runtime.omega.max_ceiling,
+            supported_chain_ids: vec![chain_id],
+        },
+    };
+    if let Err(e) = policy::spawn(policy_sock.clone(), policy_state, policy_tx) {
+        eprintln!("policy endpoint: {e}");
+    } else {
+        eprintln!("policy endpoint on {} (MU_POLICY_SOCK)", policy_sock.display());
+    }
+
+    if let Err(e) = serve(&sock_path, &mut gate, &mut runtime, &clock, connector_id, policy_rx) {
         eprintln!("serve error: {e}");
         std::process::exit(4);
     }

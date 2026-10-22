@@ -14,6 +14,7 @@ mu-vault = { path = "../mu-vault" }
 mu-human = { path = "../mu-human" }
 mu-policy = { path = "../mu-policy" }
 mu-license = { path = "../mu-license" }
+composer-core = { path = "../composer-core" }
 sha2 = "=0.10.8"
 serde = { version = "=1.0.217", features = ["derive"] }
 toml = "=0.5.11"

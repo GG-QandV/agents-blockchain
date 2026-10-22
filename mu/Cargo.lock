@@ -395,6 +395,7 @@ dependencies = [
 name = "mu-daemon"
 version = "0.2.0-ksg"
 dependencies = [
+ "composer-core",
  "mu-common",
  "mu-connect",
  "mu-core",

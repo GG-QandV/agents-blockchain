@@ -47,6 +47,9 @@ pub struct Config {
     pub allow: AllowList,
     pub omega: Omega,
     pub delta: Delta,
+    /// The same policy in the Composer's type, for the policy endpoint.
+    pub policy: mu_policy::Delta,
+    pub chain_id: u64,
     pub connector: ConnectorId,
 }
 
@@ -178,7 +181,7 @@ impl Config {
             daily_limit: policy.daily_limit,
             whitelist: policy.whitelist.iter().map(|w| w.address).collect(),
             confirm_threshold: policy.confirm_threshold,
-            resource_allowlist: policy.resource_allowlist,
+            resource_allowlist: policy.resource_allowlist.clone(),
         };
 
         let connector = connector_id()?;
@@ -192,6 +195,8 @@ impl Config {
         };
 
         Ok(Config {
+            policy: policy.clone(),
+            chain_id,
             mu_path: home.join("mu.bin"),
             log_path: home.join("mu.log"),
             sock_path: home.join("mu-daemon.sock"),
