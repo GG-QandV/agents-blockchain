@@ -20,6 +20,17 @@
 - Reconcile on start: `PendingAuth` → connector status; used → `Settled` (nonce is the chain key),
   failed → `Failed`, still pending after `valid_before + 60 s` → `Failed` (reserve released).
   Two nodes disagreeing or unavailable → reserve kept, `Alert 0x0A02`.
+- Policy endpoint for Composer: `<MU_HOME>/mu-policy.sock`, framing `len:u32 LE ‖ body`
+  (the same as `composer-core::client`). A proposal is decoded, validated against Ω,
+  checked against the current Δ hash (TOCTOU), shown as a diff and applied **only** after
+  the owner confirms on the daemon's stdin; a refusal leaves Δ untouched and answers
+  `rejected: human_denied`. An applied change is logged as `DeltaChanged`.
+- The owner proof hash now binds the connector and the resource, so two intents that differ
+  only there no longer share one proof.
+
+### Tests
+- The x402 self-check is pinned by a test with a challenge naming a *foreign* recipient
+  (the previous test compared the intent with itself and could not fail).
 
 ### Legacy records
 - A `Pending` record with `chain_nonce = 0` has no on-chain key and cannot be verified. After

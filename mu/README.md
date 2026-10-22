@@ -1,6 +1,8 @@
 # μ-agentic MVP — модули M4–M9 + Composer часть 1 (референс-реализация)
 
-Компилируется на Rust 1.75+. Тесты: `cargo test --workspace --features mu-vault/softvault` → 85 passing.
+Компилируется на Rust 1.75+. Тесты: `cargo test --workspace --features mu-vault/softvault` → 165 passing.
+
+Демон (сокеты, переменные окружения, протоколы): `mu-daemon/README.md`.
 
 ## M1 mu-core (μ-объект)
 - Приватные слоты (нет &mut к Ω — RISK-M1-1 на уровне типов) + побайтная сверка Ω в apply_delta.
