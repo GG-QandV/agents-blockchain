@@ -241,6 +241,20 @@ fn decode_kind(b: &[u8]) -> Option<Kind> {
             let connector: &'static str = match s { "bank_stub" => "bank_stub", "card_stub" => "card_stub", _ => "stub" };
             Some(Kind::Simulated { intent_hash: ih, connector })
         }
+        14 => {
+            let code = u16::from_be_bytes(r.get(0..2)?.try_into().ok()?);
+            let intent_hash = h32(r.get(2..34)?)?;
+            Some(Kind::AlertAbout { code, intent_hash })
+        }
+        13 => {
+            let version = u16::from_be_bytes(r.get(0..2)?.try_into().ok()?);
+            let prev = h32(r.get(2..34)?)?;
+            let next = h32(r.get(34..66)?)?;
+            let owner_sig: [u8; 64] = r.get(66..130)?.try_into().ok()?;
+            let len = u32::from_be_bytes(r.get(130..134)?.try_into().ok()?) as usize;
+            let delta = r.get(134..134 + len)?.to_vec();
+            Some(Kind::DeltaApplied { version, prev, next, delta, owner_sig })
+        }
         7 => Some(Kind::DeltaChanged { old_hash: h32(r)?, new_hash: h32(r.get(32..)?)? }),
         8 => Some(Kind::HumanDecision { intent_hash: h32(r)?, approved: *r.get(32)? == 1 }),
         9 => Some(Kind::TailTruncated { lost_from_seq: u64::from_be_bytes(r.get(..8)?.try_into().ok()?) }),

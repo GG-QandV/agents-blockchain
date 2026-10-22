@@ -1,23 +1,104 @@
 //! delta_hash — deterministic SHA-256 of canonical byte representation Δ.
 //! Used for base_delta_hash (TOCTOU, spec §5.1) and DeltaChanged in the log.
-use crate::types::Delta;
+use crate::types::{Delta, ResourceRule, WlEntry};
+use mu_common::{Amount, CanonAddress};
 use mu_common::Hash32;
 use sha2::{Digest, Sha256};
 
-pub fn delta_hash(d: &Delta) -> Hash32 {
-    let mut h = Sha256::new();
-    h.update(d.daily_limit.minor().to_be_bytes());
-    h.update((d.whitelist.len() as u32).to_be_bytes());
-    // canonical order: sort by (chain_id, addr) — input order does not affect hash
+/// Canonical bytes of Δ: every field, including the resource rules, in a
+/// sorted order, length-prefixed so no two different Δ can encode alike.
+pub fn delta_bytes(d: &Delta) -> Vec<u8> {
+    let mut b = Vec::new();
+    b.extend_from_slice(&d.daily_limit.minor().to_be_bytes());
+    b.extend_from_slice(&d.confirm_threshold.minor().to_be_bytes());
     let mut wl: Vec<_> = d.whitelist.iter().collect();
     wl.sort_by_key(|e| (e.address.chain_id(), *e.address.bytes()));
+    b.extend_from_slice(&(wl.len() as u32).to_be_bytes());
     for e in wl {
-        h.update(e.address.chain_id().to_be_bytes());
-        h.update(e.address.bytes());
-        h.update((e.label.len() as u32).to_be_bytes());
-        h.update(e.label.as_bytes());
+        b.extend_from_slice(&e.address.chain_id().to_be_bytes());
+        b.extend_from_slice(e.address.bytes());
+        let label = e.label.as_bytes();
+        b.extend_from_slice(&(label.len() as u32).to_be_bytes());
+        b.extend_from_slice(label);
     }
-    h.update(d.confirm_threshold.minor().to_be_bytes());
+    let mut rl: Vec<_> = d.resource_allowlist.iter().collect();
+    rl.sort_by_key(|r| (r.host.clone(), r.path_prefix.clone()));
+    b.extend_from_slice(&(rl.len() as u32).to_be_bytes());
+    for r in rl {
+        for s in [&r.host, &r.path_prefix] {
+            b.extend_from_slice(&(s.len() as u32).to_be_bytes());
+            b.extend_from_slice(s.as_bytes());
+        }
+        b.extend_from_slice(&r.max_price_per_call.minor().to_be_bytes());
+    }
+    b
+}
+
+/// The inverse of `delta_bytes`; `None` for anything malformed.
+pub fn delta_from_bytes(b: &[u8]) -> Option<Delta> {
+    let mut p = Parser { b, i: 0 };
+    let daily_limit = Amount::from_minor(p.u128()?);
+    let confirm_threshold = Amount::from_minor(p.u128()?);
+    let n = p.u32()? as usize;
+    if n > 4096 {
+        return None;
+    }
+    let mut whitelist = Vec::with_capacity(n);
+    for _ in 0..n {
+        let chain_id = p.u64()?;
+        let addr = p.arr20()?;
+        let label = p.string()?;
+        whitelist.push(WlEntry { address: CanonAddress::from_raw(addr, chain_id), label });
+    }
+    let m = p.u32()? as usize;
+    if m > 4096 {
+        return None;
+    }
+    let mut resource_allowlist = Vec::with_capacity(m);
+    for _ in 0..m {
+        let host = p.string()?;
+        let path_prefix = p.string()?;
+        let max_price_per_call = Amount::from_minor(p.u128()?);
+        resource_allowlist.push(ResourceRule { host, path_prefix, max_price_per_call });
+    }
+    if p.i != b.len() {
+        return None;
+    }
+    Some(Delta { daily_limit, whitelist, confirm_threshold, resource_allowlist })
+}
+
+struct Parser<'a> {
+    b: &'a [u8],
+    i: usize,
+}
+impl<'a> Parser<'a> {
+    fn take(&mut self, n: usize) -> Option<&'a [u8]> {
+        let end = self.i.checked_add(n)?;
+        let s = self.b.get(self.i..end)?;
+        self.i = end;
+        Some(s)
+    }
+    fn u32(&mut self) -> Option<u32> {
+        Some(u32::from_be_bytes(self.take(4)?.try_into().ok()?))
+    }
+    fn u64(&mut self) -> Option<u64> {
+        Some(u64::from_be_bytes(self.take(8)?.try_into().ok()?))
+    }
+    fn u128(&mut self) -> Option<u128> {
+        Some(u128::from_be_bytes(self.take(16)?.try_into().ok()?))
+    }
+    fn arr20(&mut self) -> Option<[u8; 20]> {
+        self.take(20)?.try_into().ok()
+    }
+    fn string(&mut self) -> Option<String> {
+        let n = self.u32()? as usize;
+        String::from_utf8(self.take(n)?.to_vec()).ok()
+    }
+}
+
+pub fn delta_hash(d: &Delta) -> Hash32 {
+    let mut h = Sha256::new();
+    h.update(delta_bytes(d));
     let out = h.finalize();
     let mut a = [0u8; 32];
     a.copy_from_slice(&out);

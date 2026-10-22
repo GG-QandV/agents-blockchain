@@ -28,6 +28,19 @@ pub enum Kind {
     TailTruncated { lost_from_seq: u64 },
     NonceSnapshot { agent_id: String, nonce: u64 },
     Alert { code: u16 },
+    /// An alert about one intent: written once per state transition, so a
+    /// restart does not repeat it in the journal.
+    AlertAbout { code: u16, intent_hash: Hash32 },
+    /// A Δ change the owner signed and the daemon applied. The journal is the
+    /// source of truth: `delta` is the full canonical Δ, so recovery never
+    /// depends on `policy.toml`.
+    DeltaApplied {
+        version: u16,
+        prev: Hash32,
+        next: Hash32,
+        delta: Vec<u8>,
+        owner_sig: [u8; 64],
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -71,6 +84,20 @@ impl Kind {
                 b.extend(agent_id.as_bytes()); b.extend(nonce.to_be_bytes());
             }
             Kind::Alert { code } => { b.push(11); b.extend(code.to_be_bytes()); }
+            Kind::AlertAbout { code, intent_hash } => {
+                b.push(14);
+                b.extend(code.to_be_bytes());
+                b.extend(intent_hash.0);
+            }
+            Kind::DeltaApplied { version, prev, next, delta, owner_sig } => {
+                b.push(13);
+                b.extend(version.to_be_bytes());
+                b.extend(prev.0);
+                b.extend(next.0);
+                b.extend(owner_sig);
+                b.extend((delta.len() as u32).to_be_bytes());
+                b.extend(delta);
+            }
             Kind::PendingAuth { intent_hash, amount_total, nonce, valid_after, valid_before } => {
                 b.push(12); b.extend(intent_hash.0);
                 b.extend(amount_total.to_be_bytes());

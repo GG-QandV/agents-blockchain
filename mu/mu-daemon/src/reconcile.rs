@@ -16,6 +16,21 @@ pub const SKEW_SECS: u64 = 60;
 /// TTL for legacy `Pending` records without a chain key.
 pub const LEGACY_TTL_SECS: u64 = 3600 + SKEW_SECS;
 
+/// One alert per (code, intent). The journal is evidence, not a log: the same
+/// unresolved reserve seen on the next start is reported on stderr instead.
+fn alert_once(log: &mut Log, vault: &dyn Vault, code: u16, intent_hash: mu_common::Hash32, now: u64) {
+    let seen = log
+        .entries()
+        .iter()
+        .any(|e| matches!(&e.kind, Kind::AlertAbout { code: c, intent_hash: h } if *c == code && *h == intent_hash));
+    if seen {
+        let h = intent_hash.0.iter().map(|b| format!("{b:02x}")).collect::<String>();
+        eprintln!("reconcile: alert 0x{code:04X} for 0x{h} still stands");
+        return;
+    }
+    let _ = log.append(Kind::AlertAbout { code, intent_hash }, now, vault);
+}
+
 pub fn reconcile(log: &mut Log, connector: &dyn Connector, vault: &dyn Vault, now: u64) {
     let open: Vec<(u64, u64, Kind)> = log
         .pending()
@@ -46,14 +61,16 @@ pub fn reconcile(log: &mut Log, connector: &dyn Connector, vault: &dyn Vault, no
                     }
                     Err(_) => {
                         // Nodes diverge or are unavailable: keep the reserve.
-                        let _ = log.append(Kind::Alert { code: 0x0A02 }, now, vault);
+                        // The journal records the transition once; a restart
+                        // only reports it on stderr.
+                        alert_once(log, vault, 0x0A02, intent_hash, now);
                     }
                 }
             }
             Kind::Pending { intent_hash, chain_nonce, .. } => {
                 if chain_nonce == 0 && now > ts.saturating_add(LEGACY_TTL_SECS) {
                     // Legacy x402 reserve with no on-chain key: close by TTL only.
-                    let _ = log.append(Kind::Alert { code: 0x0A01 }, now, vault);
+                    alert_once(log, vault, 0x0A01, intent_hash, now);
                     let _ = log.append(Kind::Failed { intent_hash }, now, vault);
                 }
             }
@@ -127,6 +144,13 @@ mod tests {
         log.entries().iter().any(|e| &e.kind == want)
     }
 
+    fn alerts(log: &Log, code: u16, ih: u8) -> usize {
+        log.entries()
+            .iter()
+            .filter(|e| matches!(&e.kind, Kind::AlertAbout { code: c, intent_hash: h } if *c == code && h.0 == [ih; 32]))
+            .count()
+    }
+
     #[test]
     fn an_expired_authorization_is_closed_failed_after_restart() {
         let dir = tempfile::tempdir().unwrap();
@@ -163,7 +187,7 @@ mod tests {
         reconcile(&mut log, &c, &v, 1_000);
         assert_eq!(log.pending().len(), 1, "the reserve is kept");
         assert_eq!(log.entries().len(), before, "no record is written");
-        assert!(!closed(&log, &Kind::Alert { code: 0x0A02 }));
+        assert_eq!(alerts(&log, 0x0A02, 7), 0);
     }
 
     #[test]
@@ -175,7 +199,7 @@ mod tests {
         let c = Fake { out: Out::Diverge, pre: true };
         reconcile(&mut log, &c, &v, 1_000);
         assert_eq!(log.pending().len(), 1, "no guess about the money");
-        assert!(closed(&log, &Kind::Alert { code: 0x0A02 }));
+        assert_eq!(alerts(&log, 0x0A02, 7), 1);
         assert!(!closed(&log, &Kind::Failed { intent_hash: Hash32([7; 32]) }));
     }
 
@@ -188,7 +212,25 @@ mod tests {
         let c = Fake { out: Out::Unknown, pre: true };
         reconcile(&mut log, &c, &v, 1_000);
         assert_eq!(log.pending().len(), 1);
-        assert!(closed(&log, &Kind::Alert { code: 0x0A02 }));
+        assert_eq!(alerts(&log, 0x0A02, 7), 1);
+    }
+
+    #[test]
+    fn a_restart_does_not_repeat_the_alert_in_the_journal() {
+        let dir = tempfile::tempdir().unwrap();
+        let v = vault();
+        let mut log = open_log(dir.path(), &v);
+        append_auth(&mut log, &v, [9; 32], 10_000, 900);
+        let c = Fake { out: Out::Diverge, pre: true };
+        reconcile(&mut log, &c, &v, 1_000);
+        assert_eq!(alerts(&log, 0x0A02, 7), 1);
+        let after_first = log.entries().len();
+        // Two more restarts: the reserve is still open, the journal stays put.
+        reconcile(&mut log, &c, &v, 1_100);
+        reconcile(&mut log, &c, &v, 1_200);
+        assert_eq!(alerts(&log, 0x0A02, 7), 1, "one alert per transition");
+        assert_eq!(log.entries().len(), after_first, "restarts write nothing");
+        assert_eq!(log.pending().len(), 1);
     }
 
     #[test]
@@ -204,7 +246,7 @@ mod tests {
         .unwrap();
         let c = Fake { out: Out::Pending, pre: false };
         reconcile(&mut log, &c, &v, 900 + LEGACY_TTL_SECS + 1);
-        assert!(closed(&log, &Kind::Alert { code: 0x0A01 }));
+        assert_eq!(alerts(&log, 0x0A01, 8), 1);
         assert!(closed(&log, &Kind::Failed { intent_hash: Hash32([8; 32]) }));
     }
 }

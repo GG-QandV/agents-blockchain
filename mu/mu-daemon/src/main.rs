@@ -17,6 +17,7 @@ compile_error!("softvault запрещён в release");
 
 mod config;
 mod policy;
+mod policy_state;
 mod reconcile;
 
 use std::fs;
@@ -239,13 +240,35 @@ fn handle_client(
     }
 }
 
+/// What the main loop needs to keep μ and the policy cache in step.
+struct PolicyCtx {
+    mu_path: std::path::PathBuf,
+    policy_path: std::path::PathBuf,
+    version: u16,
+}
+
+/// Bind μ to the log tail after an append. The file is written first: a failed
+/// save leaves both the file and the in-memory copy on the old head, and the
+/// next start fails closed instead of silently ignoring the new record.
+fn advance_mu(mu: &mut Mu, log: &Log, vault: &dyn Vault, path: &Path) {
+    match mu.advanced(log.last_hash(), vault) {
+        Ok(next) => match next.save(path) {
+            Ok(()) => *mu = next,
+            Err(e) => eprintln!("mu save: {e:?}"),
+        },
+        Err(e) => eprintln!("mu advance: {e:?}"),
+    }
+}
+
 fn serve(
     sock_path: &Path,
     gate: &mut Gate,
     runtime: &mut Runtime,
     clock: &dyn Clock,
     connector: ConnectorId,
-    policy_rx: std::sync::mpsc::Receiver<policy::Applied>,
+    policy_rx: std::sync::mpsc::Receiver<policy::Request>,
+    mu: &mut Mu,
+    ctx: &mut PolicyCtx,
 ) -> std::io::Result<()> {
     let _ = fs::remove_file(sock_path);
     let listener = UnixListener::bind(sock_path)?;
@@ -253,26 +276,62 @@ fn serve(
     listener.set_nonblocking(true)?;
     eprintln!("μ-daemon listening on {}", sock_path.display());
     loop {
-        // Apply a policy the owner confirmed while the socket was idle.
-        while let Ok(applied) = policy_rx.try_recv() {
+        // Commit a policy the owner confirmed on the socket: journal (fsync),
+        // then the policy.toml cache, then μ. Any failure is answered to the
+        // waiting composer and leaves the previous policy in force.
+        while let Ok(req) = policy_rx.try_recv() {
             let now = clock.now_unix();
-            let _ = runtime.log.append(
-                Kind::DeltaChanged { old_hash: applied.old_hash, new_hash: applied.new_hash },
-                now,
+            let res = policy_state::commit(
+                &mut runtime.log,
+                mu,
                 runtime.vault,
+                &ctx.policy_path,
+                req.delta.clone(),
+                now,
             );
-            runtime.delta = mu_runtime::policy::Delta {
-                daily_limit: applied.delta.daily_limit,
-                whitelist: applied.delta.whitelist.iter().map(|w| w.address).collect(),
-                confirm_threshold: applied.delta.confirm_threshold,
-                resource_allowlist: applied.delta.resource_allowlist,
-            };
-            eprintln!("policy applied: {}", policy::hex(&applied.new_hash));
+            match res {
+                Ok((applied, next_mu)) => match next_mu.save(&ctx.mu_path) {
+                    Ok(()) => {
+                        *mu = next_mu;
+                        ctx.version = applied.state.version;
+                        runtime.delta = mu_runtime::policy::Delta {
+                            daily_limit: applied.state.delta.daily_limit,
+                            whitelist: applied
+                                .state
+                                .delta
+                                .whitelist
+                                .iter()
+                                .map(|w| w.address)
+                                .collect(),
+                            confirm_threshold: applied.state.delta.confirm_threshold,
+                            resource_allowlist: applied.state.delta.resource_allowlist.clone(),
+                        };
+                        eprintln!(
+                            "policy applied: v{} {}",
+                            applied.state.version,
+                            policy::hex(&applied.new_hash)
+                        );
+                        let _ = req.reply.send(policy::Answer::Applied {
+                            version: applied.state.version,
+                            new_hash: applied.new_hash,
+                        });
+                    }
+                    Err(e) => {
+                        eprintln!("policy: mu save: {e:?}");
+                        let _ = req.reply.send(policy::Answer::Rejected("mu_save".into()));
+                    }
+                },
+                Err(e) => {
+                    eprintln!("policy: {e:?}");
+                    let _ = req.reply.send(policy::Answer::Rejected(format!("{e:?}")));
+                }
+            }
         }
         match listener.accept() {
             Ok((stream, _)) => {
                 let _ = stream.set_nonblocking(false);
                 handle_client(stream, gate, runtime, clock, connector);
+                advance_mu(mu, &runtime.log, runtime.vault, &ctx.mu_path);
             }
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {
                 std::thread::sleep(std::time::Duration::from_millis(50));
@@ -292,8 +351,8 @@ fn main() {
     };
 
     let Config {
-        mu_path, log_path, sock_path, mu_pubkey, vault, allow, omega, delta,
-        policy: policy_delta, chain_id, connector: connector_id, ..
+        mu_path, log_path, sock_path, mu_pubkey, vault, allow, omega, delta: _file_delta,
+        policy: policy_delta, policy_path, chain_id, connector: connector_id, ..
     } = cfg;
 
     let vault: &'static SoftVault = Box::leak(Box::new(vault));
@@ -342,12 +401,27 @@ fn main() {
         }
     };
 
+    // The journal wins over the file: policy.toml is only a cache of it.
+    let policy_now = match policy_state::load(&log, mu.owner_pubkey(), &policy_path) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("FATAL: policy: {e:?}");
+            std::process::exit(5);
+        }
+    };
+    eprintln!("policy: v{} (journal is the source of truth)", policy_now.version);
+
     let presenter: &'static StdinPresenter = Box::leak(Box::new(StdinPresenter));
     let clock = SysClock;
 
     let mut runtime = Runtime {
         omega,
-        delta,
+        delta: mu_runtime::policy::Delta {
+            daily_limit: policy_now.delta.daily_limit,
+            whitelist: policy_now.delta.whitelist.iter().map(|w| w.address).collect(),
+            confirm_threshold: policy_now.delta.confirm_threshold,
+            resource_allowlist: policy_now.delta.resource_allowlist.clone(),
+        },
         log,
         vault,
         connector,
@@ -364,7 +438,7 @@ fn main() {
     ));
     let (policy_tx, policy_rx) = std::sync::mpsc::channel();
     let policy_state = composer_core::endpoint::DaemonPolicy {
-        current: policy_delta,
+        current: policy_now.delta.clone(),
         omega: mu_policy::OmegaView {
             max_ceiling: runtime.omega.max_ceiling,
             supported_chain_ids: vec![chain_id],
@@ -376,7 +450,22 @@ fn main() {
         eprintln!("policy endpoint on {} (MU_POLICY_SOCK)", policy_sock.display());
     }
 
-    if let Err(e) = serve(&sock_path, &mut gate, &mut runtime, &clock, connector_id, policy_rx) {
+    let mut mu = mu;
+    let mut policy_ctx = PolicyCtx {
+        mu_path: mu_path.clone(),
+        policy_path: policy_path.clone(),
+        version: policy_now.version,
+    };
+    if let Err(e) = serve(
+        &sock_path,
+        &mut gate,
+        &mut runtime,
+        &clock,
+        connector_id,
+        policy_rx,
+        &mut mu,
+        &mut policy_ctx,
+    ) {
         eprintln!("serve error: {e}");
         std::process::exit(4);
     }

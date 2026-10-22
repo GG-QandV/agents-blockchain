@@ -28,6 +28,12 @@ impl CanonAddress {
     pub fn bytes(&self) -> &[u8; 20] { &self.addr }
     pub fn chain_id(&self) -> u64 { self.chain_id }
 
+    /// From bytes that are already canonical (a decoded journal or file), with
+    /// no text normalisation: there is nothing to normalise.
+    pub const fn from_raw(addr: [u8; 20], chain_id: u64) -> Self {
+        CanonAddress { addr, chain_id }
+    }
+
     /// Единственный конструктор. Принимает hex (с/без 0x), проверяет EIP-55 если смешанный регистр.
     pub fn canon(input: &str, chain_id: u64) -> Result<Self, AddrErr> {
         let s = input.strip_prefix("0x").unwrap_or(input);

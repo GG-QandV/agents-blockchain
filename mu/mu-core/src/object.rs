@@ -120,6 +120,15 @@ impl Mu {
         Ok(())
     }
 
+    /// The log grew: bind μ to the new tail. Δ and Ω are untouched, so only the
+    /// μ key re-signs the payload — no owner signature is involved.
+    pub fn advanced(&self, log_head: Hash32, vault: &dyn Vault) -> Result<Mu, CoreErr> {
+        let mut next = self.clone();
+        next.log_head = log_head;
+        next.resign(vault)?;
+        Ok(next)
+    }
+
     /// RISK-M1-2: binding with log. Replacing μ with old copy → log_head ≠ chain tail → Err.
     pub fn verify_against_log(&self, log_last_hash: Hash32) -> Result<(), CoreErr> {
         if self.log_head != log_last_hash {
@@ -208,6 +217,14 @@ impl Mu {
     pub(crate) fn parts(&self) -> (&Omega, &Delta, &[u8; 64], &[u8], &Hash32, &[u8; 64], u64) {
         (&self.omega, &self.delta, &self.delta_sig, &self.value_ref, &self.log_head, &self.mu_sig, self.created_at)
     }
+}
+
+/// An owner signature over an arbitrary digest in the Δ domain. Journal
+/// records bind (version, prev, next), not only the Δ hash, so they need this
+/// check instead of `apply_delta`.
+pub fn owner_sig_valid(owner_pubkey: &[u8], digest: &Hash32, sig: &[u8; 64]) -> bool {
+    let d = tagged_digest(DomainTag::MuDelta, digest);
+    verify_p256(owner_pubkey, &d, sig).is_ok()
 }
 
 fn verify_p256(pubkey: &[u8], digest: &Hash32, sig: &[u8; 64]) -> Result<(), ()> {

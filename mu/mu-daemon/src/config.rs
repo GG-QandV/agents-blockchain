@@ -49,6 +49,7 @@ pub struct Config {
     pub delta: Delta,
     /// The same policy in the Composer's type, for the policy endpoint.
     pub policy: mu_policy::Delta,
+    pub policy_path: std::path::PathBuf,
     pub chain_id: u64,
     pub connector: ConnectorId,
 }
@@ -195,6 +196,7 @@ impl Config {
         };
 
         Ok(Config {
+            policy_path: home.join("policy.toml"),
             policy: policy.clone(),
             chain_id,
             mu_path: home.join("mu.bin"),

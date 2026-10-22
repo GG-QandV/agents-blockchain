@@ -45,6 +45,38 @@ struct RawResourceRule {
     max_price_per_call_minor: u64,
 }
 
+/// The Δ version recorded in the file; a file written by hand has none (0).
+pub fn parse_toml_version(input: &str) -> Result<u16, String> {
+    #[derive(Deserialize)]
+    struct VersionOnly {
+        #[serde(default)]
+        version: Option<u16>,
+    }
+    let v: VersionOnly = toml::from_str(input).map_err(|e| format!("TOML: {e}"))?;
+    Ok(v.version.unwrap_or(0))
+}
+
+/// Write Δ as `policy.toml`. The daemon owns this file: it is a cache of the
+/// journal, so it always carries the version it was derived from.
+pub fn to_toml(d: &Delta, version: u16) -> String {
+    let mut s = String::new();
+    s.push_str(&format!("version = {version}\n"));
+    s.push_str(&format!("daily_limit_minor = {}\n", d.daily_limit.minor()));
+    s.push_str(&format!("confirm_threshold_minor = {}\n", d.confirm_threshold.minor()));
+    for w in &d.whitelist {
+        s.push_str("\n[[whitelist]]\n");
+        s.push_str(&format!("address = \"0x{}\"\n", w.address.to_hex()));
+        s.push_str(&format!("label = {:?}\n", w.label));
+    }
+    for r in &d.resource_allowlist {
+        s.push_str("\n[[resource_allowlist]]\n");
+        s.push_str(&format!("host = {:?}\n", r.host));
+        s.push_str(&format!("path_prefix = {:?}\n", r.path_prefix));
+        s.push_str(&format!("max_price_per_call_minor = {}\n", r.max_price_per_call.minor()));
+    }
+    s
+}
+
 /// Завантажити `Delta` з TOML-рядка.
 pub fn parse_toml(input: &str, chain_id: u64) -> Result<Delta, String> {
     let raw: RawConfig = toml::from_str(input).map_err(|e| format!("TOML: {e}"))?;

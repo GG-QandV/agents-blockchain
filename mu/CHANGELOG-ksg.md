@@ -37,6 +37,28 @@
 - The x402 self-check is pinned by a test with a challenge naming a *foreign* recipient
   (the previous test compared the intent with itself and could not fail).
 
+### Policy: the journal is the source of truth
+- `Kind::DeltaApplied` (tag 13) records each change with the **full canonical Δ** and an
+  owner signature over `(version, prev_hash, next_hash)`. `policy.toml` is only a cache.
+- Order of a change: owner signature → journal (fsync inside `append`) → atomic
+  `policy.toml` replace (tmp, fsync, rename, fsync dir) → μ advanced to the new tail.
+- Recovery reads the last `DeltaApplied`: the file matching it is used as is; a file that
+  lags but matches the base or an earlier journal version is rewritten from the journal;
+  a file that is newer, matches no journal version, or carries a broken signature makes the
+  daemon refuse to start. A planted `policy.toml` with looser limits never takes effect.
+- `delta_hash` now covers `resource_allowlist` (it was silently ignored), so two Δ that
+  differ only in resource rules no longer share a hash.
+- The owner sees a full diff before confirming: both limits, every added and removed
+  whitelist address with its label, and every added, removed or repriced resource rule.
+- μ is advanced to the log tail after every append (`Mu::advanced`). Before this, any
+  payment left μ.log_head behind the chain, and the next start failed with `log_head
+  mismatch` — the daemon could not be restarted after its first payment.
+
+### Alerts
+- `Kind::AlertAbout` (tag 14) ties an alert to an intent. `reconcile` writes it once per
+  `(code, intent)` transition; a restart with the same unresolved reserve reports on stderr
+  and does not grow the journal.
+
 ### Legacy records
 - A `Pending` record with `chain_nonce = 0` has no on-chain key and cannot be verified. After
   `3600 s + 60 s` from its timestamp it is closed `Failed` with `Alert 0x0A01`. This releases

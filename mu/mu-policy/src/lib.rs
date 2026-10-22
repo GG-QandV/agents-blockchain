@@ -11,5 +11,5 @@ pub mod hash;
 
 pub use types::{Delta, OmegaView, ResourceRule, WlEntry};
 pub use validate::{validate, VErr, VWarn, ValidationReport};
-pub use hash::delta_hash;
+pub use hash::{delta_bytes, delta_from_bytes, delta_hash};
 pub use eip55::canon_address_checked;

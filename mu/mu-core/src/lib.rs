@@ -10,4 +10,4 @@
 pub mod format;
 pub mod object;
 
-pub use object::{Mu, CoreErr, MU_MAX_SIZE};
+pub use object::{owner_sig_valid, Mu, CoreErr, MU_MAX_SIZE};
