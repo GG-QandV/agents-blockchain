@@ -241,6 +241,7 @@ fn decode_kind(b: &[u8]) -> Option<Kind> {
             let connector: &'static str = match s { "bank_stub" => "bank_stub", "card_stub" => "card_stub", _ => "stub" };
             Some(Kind::Simulated { intent_hash: ih, connector })
         }
+        15 => Some(Kind::DeniedNoOffer { intent_hash: h32(r)? }),
         14 => {
             let code = u16::from_be_bytes(r.get(0..2)?.try_into().ok()?);
             let intent_hash = h32(r.get(2..34)?)?;

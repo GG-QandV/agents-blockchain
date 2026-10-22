@@ -16,6 +16,7 @@
 compile_error!("softvault запрещён в release");
 
 mod config;
+mod boot_guard;
 mod policy;
 mod policy_state;
 mod reconcile;
@@ -97,6 +98,8 @@ fn parse_decision(line: &str) -> mu_human::PresenterChoice {
 #[derive(Debug)]
 enum BootErr {
     Mu(CoreErr),
+    /// The vault's owner key is not the one μ was issued with.
+    OwnerKeyMismatch,
     Log(LogErr),
     Io(std::io::Error),
 }
@@ -139,13 +142,21 @@ fn boot(
     // ── Крок 1: M1 — load + verify + verify_against_log (RISK-M1-2) ──
     let mu = Mu::load(mu_path)?;
     mu.verify(mu_pubkey).map_err(BootErr::Mu)?;
+    // The key that signs Δ must be the key μ was issued with, otherwise the
+    // daemon would confirm changes under a key the object does not trust.
+    if !boot_guard::owner_keys_agree(&mu, vault) {
+        return Err(BootErr::OwnerKeyMismatch);
+    }
 
     // ── Крок 2: M5 — Log::open + verify_chain (RISK-M5-2) ────────────
     let log = Log::open(log_path, vault)?;
     log.verify_chain()?;
 
-    // verify_against_log: log_head == хвіст лога (RISK-M1-2)
-    mu.verify_against_log(log.last_hash())?;
+    // verify_against_log with catch-up: a crash between the journal append and
+    // the μ save leaves μ one step behind. Catching up is allowed only when
+    // μ's head is a real link of the verified chain; anything else (a shorter
+    // journal, a foreign μ, a rollback) stops the boot.
+    let mu = boot_guard::catch_up(&mu, &log, vault, mu_path)?;
 
     // ── Крок 3: pending() → status → reconcile ──────────────────────
     let mut log = log;
@@ -190,6 +201,8 @@ fn handle_client(
     clock: &dyn Clock,
     connector: ConnectorId,
 ) {
+    // A client that connects and says nothing must not hold the loop.
+    let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(30)));
     let mut len_buf = [0u8; 4];
     if stream.read_exact(&mut len_buf).is_err() {
         return;
@@ -226,6 +239,8 @@ fn handle_client(
             let (code, header) = match status {
                 IntentStatus::DeniedOmega => (0x10u8, None),
                 IntentStatus::DeniedDelta => (0x11, None),
+                // Wire v3 marker: the daemon had no 402 offer to sign.
+                IntentStatus::DeniedNoOffer => (0x15, None),
                 IntentStatus::DeniedHuman => (0x12, None),
                 IntentStatus::TimeoutHuman => (0x13, None),
                 IntentStatus::Settled { .. } => (0x20, runtime.connector.take_header()),
@@ -380,7 +395,11 @@ fn main() {
     let (mu, log, mut gate) = match boot(&mu_path, &log_path, &mu_pubkey, allow, vault, connector) {
         Ok(v) => v,
         Err(BootErr::Mu(CoreErr::LogHeadMismatch)) => {
-            eprintln!("FATAL: log_head mismatch — стара копія mu.bin");
+            eprintln!("FATAL: log_head mismatch — μ is not a link of this journal (old copy, rollback or foreign file)");
+            std::process::exit(2);
+        }
+        Err(BootErr::OwnerKeyMismatch) => {
+            eprintln!("FATAL: vault owner key != mu.owner_pubkey — refusing to start");
             std::process::exit(2);
         }
         Err(BootErr::Mu(e)) => {
@@ -474,7 +493,6 @@ fn main() {
 #[cfg(test)]
 mod tests {
     use super::{parse_decision, response_frame};
-
     #[test]
     fn a_zero_budget_is_a_timeout() {
         use mu_common::{Amount, CanonAddress, Hash32};

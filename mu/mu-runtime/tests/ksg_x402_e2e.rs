@@ -54,6 +54,10 @@ fn answer_402(amount: &str) -> String {
 }
 
 fn answer_402_t(amount: &str, timeout: u64) -> String {
+    answer_402_res(amount, timeout, RESOURCE)
+}
+
+fn answer_402_res(amount: &str, timeout: u64, resource: &str) -> String {
     serde_json::json!({
         "x402Version": 1,
         "error": "X-PAYMENT header is required",
@@ -61,7 +65,7 @@ fn answer_402_t(amount: &str, timeout: u64) -> String {
             "scheme": "exact",
             "network": "base-sepolia",
             "maxAmountRequired": amount,
-            "resource": RESOURCE,
+            "resource": resource,
             "description": "a repeated bare",
             "mimeType": "application/json",
             "payTo": ISSUER.to_lowercase(),
@@ -110,11 +114,27 @@ fn pay_with(
     amount: u128,
     timeout: Option<u64>,
 ) -> (IntentStatus, Option<String>, Vec<Kind>) {
+    pay_res(owner, delta, amount, timeout, Some(RESOURCE), RESOURCE)
+}
+
+/// The same, with the intent's resource and the offer's resource chosen apart.
+fn pay_res(
+    owner: PresenterChoice,
+    delta: Delta,
+    amount: u128,
+    timeout: Option<u64>,
+    intent_resource: Option<&str>,
+    offer_resource: &str,
+) -> (IntentStatus, Option<String>, Vec<Kind>) {
     let vault = SoftVault::for_test([1; 32], [2; 32], [0x11; 32]);
     let payer: [u8; 20] = hex::decode(&PAYER[2..]).unwrap().try_into().unwrap();
     let conn = X402Connector::on(BASE_SEPOLIA, payer);
     let offer = timeout.map(|t| {
-        X402Challenge::from_402_body(&answer_402_t(&amount.to_string(), t), &BASE_SEPOLIA).unwrap()
+        X402Challenge::from_402_body(
+            &answer_402_res(&amount.to_string(), t, offer_resource),
+            &BASE_SEPOLIA,
+        )
+        .unwrap()
     });
     let dir = tempfile::tempdir().unwrap();
     let presenter = Owner(owner);
@@ -136,7 +156,7 @@ fn pay_with(
         chain_id: 84532,
         agent_id: "ksg-holder-agent".into(),
         connector: ConnectorId::Crypto,
-        resource: Some(RESOURCE.into()),
+        resource: intent_resource.map(str::to_string),
     }, offer);
     let kinds = rt.log.entries().iter().map(|e| e.kind.clone()).collect();
     (st, conn.take_header(), kinds)
@@ -184,9 +204,40 @@ fn without_a_402_offer_nothing_is_paid() {
     // The daemon receives intents without the seller's 402 answer. x402 must
     // refuse instead of signing an authorization nobody asked for.
     let (st, header, log) = pay_with(PresenterChoice::Approve, delta(5_000_000, vec![issuer()]), 100_000, None);
-    assert_eq!(st, IntentStatus::Failed);
+    assert_eq!(st, IntentStatus::DeniedNoOffer);
     assert!(header.is_none(), "no X-PAYMENT without an offer");
     assert!(!log.iter().any(|k| matches!(k, Kind::PendingAuth { .. })), "no WAL record for a payment that cannot happen");
+    assert!(log.iter().any(|k| matches!(k, Kind::DeniedNoOffer { .. })), "the refusal is in the journal");
+}
+
+#[test]
+fn an_intent_without_a_resource_is_denied_for_x402() {
+    // Leaving the resource out must not skip the per-call price cap.
+    let (st, header, log) = pay_res(
+        PresenterChoice::Approve,
+        delta(5_000_000, vec![issuer()]),
+        100_000,
+        Some(300),
+        None,
+        RESOURCE,
+    );
+    assert_eq!(st, IntentStatus::DeniedDelta);
+    assert!(header.is_none());
+    assert!(log.iter().any(|k| matches!(k, Kind::DeniedDelta { .. })));
+}
+
+#[test]
+fn an_offer_for_another_resource_is_denied() {
+    let (st, header, _log) = pay_res(
+        PresenterChoice::Approve,
+        delta(5_000_000, vec![issuer()]),
+        100_000,
+        Some(300),
+        Some(RESOURCE),
+        "https://issuer.example/bare/other",
+    );
+    assert_eq!(st, IntentStatus::DeniedDelta, "the offer must be for the intent's resource");
+    assert!(header.is_none());
 }
 
 #[test]

@@ -50,6 +50,8 @@ impl RtIntent {
 pub enum IntentStatus {
     DeniedOmega,
     DeniedDelta,
+    /// x402 had no 402 offer to answer: nothing was signed (wire code 0x15).
+    DeniedNoOffer,
     DeniedHuman,
     TimeoutHuman,
     Settled { tx_hash: [u8; 32] },
@@ -158,12 +160,26 @@ impl<'a> Runtime<'a> {
             return IntentStatus::DeniedDelta;
         }
 
-        // 3b. Resource-check для x402
+        // 3b. Resource-check. A missing resource is not a free pass: for x402
+        // and for any policy with price caps it is a denial, otherwise the
+        // per-call ceiling could be bypassed by leaving the field out.
+        let resource_required = self.connector.pre_auth() || !self.delta.resource_allowlist.is_empty();
+        if i.resource.is_none() && resource_required {
+            let _ = self.log.append(Kind::DeniedDelta { intent_hash: ih }, now, self.vault);
+            return IntentStatus::DeniedDelta;
+        }
         if let Some(ref resource) = i.resource {
             let (host, path) = split_resource(resource);
             if resource_check(host, path, total, &self.delta).is_err() {
                 let _ = self.log.append(Kind::DeniedDelta { intent_hash: ih }, now, self.vault);
                 return IntentStatus::DeniedDelta;
+            }
+            // The 402 answer must be for the same resource we are paying for.
+            if let Some(offer) = offer.as_ref() {
+                if split_resource(&offer.resource) != (host, path) {
+                    let _ = self.log.append(Kind::DeniedDelta { intent_hash: ih }, now, self.vault);
+                    return IntentStatus::DeniedDelta;
+                }
             }
         }
 
@@ -214,8 +230,10 @@ impl<'a> Runtime<'a> {
         // second authorization.
         let auth = if self.connector.pre_auth() {
             // No offer → no window → nothing is signed, nothing is paid.
+            // The refusal is recorded, so the journal shows why nothing moved.
             let Some(window) = self.connector.auth_window_secs(offer.as_ref()) else {
-                return IntentStatus::Failed;
+                let _ = self.log.append(Kind::DeniedNoOffer { intent_hash: ih }, now, self.vault);
+                return IntentStatus::DeniedNoOffer;
             };
             let mut nonce = [0u8; 32];
             if rand_core::RngCore::try_fill_bytes(&mut rand_core::OsRng, &mut nonce).is_err() {

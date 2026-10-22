@@ -28,6 +28,8 @@ pub enum Kind {
     TailTruncated { lost_from_seq: u64 },
     NonceSnapshot { agent_id: String, nonce: u64 },
     Alert { code: u16 },
+    /// x402 refused because no 402 offer was supplied for the intent.
+    DeniedNoOffer { intent_hash: Hash32 },
     /// An alert about one intent: written once per state transition, so a
     /// restart does not repeat it in the journal.
     AlertAbout { code: u16, intent_hash: Hash32 },
@@ -84,6 +86,10 @@ impl Kind {
                 b.extend(agent_id.as_bytes()); b.extend(nonce.to_be_bytes());
             }
             Kind::Alert { code } => { b.push(11); b.extend(code.to_be_bytes()); }
+            Kind::DeniedNoOffer { intent_hash } => {
+                b.push(15);
+                b.extend(intent_hash.0);
+            }
             Kind::AlertAbout { code, intent_hash } => {
                 b.push(14);
                 b.extend(code.to_be_bytes());
