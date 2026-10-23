@@ -38,6 +38,8 @@ pub enum Kind {
         valid_before: u64,
         header: String,
     },
+    /// x402 refused because the agent-supplied offer failed the strict parse.
+    DeniedBadOffer { intent_hash: Hash32 },
     /// x402 refused because no 402 offer was supplied for the intent.
     DeniedNoOffer { intent_hash: Hash32 },
     /// An alert about one intent: written once per state transition, so a
@@ -106,6 +108,10 @@ impl Kind {
                 b.extend(valid_before.to_be_bytes());
                 b.extend((header.len() as u16).to_be_bytes());
                 b.extend(header.as_bytes());
+            }
+            Kind::DeniedBadOffer { intent_hash } => {
+                b.push(17);
+                b.extend(intent_hash.0);
             }
             Kind::DeniedNoOffer { intent_hash } => {
                 b.push(15);

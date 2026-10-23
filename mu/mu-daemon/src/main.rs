@@ -201,7 +201,14 @@ fn handle_client(
     runtime: &mut Runtime,
     clock: &dyn Clock,
     connector: ConnectorId,
+    journal_ok: &mut bool,
 ) {
+    if !*journal_ok {
+        // The journal is the control plane: after one failed write the daemon
+        // stops paying until a restart, rather than paying unrecorded.
+        let _ = stream.write_all(&[0x30]);
+        return;
+    }
     // A client that connects and says nothing must not hold the loop.
     let _ = stream.set_read_timeout(Some(std::time::Duration::from_secs(30)));
     let mut len_buf = [0u8; 4];
@@ -262,11 +269,17 @@ fn handle_client(
             let offer = match vi.offer.as_deref() {
                 None => None,
                 Some(json) => match mu_connect::x402::network_for_chain(vi.chain_id) {
-                    Some(net) => match mu_connect::x402::X402Challenge::from_402_body(json, &net) {
+                    Some(net) => match mu_connect::x402::X402Challenge::from_agent_offer(json, &net) {
                         Ok(c) => Some(c),
-                        Err(e) => {
-                            eprintln!("offer rejected: {e:?}");
-                            let _ = stream.write_all(&[0x11]);
+                        Err(why) => {
+                            // Its own code: 0x11 would read as a policy denial.
+                            let _ = runtime.log.append(
+                                Kind::DeniedBadOffer { intent_hash },
+                                now,
+                                runtime.vault,
+                            );
+                            eprintln!("offer rejected: {why}");
+                            let _ = stream.write_all(&[0x16]);
                             return;
                         }
                     },
@@ -304,6 +317,7 @@ fn handle_client(
                         Ok(_) => (0x21, Some(header)),
                         Err(e) => {
                             eprintln!("audit write failed, no header: {e:?}");
+                            *journal_ok = false;
                             (0x30, None)
                         }
                     }
@@ -357,6 +371,7 @@ fn serve(
     fs::set_permissions(sock_path, fs::Permissions::from_mode(mode))?;
     listener.set_nonblocking(true)?;
     eprintln!("μ-daemon listening on {}", sock_path.display());
+    let mut journal_ok = true;
     let refill_every = std::time::Duration::from_secs(60);
     let mut last_refill = std::time::Instant::now();
     loop {
@@ -429,7 +444,7 @@ fn serve(
                         continue;
                     }
                 }
-                handle_client(stream, gate, runtime, clock, connector);
+                handle_client(stream, gate, runtime, clock, connector, &mut journal_ok);
                 advance_mu(mu, &runtime.log, runtime.vault, &ctx.mu_path);
             }
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {

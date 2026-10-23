@@ -123,8 +123,10 @@ pub fn parse_wire(frame: &[u8]) -> Result<WireIntent, WireErr> {
         let olen = usize::from(c.u16()?);
         if olen == 0 || olen > MAX_OFFER { return Err(WireErr::OfferTooLong); }
         let obytes = c.take(olen)?;
+        // Size and encoding only: the offer is parsed once, typed, in the
+        // daemon (`X402Challenge::from_402_value`), so there is no second
+        // parser to disagree with.
         let s = std::str::from_utf8(obytes).map_err(|_| WireErr::BadOffer)?;
-        validate_offer(s)?;
         Some(s.to_string())
     } else {
         None
@@ -141,46 +143,6 @@ pub fn parse_wire(frame: &[u8]) -> Result<WireIntent, WireErr> {
         signed_bytes: payload.to_vec(),
         sig,
     })
-}
-
-/// Strict 402 body: only the keys we read, nothing else. A permissive parser
-/// would let an agent smuggle fields past the connector's own checks.
-fn validate_offer(s: &str) -> Result<(), WireErr> {
-    let v: serde_json::Value = serde_json::from_str(s).map_err(|_| WireErr::BadOffer)?;
-    let obj = v.as_object().ok_or(WireErr::BadOffer)?;
-    for k in obj.keys() {
-        if !matches!(k.as_str(), "x402Version" | "error" | "accepts") {
-            return Err(WireErr::BadOffer);
-        }
-    }
-    if !matches!(obj.get("x402Version").and_then(|x| x.as_u64()), Some(1)) {
-        return Err(WireErr::BadOffer);
-    }
-    let accepts = obj.get("accepts").and_then(|a| a.as_array()).ok_or(WireErr::BadOffer)?;
-    if accepts.is_empty() {
-        return Err(WireErr::BadOffer);
-    }
-    for a in accepts {
-        let e = a.as_object().ok_or(WireErr::BadOffer)?;
-        for k in e.keys() {
-            if !matches!(
-                k.as_str(),
-                "scheme" | "network" | "maxAmountRequired" | "payTo" | "asset" | "resource"
-                    | "description" | "mimeType" | "maxTimeoutSeconds" | "extra"
-            ) {
-                return Err(WireErr::BadOffer);
-            }
-        }
-        let extra = e.get("extra").and_then(|x| x.as_object());
-        if let Some(x) = extra {
-            for k in x.keys() {
-                if !matches!(k.as_str(), "name" | "version") {
-                    return Err(WireErr::BadOffer);
-                }
-            }
-        }
-    }
-    Ok(())
 }
 
 /// Frame v4: the agent asks for the header of an earlier request.
@@ -321,11 +283,14 @@ mod tests {
     }
 
     #[test]
-    fn an_offer_with_an_unknown_field_is_refused() {
+    fn the_offer_is_carried_verbatim_for_the_typed_parse() {
+        // The gate checks size and encoding only; the single typed parse is in
+        // mu-connect::x402::from_agent_offer.
         let mut v: serde_json::Value = serde_json::from_str(&offer_json(300)).unwrap();
         v["accepts"][0]["sneaky"] = serde_json::json!("x");
-        let f = build_v3(&v.to_string(), None);
-        assert_eq!(parse_wire(&f).unwrap_err(), WireErr::BadOffer);
+        let raw = v.to_string();
+        let f = build_v3(&raw, None);
+        assert_eq!(parse_wire(&f).unwrap().offer.as_deref(), Some(raw.as_str()));
     }
 
     #[test]

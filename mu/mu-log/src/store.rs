@@ -259,6 +259,7 @@ fn decode_kind(b: &[u8]) -> Option<Kind> {
             let header = std::str::from_utf8(r.get(i..i + hlen)?).ok()?.to_string();
             Some(Kind::AuthHeader { agent_id, req_nonce, intent_hash, auth_nonce, valid_before, header })
         }
+        17 => Some(Kind::DeniedBadOffer { intent_hash: h32(r)? }),
         15 => Some(Kind::DeniedNoOffer { intent_hash: h32(r)? }),
         14 => {
             let code = u16::from_be_bytes(r.get(0..2)?.try_into().ok()?);

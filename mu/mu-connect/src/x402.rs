@@ -87,6 +87,50 @@ impl X402Challenge {
     pub fn from_402_body(body: &str, network: &X402Network) -> Result<Self, ConnErr> {
         let bad = |m: &str| ConnErr::Config(format!("x402 402 body: {m}"));
         let v: serde_json::Value = serde_json::from_str(body).map_err(|_| bad("not JSON"))?;
+        Self::from_402_value(&v, network)
+    }
+
+    /// Strict parse of an agent-supplied offer: exactly the keys we read, then
+    /// one typed conversion. `Err(String)` is a human reason for the journal.
+    pub fn from_agent_offer(body: &str, network: &X402Network) -> Result<Self, String> {
+        let v: serde_json::Value = serde_json::from_str(body).map_err(|e| format!("not JSON: {e}"))?;
+        let obj = v.as_object().ok_or("offer is not an object")?;
+        for k in obj.keys() {
+            if !matches!(k.as_str(), "x402Version" | "error" | "accepts") {
+                return Err(format!("unexpected key {k}"));
+            }
+        }
+        let accepts = obj.get("accepts").and_then(|a| a.as_array()).ok_or("no accepts[]")?;
+        if accepts.is_empty() {
+            return Err("empty accepts[]".into());
+        }
+        for a in accepts {
+            let e = a.as_object().ok_or("accepts entry is not an object")?;
+            for k in e.keys() {
+                if !matches!(
+                    k.as_str(),
+                    "scheme" | "network" | "maxAmountRequired" | "payTo" | "asset" | "resource"
+                        | "description" | "mimeType" | "maxTimeoutSeconds" | "extra"
+                ) {
+                    return Err(format!("unexpected key {k} in accepts[]"));
+                }
+            }
+            if let Some(x) = e.get("extra").and_then(|x| x.as_object()) {
+                for k in x.keys() {
+                    if !matches!(k.as_str(), "name" | "version") {
+                        return Err(format!("unexpected key {k} in extra"));
+                    }
+                }
+            }
+        }
+        Self::from_402_value(&v, network).map_err(|e| format!("{e:?}"))
+    }
+
+    /// The typed form of an offer that was already parsed once. This is the
+    /// only place the JSON becomes a challenge, so two parsers can never
+    /// disagree about duplicate keys.
+    pub fn from_402_value(v: &serde_json::Value, network: &X402Network) -> Result<Self, ConnErr> {
+        let bad = |m: &str| ConnErr::Config(format!("x402 402 body: {m}"));
         if v.get("x402Version").and_then(serde_json::Value::as_u64) != Some(X402_VERSION) {
             return Err(bad("x402Version is not 1"));
         }
@@ -907,6 +951,28 @@ mod tests {
         std::env::set_var("MU_X402_RPC_1", "http://127.0.0.1:9");
         assert!(matches!(status_of([5; 32], u64::MAX), Err(ConnErr::Unknown(_))));
         std::env::remove_var("MU_X402_RPC_1");
+    }
+
+    #[test]
+    fn an_offer_with_an_unknown_field_is_refused() {
+        let mut v: serde_json::Value = serde_json::from_str(&challenge_json(300)).unwrap();
+        v["accepts"][0]["sneaky"] = serde_json::json!("x");
+        let e = X402Challenge::from_agent_offer(&v.to_string(), &BASE_SEPOLIA).unwrap_err();
+        assert!(e.contains("unexpected key"), "{e}");
+    }
+
+    fn challenge_json(timeout: u64) -> String {
+        serde_json::json!({
+            "x402Version": 1,
+            "accepts": [{
+                "scheme": "exact", "network": "base-sepolia",
+                "maxAmountRequired": "100000", "payTo": ISSUER,
+                "asset": "0x036cbd53842c5426634e7929541ec2318f3dcf7e",
+                "resource": "https://issuer.example/bare/issue",
+                "maxTimeoutSeconds": timeout,
+                "extra": {"name": "USDC", "version": "2"}
+            }]
+        }).to_string()
     }
 
     #[test]

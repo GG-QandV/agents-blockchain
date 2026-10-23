@@ -166,9 +166,8 @@ impl Vault for FileVault {
     fn tx_signer(&self) -> Result<TxSigner, VaultErr> {
         Ok(TxSigner::from_bytes(*self.wallet_key))
     }
-    fn tx_signer_p256(&self) -> Result<crate::signer::TxSignerP256, VaultErr> {
-        Ok(crate::signer::TxSignerP256::from_bytes(*self.wallet_key))
-    }
+    // No P-256 wallet path here: one key must not serve two curves. Sui's
+    // P-256 signer needs a separate key and a separate decision.
     fn owner_pubkey(&self) -> Option<Vec<u8>> {
         let sk = p256::ecdsa::SigningKey::from_bytes((&*self.owner_key).into()).ok()?;
         Some(sk.verifying_key().to_encoded_point(true).as_bytes().to_vec())

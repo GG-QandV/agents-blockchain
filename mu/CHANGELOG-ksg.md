@@ -105,6 +105,11 @@
 - Release builds prove the split: `cargo build --release -p mu-daemon --features filevault`
   succeeds, and the same build with `--features softvault` stops on the existing
   `compile_error!`.
+- A bad offer has its own answer, `0x16`, and its own record (`DeniedBadOffer`, tag 17):
+  before this the client could not tell it from a Δ denial. The offer is parsed once, typed
+  (`from_agent_offer`), so two JSON parsers cannot disagree.
+- After the first failed journal write the daemon refuses further payments (`0x30`) until a
+  restart: the journal is the control plane, not a best-effort log.
 - Peer isolation: the socket directory is 0700, the socket is 0660 when
   `MU_AGENT_UIDS` names agent uids (0600 otherwise), and every accepted connection is checked
   with `SO_PEERCRED` through `nix` — a uid that is neither the daemon's own nor listed is
