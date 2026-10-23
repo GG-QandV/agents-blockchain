@@ -15,6 +15,8 @@ pub enum LogErr {
     SeqNotMonotonic { at_seq: u64 },
     Vault(String),
     Corrupt,
+    /// A previous append failed; the journal is unusable until a restart.
+    Poisoned,
 }
 impl From<std::io::Error> for LogErr {
     fn from(e: std::io::Error) -> Self { LogErr::Io(e) }
@@ -28,6 +30,9 @@ pub struct Log {
     entries: Vec<Entry>, // MVP: working copy in memory (segmentation — phase 2)
     last_hash: Hash32,
     next_seq: u64,
+    /// After any failed append the journal is poisoned: it is the control
+    /// plane, so a daemon that cannot record must not keep acting.
+    poisoned: bool,
 }
 
 impl Log {
@@ -48,7 +53,7 @@ impl Log {
         let last_hash = entries.last().map(Entry::hash).unwrap_or(GENESIS);
         let next_seq = entries.last().map(|e| e.seq.saturating_add(1)).unwrap_or(0);
 
-        let mut log = Log { file, path: path.to_path_buf(), entries, last_hash, next_seq };
+        let mut log = Log { file, path: path.to_path_buf(), entries, last_hash, next_seq, poisoned: false };
         if truncated {
             let lost = log.next_seq; // everything beyond would have been lost
             log.append_inner(Kind::TailTruncated { lost_from_seq: lost }, 0, vault)?;
@@ -57,7 +62,23 @@ impl Log {
     }
 
     /// RISK-M5-1: durable append. Return Ok(hash) only after flush+sync.
+    /// True once any append failed. The daemon refuses to pay from then on.
+    pub fn is_poisoned(&self) -> bool {
+        self.poisoned
+    }
+
     pub fn append(&mut self, kind: Kind, ts: u64, vault: &dyn Vault) -> Result<Hash32, LogErr> {
+        if self.poisoned {
+            return Err(LogErr::Poisoned);
+        }
+        let r = self.append_unchecked(kind, ts, vault);
+        if r.is_err() {
+            self.poisoned = true;
+        }
+        r
+    }
+
+    fn append_unchecked(&mut self, kind: Kind, ts: u64, vault: &dyn Vault) -> Result<Hash32, LogErr> {
         self.append_inner(kind, ts, vault)
     }
 

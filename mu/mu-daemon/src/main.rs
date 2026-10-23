@@ -201,11 +201,10 @@ fn handle_client(
     runtime: &mut Runtime,
     clock: &dyn Clock,
     connector: ConnectorId,
-    journal_ok: &mut bool,
 ) {
-    if !*journal_ok {
-        // The journal is the control plane: after one failed write the daemon
-        // stops paying until a restart, rather than paying unrecorded.
+    if runtime.log.is_poisoned() {
+        // The journal is the control plane: after one failed write of *any*
+        // record the daemon stops paying until a restart.
         let _ = stream.write_all(&[0x30]);
         return;
     }
@@ -284,6 +283,13 @@ fn handle_client(
                         }
                     },
                     None => {
+                        // No x402 network for this chain: a policy-layer refusal,
+                        // and it is recorded like the others.
+                        let _ = runtime.log.append(
+                            Kind::DeniedDelta { intent_hash: intent.hash() },
+                            now,
+                            runtime.vault,
+                        );
                         let _ = stream.write_all(&[0x11]);
                         return;
                     }
@@ -317,7 +323,6 @@ fn handle_client(
                         Ok(_) => (0x21, Some(header)),
                         Err(e) => {
                             eprintln!("audit write failed, no header: {e:?}");
-                            *journal_ok = false;
                             (0x30, None)
                         }
                     }
@@ -371,8 +376,8 @@ fn serve(
     fs::set_permissions(sock_path, fs::Permissions::from_mode(mode))?;
     listener.set_nonblocking(true)?;
     eprintln!("μ-daemon listening on {}", sock_path.display());
-    let mut journal_ok = true;
-    let refill_every = std::time::Duration::from_secs(60);
+    let refill_secs: u64 = std::env::var("MU_REFILL_SECS").ok().and_then(|v| v.parse().ok()).unwrap_or(60);
+    let refill_every = std::time::Duration::from_secs(refill_secs);
     let mut last_refill = std::time::Instant::now();
     loop {
         // Without this the bucket never comes back and the agent is locked out
@@ -444,7 +449,7 @@ fn serve(
                         continue;
                     }
                 }
-                handle_client(stream, gate, runtime, clock, connector, &mut journal_ok);
+                handle_client(stream, gate, runtime, clock, connector);
                 advance_mu(mu, &runtime.log, runtime.vault, &ctx.mu_path);
             }
             Err(e) if e.kind() == std::io::ErrorKind::WouldBlock => {

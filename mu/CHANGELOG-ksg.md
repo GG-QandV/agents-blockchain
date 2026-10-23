@@ -108,8 +108,13 @@
 - A bad offer has its own answer, `0x16`, and its own record (`DeniedBadOffer`, tag 17):
   before this the client could not tell it from a Δ denial. The offer is parsed once, typed
   (`from_agent_offer`), so two JSON parsers cannot disagree.
-- After the first failed journal write the daemon refuses further payments (`0x30`) until a
-  restart: the journal is the control plane, not a best-effort log.
+- The journal itself carries the failure state: any failed `append` (WAL, decisions,
+  `Settled`, `Failed`, `AuthHeader`, a policy commit) poisons `Log`, every later append returns
+  `Poisoned`, and the daemon answers `0x30` until a restart. Before this only a failed
+  `AuthHeader` write was noticed — the claim "no payment after the first failed write" was
+  true for one record, not for the journal.
+- `MU_REFILL_SECS` sets the token-bucket refill interval (default 60 s); tests use a short one.
+- A chain without an x402 network is a recorded `DeniedDelta`, not a bare `0x11`.
 - Peer isolation: the socket directory is 0700, the socket is 0660 when
   `MU_AGENT_UIDS` names agent uids (0600 otherwise), and every accepted connection is checked
   with `SO_PEERCRED` through `nix` — a uid that is neither the daemon's own nor listed is
