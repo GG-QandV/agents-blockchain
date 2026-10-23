@@ -291,7 +291,9 @@ impl Config {
             chain_id,
             mu_path: home.join("mu.bin"),
             log_path: home.join("mu.log"),
-            sock_path: home.join("mu-daemon.sock"),
+            // Sockets live in their own directory: it must be reachable by the
+            // agent group, while MU_HOME (keys, journal) stays 0700.
+            sock_path: home.join("run").join("mu-daemon.sock"),
             home,
             mu_pubkey,
             vault,

@@ -188,7 +188,7 @@ pub fn spawn(sock_path: PathBuf, mut state: DaemonPolicy, tx: Sender<Request>) -
 
 /// The socket path the Composer should be pointed at (`MU_POLICY_SOCK`).
 pub fn sock_path(home: &Path) -> PathBuf {
-    home.join("mu-policy.sock")
+    home.join("run").join("mu-policy.sock")
 }
 
 #[cfg(test)]
@@ -253,10 +253,10 @@ mod tests {
     }
 
     #[test]
-    fn the_socket_path_sits_in_the_home() {
+    fn the_socket_path_sits_in_the_run_directory() {
         assert_eq!(
             sock_path(Path::new("/tmp/x")),
-            PathBuf::from("/tmp/x/mu-policy.sock")
+            PathBuf::from("/tmp/x/run/mu-policy.sock")
         );
     }
 }

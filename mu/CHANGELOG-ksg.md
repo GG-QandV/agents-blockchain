@@ -115,7 +115,12 @@
   true for one record, not for the journal.
 - `MU_REFILL_SECS` sets the token-bucket refill interval (default 60 s); tests use a short one.
 - A chain without an x402 network is a recorded `DeniedDelta`, not a bare `0x11`.
-- Peer isolation: the socket directory is 0700, the socket is 0660 when
+- Sockets moved to `$MU_HOME/run`: the directory is 0700, or 0710 when `MU_AGENT_UIDS` names
+  agent uids (enter and reach the socket, no listing), while `MU_HOME` keeps keys and the
+  journal at 0700. Before this the socket sat in `MU_HOME`, so a 0700 home made the allow-list
+  unusable. `daemon_uid()` now uses `geteuid()`; where `SO_PEERCRED` does not exist the peer
+  uid is unknown and the connection is refused (Linux/Android only).
+- Peer isolation: the socket is 0660 when
   `MU_AGENT_UIDS` names agent uids (0600 otherwise), and every accepted connection is checked
   with `SO_PEERCRED` through `nix` — a uid that is neither the daemon's own nor listed is
   dropped before a single byte is read. Our crates keep `forbid(unsafe_code)`; the `unsafe`

@@ -11,11 +11,20 @@ use std::path::Path;
 
 /// The kernel's view of the peer uid. `None` when the platform cannot say —
 /// then the caller must refuse, not guess.
+#[cfg(any(target_os = "linux", target_os = "android"))]
 pub fn peer_uid(stream: &UnixStream) -> Option<u32> {
     use std::os::fd::AsFd;
     nix::sys::socket::getsockopt(stream, nix::sys::socket::sockopt::PeerCredentials)
         .ok()
         .map(|c| c.uid())
+}
+
+/// On platforms without `SO_PEERCRED` the answer is "unknown", and the caller
+/// refuses the connection: the daemon is Linux-only until a LOCAL_PEERCRED
+/// implementation exists.
+#[cfg(not(any(target_os = "linux", target_os = "android")))]
+pub fn peer_uid(_stream: &UnixStream) -> Option<u32> {
+    None
 }
 
 /// Pure decision, so the rule is testable without sockets.
@@ -24,10 +33,9 @@ pub fn peer_allowed(uid: u32, daemon_uid: u32, allowed: &[u32]) -> bool {
 }
 
 pub fn daemon_uid() -> u32 {
-    use std::os::unix::fs::MetadataExt;
-    std::fs::metadata("/proc/self")
-        .map(|m| m.uid())
-        .unwrap_or(0)
+    // Never 0 as a fallback: a daemon that guesses it is root would accept root
+    // and refuse its own user.
+    nix::unistd::geteuid().as_raw()
 }
 
 /// `MU_AGENT_UIDS=1001,1002` (empty or unset → nobody extra is allowed).
@@ -45,12 +53,12 @@ pub fn prepare_socket(sock_path: &Path, shared: bool) -> std::io::Result<()> {
     use std::os::unix::fs::PermissionsExt;
     if let Some(dir) = sock_path.parent() {
         std::fs::create_dir_all(dir)?;
-        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(0o700))?;
+        // 0710: the agent group may enter and reach the socket, but cannot list
+        // the directory. Without agents it stays 0700.
+        let mode = if shared { 0o710 } else { 0o700 };
+        std::fs::set_permissions(dir, std::fs::Permissions::from_mode(mode))?;
     }
     let _ = std::fs::remove_file(sock_path);
-    let mode = if shared { 0o660 } else { 0o600 };
-    // The file is created by bind(); its mode is set by the caller after that.
-    let _ = mode;
     Ok(())
 }
 

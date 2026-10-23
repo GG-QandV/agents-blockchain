@@ -32,8 +32,9 @@ agents.toml   id агентов и их публичные ключи
 policy.toml   Δ: лимит дня, whitelist, порог подтверждения, allowlist ресурсов
 mu.bin        текущий μ-объект
 mu.log        журнал (hash chain)
-mu-daemon.sock  сокет интентов (0600)
-mu-policy.sock  сокет предложений политики (0600)
+run/            каталог сокетов: 0700, или 0710 когда задан MU_AGENT_UIDS
+run/mu-daemon.sock   сокет интентов (0600, или 0660 для группы агентов)
+run/mu-policy.sock   сокет предложений политики
 ```
 
 ## Сокет интентов (`mu-daemon.sock`)
