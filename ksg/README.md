@@ -9,10 +9,10 @@ is not confused with the base μ Gate in `mu/`.
 
 | | Base μ Gate (`mu/`) | Edition keysingate |
 |---|---|---|
-| What the agent asks for | a **payment**: `Intent { recipient, amount, chain_id }` (`mu-connect/src/lib.rs`) | an **anchor**: a Solana transaction carrying one SPL Memo line `ksg:cp:v1 <log_id> <tree_size> <root>` (keysingate `ksg-anchor/src/solana.rs`) |
+| What the agent asks for | a **payment**: `Intent { recipient, amount, chain_id }` (`mu-connect/src/lib.rs`) | an **anchor**: a Solana transaction carrying one SPL Memo line of the keysingate core v2: `ksg:bs:v1 <32 hex> <32 hex>` (a blind seal) or `ksg:st:v1 <multihash> <multihash>` (a status record) — the grammar `ksg-verify-v2` reads (`solana.rs`); the old `ksg:cp:v1` of the core v1 is refused |
 | Who is paid | a resource (x402, USDC on Base) or a Sui transfer | the Solana network fee (5,000 lamports per signature plus optional priority fee) |
 | Connectors | `crypto` (EVM/Base), `sui`, `stub` | a Solana connector — absent in the base |
-| Rules | daily budget, whitelist, per-resource price caps | anchoring budget per period, cap on fee per anchor, allowed memo prefix `ksg:cp:v1` only |
+| Rules | daily budget, whitelist, per-resource price caps | anchoring budget per period, cap on fee per anchor, allowed memo: only the two core v2 shapes above (`mu-connect/src/anchor.rs`) |
 
 The base `Connector` trait moves money to a recipient. An anchor moves no money
 to anyone; it only pays the fee. That is why this is an edition and not one more
@@ -29,7 +29,7 @@ The edition links to these crates; it does not copy them.
 
 ## Plan (when T-1 is taken up)
 
-1. `AnchorIntent { memo, fee_cap_lamports, cluster }`, validated against the
+1. **Done (06.11):** `AnchorIntent { memo, fee_cap_lamports, cluster, capsule }` (`mu-connect/src/anchor.rs`), validated against the
    allowed prefix before it reaches the signer — the analogue of RISK-M7-5.
 2. Solana connector behind the same invariants as `sui.rs`: build the memo
    transaction, dry-run on two RPC nodes, check the memo and the fee against the

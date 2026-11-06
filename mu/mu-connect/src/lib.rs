@@ -6,6 +6,7 @@
 //! RISK-M7S-1: стабы возвращают TxRef::Simulated, недостижимый для реального учёта.
 #![forbid(unsafe_code)]
 
+pub mod anchor;
 pub mod crypto;
 pub mod stub;
 pub mod sui;
