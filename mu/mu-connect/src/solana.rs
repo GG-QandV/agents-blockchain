@@ -109,6 +109,18 @@ pub trait Ed25519 {
     fn sign(&self, msg: &[u8]) -> [u8; 64];
 }
 
+/// The vault's Ed25519 handle signs anchors: the connector sees the public key
+/// and the signature, the handle keeps the key (feature `ksg`).
+#[cfg(feature = "ksg")]
+impl Ed25519 for mu_vault::TxSignerEd25519 {
+    fn public(&self) -> [u8; 32] {
+        self.public_key()
+    }
+    fn sign(&self, msg: &[u8]) -> [u8; 64] {
+        self.sign_message(msg)
+    }
+}
+
 /// Why an anchor was not sent, or may not have been.
 ///
 /// No variant is a failure: a payment whose fate is unclear is never declared
@@ -266,7 +278,7 @@ fn base58(bytes: &[u8]) -> String {
     }
     let zeros = bytes.iter().take_while(|b| **b == 0).count();
     let mut out = String::new();
-    out.extend(std::iter::repeat('1').take(zeros));
+    out.extend(std::iter::repeat_n('1', zeros));
     out.extend(digits.iter().rev().map(|d| B58[usize::from(*d)] as char));
     out
 }

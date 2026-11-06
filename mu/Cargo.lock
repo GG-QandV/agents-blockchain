@@ -368,6 +368,7 @@ version = "0.2.0-ksg"
 dependencies = [
  "base64",
  "blake2",
+ "ed25519-dalek",
  "k256",
  "mu-common",
  "mu-vault",

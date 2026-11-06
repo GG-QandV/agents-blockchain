@@ -7,6 +7,7 @@
 #![forbid(unsafe_code)]
 
 pub mod anchor;
+pub mod anchor_rules;
 pub mod crypto;
 pub mod solana;
 pub mod stub;
