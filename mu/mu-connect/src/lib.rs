@@ -8,6 +8,7 @@
 
 pub mod anchor;
 pub mod crypto;
+pub mod solana;
 pub mod stub;
 pub mod sui;
 pub mod sui_jsonrpc;
