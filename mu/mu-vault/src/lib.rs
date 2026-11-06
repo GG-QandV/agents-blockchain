@@ -77,5 +77,20 @@ pub trait Vault: Send + Sync {
         Err(VaultErr::KeyMissing)
     }
 
+    /// The sub-wallet of one capsule (μ Gate KSG edition, P11c): an Ed25519 wallet
+    /// derived **inside** the vault from the owner's main wallet key and the capsule's
+    /// identifier, so that the history of one payer does not tie one capsule's
+    /// anchors to another's. Default: KeyMissing.
+    ///
+    /// # Errors
+    ///
+    /// [`VaultErr::KeyMissing`] when the backend has no main wallet, or for an empty
+    /// capsule identifier.
+    #[cfg(feature = "ksg")]
+    fn capsule_signer_ed25519(&self, capsule: &str) -> Result<TxSignerEd25519, VaultErr> {
+        let _ = capsule;
+        Err(VaultErr::KeyMissing)
+    }
+
     fn attest(&self) -> VaultInfo;
 }
