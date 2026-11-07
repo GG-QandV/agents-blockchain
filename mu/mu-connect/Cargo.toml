@@ -13,6 +13,9 @@ base64 = "=0.21.7"
 k256 = { version = "=0.13.3", features = ["ecdsa"] }
 rand_core = { version = "=0.6.4", features = ["getrandom"] }
 serde_json = "1"
+# P11g: the anchor template is read as TOML, the same crate and pin as `mu-policy`.
+toml = "=0.5.11"
+serde = { version = "=1.0.217", features = ["derive"] }
 # P11d: the real transport of a Solana node (HTTP POST, JSON-RPC). Optional: the connector itself opens no socket.
 ureq = { version = "2", optional = true }
 

@@ -8,6 +8,7 @@
 
 pub mod anchor;
 pub mod anchor_rules;
+pub mod anchor_template;
 pub mod crypto;
 pub mod solana;
 pub mod solana_rpc;
