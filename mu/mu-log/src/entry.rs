@@ -18,6 +18,12 @@ pub enum Kind {
     TailTruncated { lost_from_seq: u64 },
     NonceSnapshot { agent_id: String, nonce: u64 },
     Alert { code: u16 },
+    /// P11e: an anchor was paid for and sent; only the **hash** of the signature goes into the log.
+    AnchorSent { intent_hash: Hash32, signature_hash: Hash32 },
+    /// P11e: an anchor was not paid: `reason` 1 = budget, 2 = cap, 3 = not allowed, 4 = rejected.
+    AnchorDenied { intent_hash: Hash32, reason: u8 },
+    /// P11e: the outcome of an anchor's send is not known (Unknown ≠ Failed): to be asked about.
+    AnchorUnknown { intent_hash: Hash32 },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -61,6 +67,11 @@ impl Kind {
                 b.extend(agent_id.as_bytes()); b.extend(nonce.to_be_bytes());
             }
             Kind::Alert { code } => { b.push(11); b.extend(code.to_be_bytes()); }
+            Kind::AnchorSent { intent_hash, signature_hash } => {
+                b.push(12); b.extend(intent_hash.0); b.extend(signature_hash.0);
+            }
+            Kind::AnchorDenied { intent_hash, reason } => { b.push(13); b.extend(intent_hash.0); b.push(*reason); }
+            Kind::AnchorUnknown { intent_hash } => { b.push(14); b.extend(intent_hash.0); }
         }
         b
     }

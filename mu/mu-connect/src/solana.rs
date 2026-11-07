@@ -146,6 +146,9 @@ pub enum AnchorErr {
 pub struct Sent {
     /// The signature, base58.
     pub signature: String,
+    /// The fee the nodes quoted for it (the dearer of the two), lamports: what the owner's
+    /// budget is charged.
+    pub fee_lamports: u64,
 }
 
 /// What [`reconcile`] concludes from the nodes.
@@ -262,6 +265,12 @@ pub fn check_message(message: &[u8], intent: &AnchorIntent, payer: &[u8; 32]) ->
 
 const B58: &[u8; 58] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
+/// The address of a public key, as a node names it (base58).
+#[must_use]
+pub fn base58_public(public: &[u8; 32]) -> String {
+    base58(public)
+}
+
 pub(crate) fn base58(bytes: &[u8]) -> String {
     let mut digits: Vec<u8> = Vec::new();
     for &byte in bytes {
@@ -340,7 +349,10 @@ pub fn execute(
     }
 
     match a.send(&tx) {
-        Ok(reported) => Ok(Sent { signature: if reported.is_empty() { signature_text } else { reported } }),
+        Ok(reported) => Ok(Sent {
+            signature: if reported.is_empty() { signature_text } else { reported },
+            fee_lamports: fee_a.max(fee_b),
+        }),
         Err(NodeErr::Rejected(why)) => Err(AnchorErr::Rejected(format!("node {}: {why}", a.name()))),
         Err(NodeErr::Unreachable(why)) => Err(AnchorErr::Unknown {
             reason: format!("the send's outcome is not known (node {}: {why})", a.name()),

@@ -245,6 +245,9 @@ fn decode_kind(b: &[u8]) -> Option<Kind> {
             Some(Kind::NonceSnapshot { agent_id: id, nonce: n })
         }
         11 => Some(Kind::Alert { code: u16::from_be_bytes(r.get(..2)?.try_into().ok()?) }),
+        12 => Some(Kind::AnchorSent { intent_hash: h32(r)?, signature_hash: h32(r.get(32..)?)? }),
+        13 => Some(Kind::AnchorDenied { intent_hash: h32(r)?, reason: *r.get(32)? }),
+        14 => Some(Kind::AnchorUnknown { intent_hash: h32(r)? }),
         _ => None,
     }
 }

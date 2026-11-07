@@ -12,6 +12,12 @@
 #[cfg(all(not(debug_assertions), feature = "softvault"))]
 compile_error!("softvault запрещён в release");
 
+// P11e: the anchor service. Not yet started by `main` — `init-ksg` and the serving loop are P12c, which
+// removes this `allow`.
+#[cfg(feature = "ksg")]
+#[cfg_attr(not(test), allow(dead_code))]
+mod anchor_service;
+
 use std::fs;
 use std::io::{Read, Write};
 use std::os::unix::fs::PermissionsExt;

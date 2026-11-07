@@ -1,0 +1,470 @@
+//! P11e (Workflow μ Gate §3): the daemon's side of anchors — what a capsule's reader asks and what
+//! the owner's rules answer.
+//!
+//! One JSON line in, one JSON line out, on a unix socket only its user opens (`serve_unix`):
+//!
+//! | request | answer |
+//! |---|---|
+//! | `{"anchor": {"memo", "cluster", "capsule", "fee_cap_lamports"?}}` | `{"sent": {"signature"}}` — paid and handed to the network |
+//! | | `{"denied": {"reason": "budget" \| "cap" \| "not_allowed" \| "rejected"}}` — **not** paid: nothing was sent |
+//! | | `{"unknown": {"signature"?}}` — the outcome is not known: ask the network about it, send nothing again |
+//! | `{"status": {"signature"}}` | `{"landed": {"slot"}}` \| `{"pending": {}}` \| `{"failed": {}}` (both nodes say the blockhash is gone) |
+//! | `{"address": {"capsule"}}` | `{"address": "<base58>"}` — the capsule's sub-wallet, to fund it |
+//!
+//! Every decision is a line of the log (a chain of hashes, signed by the vault's μ key, like the
+//! payments'): sent (the **hash** of the signature, not the signature), denied (the reason), unknown.
+//! A denial is not a failure of the page: the reader writes the page anyway and owes the anchor (S6).
+
+use std::io::{BufRead, BufReader, Read, Write};
+use std::os::unix::fs::PermissionsExt as _;
+use std::os::unix::net::{UnixListener, UnixStream};
+use std::path::Path;
+
+use mu_common::Hash32;
+use mu_connect::anchor::AnchorIntent;
+use mu_connect::anchor_rules::{decide, AnchorRules, Denied, Ledger};
+use mu_connect::solana::{base58_public, execute, reconcile, AnchorErr, Ed25519, RpcNode, Settled, SolanaCfg};
+use mu_log::{Kind, Log};
+use mu_vault::Vault;
+use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
+
+/// The longest request line.
+const LINE_LIMIT: usize = 16 * 1024;
+
+fn sha(parts: &[&[u8]]) -> Hash32 {
+    let mut h = Sha256::new();
+    for p in parts {
+        h.update(p);
+        h.update([0u8]);
+    }
+    let mut out = [0u8; 32];
+    out.copy_from_slice(&h.finalize());
+    Hash32(out)
+}
+
+/// What a request for an anchor is answered by, and the state the answers rest on.
+pub struct AnchorService<'a> {
+    rules: AnchorRules,
+    ledger: Ledger,
+    log: Log,
+    vault: &'a dyn Vault,
+    a: Box<dyn RpcNode + 'a>,
+    b: Box<dyn RpcNode + 'a>,
+    cfg: SolanaCfg,
+}
+
+impl<'a> AnchorService<'a> {
+    /// A service under the owner's `rules`, paying through the vault, on two nodes.
+    pub fn new(
+        rules: AnchorRules,
+        log: Log,
+        vault: &'a dyn Vault,
+        a: Box<dyn RpcNode + 'a>,
+        b: Box<dyn RpcNode + 'a>,
+        cfg: SolanaCfg,
+    ) -> Self {
+        Self { rules, ledger: Ledger::default(), log, vault, a, b, cfg }
+    }
+
+    /// The log, for the owner's audit (and the tests).
+    pub fn log(&self) -> &Log {
+        &self.log
+    }
+
+    fn note(&mut self, kind: Kind, now: u64) {
+        // A decision that cannot be written down is not made: the answer becomes an error.
+        let _ = self.log.append(kind, now, self.vault);
+    }
+
+    /// One request line → one answer line.
+    pub fn handle_line(&mut self, line: &str, now: u64) -> String {
+        let Ok(v) = serde_json::from_str::<Value>(line) else {
+            return json!({"error": "the request is not JSON"}).to_string();
+        };
+        if let Some(req) = v.get("anchor") {
+            return self.anchor(req, now).to_string();
+        }
+        if let Some(req) = v.get("status") {
+            let Some(sig) = req.get("signature").and_then(Value::as_str) else {
+                return json!({"error": "status needs a signature"}).to_string();
+            };
+            return match reconcile(&*self.a, &*self.b, sig) {
+                Settled::Landed { slot } => json!({"landed": {"slot": slot}}),
+                Settled::Pending => json!({"pending": {}}),
+                Settled::Failed => json!({"failed": {}}),
+            }
+            .to_string();
+        }
+        if let Some(req) = v.get("address") {
+            let Some(capsule) = req.get("capsule").and_then(Value::as_str) else {
+                return json!({"error": "address needs a capsule"}).to_string();
+            };
+            return match self.vault.capsule_signer_ed25519(capsule) {
+                Ok(s) => json!({"address": base58_public(&s.public())}),
+                Err(_) => json!({"error": "no sub-wallet for this capsule"}),
+            }
+            .to_string();
+        }
+        json!({"error": "not a request of this service"}).to_string()
+    }
+
+    fn anchor(&mut self, req: &Value, now: u64) -> Value {
+        let text = |k: &str| req.get(k).and_then(Value::as_str).map(str::to_owned);
+        let (Some(memo), Some(cluster), Some(capsule)) = (text("memo"), text("cluster"), text("capsule")) else {
+            return json!({"error": "an anchor needs memo, cluster and capsule"});
+        };
+        let intent_hash = sha(&[b"ksg-anchor-intent", memo.as_bytes(), cluster.as_bytes(), capsule.as_bytes()]);
+        let day = now / 86_400;
+        // The most this anchor may cost: what the reader allows itself, never above the owner's cap.
+        let fee_cap = req
+            .get("fee_cap_lamports")
+            .and_then(Value::as_u64)
+            .map_or(self.rules.per_anchor_cap_lamports, |c| c.min(self.rules.per_anchor_cap_lamports));
+
+        // The owner's rules first, on the worst case: the fee cap. Nothing is built for a capsule
+        // that may not pay, nothing is signed for a day whose budget is spent.
+        if let Err(d) = decide(&self.rules, &self.ledger, &capsule, fee_cap, day) {
+            return self.denied(intent_hash, &d, now);
+        }
+        let intent = AnchorIntent { memo, fee_cap_lamports: fee_cap, cluster, capsule: capsule.clone() };
+        let Ok(signer) = self.vault.capsule_signer_ed25519(&capsule) else {
+            self.note(Kind::AnchorDenied { intent_hash, reason: 4 }, now);
+            return json!({"denied": {"reason": "rejected", "detail": "the vault has no sub-wallet for this capsule"}});
+        };
+        match execute(&*self.a, &*self.b, &signer, &intent, &self.cfg) {
+            Ok(sent) => {
+                self.ledger.record(&capsule, day, sent.fee_lamports);
+                self.note(
+                    Kind::AnchorSent { intent_hash, signature_hash: sha(&[sent.signature.as_bytes()]) },
+                    now,
+                );
+                json!({"sent": {"signature": sent.signature}})
+            }
+            Err(AnchorErr::Rejected(why)) => {
+                // the connector's own check says the fee passed the cap: that is the owner's cap, `cap`
+                let (reason, code) = if why.contains("passes the cap") { ("cap", 2) } else { ("rejected", 4) };
+                self.note(Kind::AnchorDenied { intent_hash, reason: code }, now);
+                json!({"denied": {"reason": reason, "detail": why}})
+            }
+            Err(AnchorErr::Unknown { reason, signature }) => {
+                self.note(Kind::AnchorUnknown { intent_hash }, now);
+                json!({"unknown": {"signature": signature, "reason": reason}})
+            }
+            Err(_) => {
+                self.note(Kind::AnchorUnknown { intent_hash }, now);
+                json!({"unknown": {"signature": null}})
+            }
+        }
+    }
+
+    fn denied(&mut self, intent_hash: Hash32, d: &Denied, now: u64) -> Value {
+        let (reason, code) = match d {
+            Denied::NotAllowed => ("not_allowed", 3),
+            Denied::Cap { .. } => ("cap", 2),
+            Denied::BudgetCapsule { .. } | Denied::BudgetTotal { .. } => ("budget", 1),
+        };
+        self.note(Kind::AnchorDenied { intent_hash, reason: code }, now);
+        json!({"denied": {"reason": reason, "detail": d.to_string()}})
+    }
+}
+
+/// Binds the socket at `path`, mode `0600`, in a directory only its user opens.
+///
+/// # Errors
+///
+/// The directory is open to the group or to others; something that is not a socket lies at `path`;
+/// the bind or the chmod fails.
+pub fn bind_unix(path: &Path) -> Result<UnixListener, String> {
+    let dir = path.parent().filter(|d| !d.as_os_str().is_empty()).unwrap_or_else(|| Path::new("."));
+    let mode = std::fs::metadata(dir).map_err(|e| format!("{}: {e}", dir.display()))?.permissions().mode();
+    if mode & 0o077 != 0 {
+        return Err(format!(
+            "{} is open to the group or to others (mode {:o}): the daemon's socket goes in a directory only its user opens",
+            dir.display(),
+            mode & 0o777
+        ));
+    }
+    match std::fs::symlink_metadata(path) {
+        Ok(m) if std::os::unix::fs::FileTypeExt::is_socket(&m.file_type()) => {
+            std::fs::remove_file(path).map_err(|e| format!("{}: {e}", path.display()))?;
+        }
+        Ok(_) => return Err(format!("{} exists and is not a socket", path.display())),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+        Err(e) => return Err(format!("{}: {e}", path.display())),
+    }
+    let listener = UnixListener::bind(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
+        .map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(listener)
+}
+
+/// Serves lines until `limit` connections have been served (`0` — forever); `now` names the moment.
+pub fn serve_unix(
+    listener: &UnixListener,
+    service: &mut AnchorService<'_>,
+    now: &dyn Fn() -> u64,
+    limit: usize,
+) {
+    let mut served = 0usize;
+    for stream in listener.incoming() {
+        let Ok(stream) = stream else { continue };
+        let _ = serve_connection(stream, service, now);
+        served += 1;
+        if limit != 0 && served >= limit {
+            return;
+        }
+    }
+}
+
+fn serve_connection(stream: UnixStream, service: &mut AnchorService<'_>, now: &dyn Fn() -> u64) -> std::io::Result<()> {
+    stream.set_read_timeout(Some(std::time::Duration::from_secs(30)))?;
+    stream.set_write_timeout(Some(std::time::Duration::from_secs(30)))?;
+    let mut out = stream.try_clone()?;
+    let mut reader = BufReader::new(stream);
+    loop {
+        let mut line = String::new();
+        let n = reader.by_ref().take(LINE_LIMIT as u64 + 1).read_line(&mut line)?;
+        if n == 0 {
+            return Ok(());
+        }
+        let answer = if line.len() > LINE_LIMIT {
+            json!({"error": "the request is too long"}).to_string()
+        } else {
+            service.handle_line(line.trim_end(), now())
+        };
+        writeln!(out, "{answer}")?;
+        out.flush()?;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use mu_connect::solana::{NodeErr, SigState, Sim};
+    use mu_vault::backend::SoftVault;
+    use std::cell::RefCell;
+    use std::rc::Rc;
+
+    const SEAL: &str = "ksg:bs:v1 00112233445566778899aabbccddeeff ffeeddccbbaa99887766554433221100";
+    const CAPSULE: &str = "1220cafe";
+    const DAY0: u64 = 20_000 * 86_400;
+
+    #[derive(Default)]
+    struct World {
+        sent: Vec<Vec<u8>>,
+        fee: u64,
+        send_fails: bool,
+        landed: bool,
+    }
+
+    struct Node(Rc<RefCell<World>>);
+    impl RpcNode for Node {
+        fn name(&self) -> &str {
+            "n"
+        }
+        fn quote_fee(&self, _m: &[u8]) -> Result<u64, NodeErr> {
+            Ok(self.0.borrow().fee)
+        }
+        fn latest_blockhash(&self) -> Result<[u8; 32], NodeErr> {
+            Ok([5u8; 32])
+        }
+        fn simulate(&self, _t: &[u8]) -> Result<Sim, NodeErr> {
+            Ok(Sim { ok: true, err: None })
+        }
+        fn send(&self, t: &[u8]) -> Result<String, NodeErr> {
+            if self.0.borrow().send_fails {
+                return Err(NodeErr::Unreachable("timed out".into()));
+            }
+            self.0.borrow_mut().sent.push(t.to_vec());
+            Ok(String::new())
+        }
+        fn status(&self, _s: &str) -> Result<SigState, NodeErr> {
+            Ok(if self.0.borrow().landed { SigState::Landed { slot: 9 } } else { SigState::NotFound })
+        }
+    }
+
+    fn rules() -> AnchorRules {
+        AnchorRules {
+            per_anchor_cap_lamports: 20_000,
+            daily_budget_per_capsule_lamports: 12_000,
+            daily_budget_total_lamports: 50_000,
+            allowed_capsules: vec![CAPSULE.into()],
+            refill_below_lamports: 1_000_000,
+            refill_amount_lamports: 5_000_000,
+        }
+    }
+
+    fn setup(name: &str) -> (Rc<RefCell<World>>, std::path::PathBuf) {
+        let world = Rc::new(RefCell::new(World { fee: 5_000, ..World::default() }));
+        let dir = std::env::temp_dir().join(format!("ksg-mu-anchor-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("a directory");
+        (world, dir)
+    }
+
+    fn service<'a>(world: &Rc<RefCell<World>>, vault: &'a SoftVault, dir: &Path, rules: AnchorRules) -> AnchorService<'a> {
+        let log = Log::open(&dir.join("mu.log"), vault).expect("a log");
+        AnchorService::new(
+            rules,
+            log,
+            vault,
+            Box::new(Node(Rc::clone(world))),
+            Box::new(Node(Rc::clone(world))),
+            SolanaCfg { cluster: "localnet".into() },
+        )
+    }
+
+    fn ask(s: &mut AnchorService<'_>, capsule: &str, fee_cap: u64, at: u64) -> Value {
+        let line = json!({"anchor": {"memo": SEAL, "cluster": "localnet", "capsule": capsule, "fee_cap_lamports": fee_cap}});
+        serde_json::from_str(&s.handle_line(&line.to_string(), at)).expect("JSON")
+    }
+
+    fn kinds(s: &AnchorService<'_>) -> Vec<String> {
+        s.log().entries().iter().map(|e| format!("{:?}", e.kind).split([' ', '{']).next().unwrap_or("").to_owned()).collect()
+    }
+
+    #[test]
+    fn allowed_is_sent_and_the_log_holds_the_hash_of_the_signature_not_the_signature() {
+        let (world, dir) = setup("sent");
+        let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
+        let mut s = service(&world, &vault, &dir, rules());
+        let a = ask(&mut s, CAPSULE, 10_000, DAY0);
+        let sig = a["sent"]["signature"].as_str().expect("sent").to_owned();
+        assert_eq!(world.borrow().sent.len(), 1, "one transaction went out");
+        let last = s.log().entries().last().expect("an entry");
+        let Kind::AnchorSent { signature_hash, .. } = &last.kind else { panic!("{:?}", last.kind) };
+        assert_eq!(*signature_hash, sha(&[sig.as_bytes()]));
+        assert!(!format!("{last:?}").contains(&sig), "the signature itself is not in the log");
+        s.log().verify_chain().expect("the chain holds");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_stranger_capsule_is_not_allowed_and_nothing_is_sent() {
+        let (world, dir) = setup("stranger");
+        let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
+        let mut s = service(&world, &vault, &dir, rules());
+        let a = ask(&mut s, "1220dead", 10_000, DAY0);
+        assert_eq!(a["denied"]["reason"], "not_allowed");
+        assert!(world.borrow().sent.is_empty());
+        assert!(matches!(s.log().entries().last().map(|e| &e.kind), Some(Kind::AnchorDenied { reason: 3, .. })));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn the_budget_of_the_day_ends_in_a_denial_and_the_next_day_it_is_new() {
+        let (world, dir) = setup("budget");
+        let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
+        let mut s = service(&world, &vault, &dir, rules());
+        // budget per capsule 12 000, fee 5 000: the first is paid; the second asks for a cap of
+        // 10 000 against 5 000 spent — 15 000 > 12 000 — and is refused before anything is built
+        assert!(ask(&mut s, CAPSULE, 10_000, DAY0)["sent"].is_object());
+        let second = ask(&mut s, CAPSULE, 10_000, DAY0 + 60);
+        assert_eq!(second["denied"]["reason"], "budget");
+        assert_eq!(world.borrow().sent.len(), 1, "the refused one never reached a node");
+        // a cap that fits the rest is paid; and the day after, the budget is new
+        assert!(ask(&mut s, CAPSULE, 6_000, DAY0 + 120)["sent"].is_object());
+        assert!(ask(&mut s, CAPSULE, 10_000, DAY0 + 86_400)["sent"].is_object());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_fee_above_the_owners_cap_is_a_denial_cap() {
+        let (world, dir) = setup("cap");
+        world.borrow_mut().fee = 30_000; // the nodes quote more than the owner lets one anchor cost
+        let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
+        let mut s = service(&world, &vault, &dir, AnchorRules { daily_budget_per_capsule_lamports: 100_000, ..rules() });
+        // the reader asks for more than the owner's cap: the owner's cap wins
+        let a = ask(&mut s, CAPSULE, 90_000, DAY0);
+        assert_eq!(a["denied"]["reason"], "cap", "{a}");
+        assert!(world.borrow().sent.is_empty());
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn a_send_that_times_out_is_unknown_with_the_signature_never_denied() {
+        let (world, dir) = setup("unknown");
+        world.borrow_mut().send_fails = true;
+        let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
+        let mut s = service(&world, &vault, &dir, rules());
+        let a = ask(&mut s, CAPSULE, 10_000, DAY0);
+        assert!(a["unknown"]["signature"].is_string(), "{a}");
+        assert!(a.get("denied").is_none());
+        assert!(matches!(s.log().entries().last().map(|e| &e.kind), Some(Kind::AnchorUnknown { .. })));
+        // asked by the signature: not landed yet → pending; landed → landed
+        let sig = a["unknown"]["signature"].as_str().expect("signature").to_owned();
+        let q = json!({"status": {"signature": sig}}).to_string();
+        assert_eq!(serde_json::from_str::<Value>(&s.handle_line(&q, DAY0 + 1)).expect("JSON")["pending"], json!({}));
+        world.borrow_mut().landed = true;
+        assert_eq!(serde_json::from_str::<Value>(&s.handle_line(&q, DAY0 + 2)).expect("JSON")["landed"]["slot"], 9);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn every_decision_is_a_line_of_the_log_in_order() {
+        let (world, dir) = setup("log");
+        let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
+        let mut s = service(&world, &vault, &dir, rules());
+        ask(&mut s, CAPSULE, 10_000, DAY0); // sent
+        ask(&mut s, "1220dead", 10_000, DAY0 + 1); // not allowed
+        ask(&mut s, CAPSULE, 10_000, DAY0 + 2); // budget
+        let k = kinds(&s);
+        assert_eq!(k, ["AnchorSent", "AnchorDenied", "AnchorDenied"]);
+        s.log().verify_chain().expect("the chain holds");
+        // and it reads back from the file: the log is the owner's audit
+        drop(s);
+        let again = Log::open(&dir.join("mu.log"), &vault).expect("reopens");
+        assert_eq!(again.entries().len(), 3);
+        again.verify_chain().expect("the chain holds after reopening");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn the_sub_wallet_address_is_the_capsules_own() {
+        let (world, dir) = setup("address");
+        let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
+        let mut s = service(&world, &vault, &dir, rules());
+        let ask_addr = |s: &mut AnchorService<'_>, c: &str| -> Value {
+            serde_json::from_str(&s.handle_line(&json!({"address": {"capsule": c}}).to_string(), DAY0)).expect("JSON")
+        };
+        let a = ask_addr(&mut s, CAPSULE)["address"].as_str().expect("an address").to_owned();
+        let b = ask_addr(&mut s, "1220beef")["address"].as_str().expect("an address").to_owned();
+        assert_ne!(a, b, "one sub-wallet per capsule");
+        assert_eq!(
+            a,
+            base58_public(&vault.capsule_signer_ed25519(CAPSULE).expect("signer").public())
+        );
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn the_socket_is_0600_in_a_private_directory_and_answers_a_line() {
+        let (world, dir) = setup("socket");
+        std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o700)).expect("chmod");
+        let open = dir.join("open");
+        std::fs::create_dir(&open).expect("dir");
+        std::fs::set_permissions(&open, std::fs::Permissions::from_mode(0o755)).expect("chmod");
+        assert!(bind_unix(&open.join("s.sock")).expect_err("open directory").contains("open to the group or to others"));
+
+        let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
+        let mut s = service(&world, &vault, &dir, rules());
+        let sock = dir.join("mu-anchor.sock");
+        let listener = bind_unix(&sock).expect("binds");
+        assert_eq!(std::fs::metadata(&sock).expect("the socket").permissions().mode() & 0o777, 0o600);
+        let client = {
+            let sock = sock.clone();
+            std::thread::spawn(move || {
+                let mut c = UnixStream::connect(&sock).expect("connects");
+                writeln!(c, "{}", json!({"anchor": {"memo": SEAL, "cluster": "localnet", "capsule": "1220dead"}})).expect("writes");
+                let mut answer = String::new();
+                BufReader::new(c).read_line(&mut answer).expect("an answer");
+                answer
+            })
+        };
+        serve_unix(&listener, &mut s, &|| DAY0, 1);
+        let answer: Value = serde_json::from_str(&client.join().expect("the client")).expect("JSON");
+        assert_eq!(answer["denied"]["reason"], "not_allowed");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+}

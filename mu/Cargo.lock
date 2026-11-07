@@ -601,6 +601,7 @@ dependencies = [
  "mu-policy",
  "mu-runtime",
  "mu-vault",
+ "serde_json",
  "sha2",
 ]
 
