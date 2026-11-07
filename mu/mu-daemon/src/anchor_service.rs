@@ -63,6 +63,8 @@ pub struct AnchorService<'a> {
     balances: Box<dyn Balances + 'a>,
     notify: Box<dyn FnMut(&str) + 'a>,
     cfg: SolanaCfg,
+    /// How long a refill may take to land before the anchor that needs it is given up on for now.
+    refill_wait: std::time::Duration,
 }
 
 /// What a refill came to.
@@ -90,7 +92,26 @@ impl<'a> AnchorService<'a> {
         notify: Box<dyn FnMut(&str) + 'a>,
         cfg: SolanaCfg,
     ) -> Self {
-        Self { rules, ledger: Ledger::default(), log, vault, a, b, balances, notify, cfg }
+        Self {
+            rules,
+            ledger: Ledger::default(),
+            log,
+            vault,
+            a,
+            b,
+            balances,
+            notify,
+            cfg,
+            refill_wait: std::time::Duration::from_secs(30),
+        }
+    }
+
+    /// How long a refill may take to land (the anchor waits for it: a wallet that has not got its
+    /// money yet cannot pay).
+    #[cfg(test)]
+    pub fn with_refill_wait(mut self, wait: std::time::Duration) -> Self {
+        self.refill_wait = wait;
+        self
     }
 
     /// Tops the capsule's sub-wallet up from the main wallet if it is under the owner's threshold.
@@ -120,7 +141,18 @@ impl<'a> AnchorService<'a> {
                 // the amount counts against the day's budget in all; the fee is the main wallet's own
                 self.ledger.record_refill(day, amount);
                 self.note(Kind::Refilled { capsule_hash, lamports: amount }, now);
-                Refill::Done { lamports: amount, signature: sent.signature }
+                // The money is not the sub-wallet's until the transfer has landed: an anchor built
+                // before that would be dry-run against an account the nodes do not know yet.
+                let started = std::time::Instant::now();
+                loop {
+                    if matches!(reconcile(&*self.a, &*self.b, &sent.signature), Settled::Landed { .. }) {
+                        break Refill::Done { lamports: amount, signature: sent.signature };
+                    }
+                    if started.elapsed() >= self.refill_wait {
+                        break Refill::Unknown { signature: Some(sent.signature) };
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(300));
+                }
             }
             Err(AnchorErr::Unknown { signature, .. }) => {
                 // it may have landed: it is counted all the same, so that no second refill follows it
@@ -136,7 +168,8 @@ impl<'a> AnchorService<'a> {
         }
     }
 
-    /// The log, for the owner's audit (and the tests).
+    /// The log, for the tests (the owner reads the file).
+    #[cfg(test)]
     pub fn log(&self) -> &Log {
         &self.log
     }
@@ -211,7 +244,12 @@ impl<'a> AnchorService<'a> {
         }
         // The sub-wallet is filled first, if the owner's rules say so; when it cannot be and the capsule
         // has not what the anchor may cost, there is nothing to pay with: `budget`, and the owner knows.
-        if matches!(self.top_up(&capsule, day, now), Refill::Short) {
+        let topped = self.top_up(&capsule, day, now);
+        if let Refill::Unknown { signature } = &topped {
+            // the refill is on its way and has not landed: nothing can be paid with it yet
+            return json!({"unknown": {"signature": null, "reason": "a refill of the sub-wallet is not final yet", "refill": signature}});
+        }
+        if matches!(topped, Refill::Short) {
             let sub = self.vault.capsule_signer_ed25519(&capsule).ok().map(|s| base58_public(&s.public()));
             let held = sub.and_then(|a| self.balances.balance(&a).ok()).unwrap_or(0);
             if held < fee_cap {
@@ -570,6 +608,7 @@ mod tests {
     #[test]
     fn a_sub_wallet_under_the_threshold_is_refilled_from_the_main_wallet_by_the_owners_amount() {
         let (world, dir) = setup("refill");
+        world.borrow_mut().landed = true;
         let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
         world.borrow_mut().wallets.insert(addr(&vault, CAPSULE), 200_000); // under 1 000 000
         let mut s = service(&world, &vault, &dir, AnchorRules { daily_budget_total_lamports: 100_000_000, ..rules() });
@@ -595,6 +634,7 @@ mod tests {
     #[test]
     fn an_anchor_refills_first_so_the_reader_never_meets_an_empty_sub_wallet() {
         let (world, dir) = setup("refill-anchor");
+        world.borrow_mut().landed = true;
         let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
         world.borrow_mut().wallets.insert(addr(&vault, CAPSULE), 0);
         let mut s = service(&world, &vault, &dir, rules());
@@ -626,6 +666,7 @@ mod tests {
     #[test]
     fn the_refill_counts_against_the_budget_in_all() {
         let (world, dir) = setup("refill-budget");
+        world.borrow_mut().landed = true;
         let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
         world.borrow_mut().wallets.insert(addr(&vault, CAPSULE), 0);
         // the budget in all is 50 000 000 in the rules; a refill is 5 000 000: ten of them fill the day

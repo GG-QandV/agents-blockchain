@@ -12,11 +12,12 @@
 #[cfg(all(not(debug_assertions), feature = "softvault"))]
 compile_error!("softvault запрещён в release");
 
-// P11e: the anchor service. Not yet started by `main` — `init-ksg` and the serving loop are P12c, which
-// removes this `allow`.
-#[cfg(feature = "ksg")]
-#[cfg_attr(not(test), allow(dead_code))]
+// P11e, P12c: the anchor service and the owner's commands that set it up and run it. Development
+// vault only (`softvault`): see `ksg_cmd`.
+#[cfg(all(feature = "ksg", feature = "softvault"))]
 mod anchor_service;
+#[cfg(all(feature = "ksg", feature = "softvault"))]
+mod ksg_cmd;
 
 use std::fs;
 use std::io::{Read, Write};
@@ -241,6 +242,10 @@ fn serve(
 // ── Main ────────────────────────────────────────────────────────────────
 
 fn main() {
+    #[cfg(all(feature = "ksg", feature = "softvault"))]
+    if let Some(code) = ksg_cmd::run(&std::env::args().collect::<Vec<_>>()) {
+        std::process::exit(code);
+    }
     let mu_path = Path::new(MU_PATH);
     let log_path = Path::new(LOG_PATH);
     let sock_path = Path::new(SOCK_PATH);
