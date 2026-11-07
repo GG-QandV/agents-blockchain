@@ -101,6 +101,17 @@ pub trait RpcNode {
     fn status(&self, signature: &str) -> Result<SigState, NodeErr>;
 }
 
+/// A node's view of a balance: lamports at an address (base58). Kept apart from [`RpcNode`]: the
+/// anchor needs none, the refill needs it of the main wallet and of the sub-wallets.
+pub trait Balances {
+    /// The balance, lamports.
+    ///
+    /// # Errors
+    ///
+    /// [`NodeErr`] when the node does not answer.
+    fn balance(&self, address: &str) -> Result<u64, NodeErr>;
+}
+
 /// An Ed25519 signer: the connector sees a public key and a function, never a key.
 pub trait Ed25519 {
     /// The public key, which is also the fee payer's address.

@@ -92,6 +92,12 @@ impl SolanaRpc {
     ///
     /// [`NodeErr`] when the node does not answer.
     pub fn balance(&self, address: &str) -> Result<u64, NodeErr> {
+        <Self as crate::solana::Balances>::balance(self, address)
+    }
+}
+
+impl crate::solana::Balances for SolanaRpc {
+    fn balance(&self, address: &str) -> Result<u64, NodeErr> {
         let r = self.call("getBalance", &json!([address, {"commitment": "confirmed"}]))?;
         r.get("value")
             .and_then(Value::as_u64)

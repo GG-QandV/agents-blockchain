@@ -248,6 +248,7 @@ fn decode_kind(b: &[u8]) -> Option<Kind> {
         12 => Some(Kind::AnchorSent { intent_hash: h32(r)?, signature_hash: h32(r.get(32..)?)? }),
         13 => Some(Kind::AnchorDenied { intent_hash: h32(r)?, reason: *r.get(32)? }),
         14 => Some(Kind::AnchorUnknown { intent_hash: h32(r)? }),
+        15 => Some(Kind::Refilled { capsule_hash: h32(r)?, lamports: u64::from_be_bytes(r.get(32..40)?.try_into().ok()?) }),
         _ => None,
     }
 }

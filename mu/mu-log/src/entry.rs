@@ -24,6 +24,8 @@ pub enum Kind {
     AnchorDenied { intent_hash: Hash32, reason: u8 },
     /// P11e: the outcome of an anchor's send is not known (Unknown ≠ Failed): to be asked about.
     AnchorUnknown { intent_hash: Hash32 },
+    /// P11f: a sub-wallet was refilled from the main wallet: the hash of the capsule and the lamports moved.
+    Refilled { capsule_hash: Hash32, lamports: u64 },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -72,6 +74,9 @@ impl Kind {
             }
             Kind::AnchorDenied { intent_hash, reason } => { b.push(13); b.extend(intent_hash.0); b.push(*reason); }
             Kind::AnchorUnknown { intent_hash } => { b.push(14); b.extend(intent_hash.0); }
+            Kind::Refilled { capsule_hash, lamports } => {
+                b.push(15); b.extend(capsule_hash.0); b.extend(lamports.to_be_bytes());
+            }
         }
         b
     }
