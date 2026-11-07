@@ -10,6 +10,7 @@ pub mod anchor;
 pub mod anchor_rules;
 pub mod crypto;
 pub mod solana;
+pub mod solana_rpc;
 pub mod stub;
 pub mod sui;
 pub mod sui_jsonrpc;

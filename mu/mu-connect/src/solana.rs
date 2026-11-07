@@ -262,7 +262,7 @@ pub fn check_message(message: &[u8], intent: &AnchorIntent, payer: &[u8; 32]) ->
 
 const B58: &[u8; 58] = b"123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
 
-fn base58(bytes: &[u8]) -> String {
+pub(crate) fn base58(bytes: &[u8]) -> String {
     let mut digits: Vec<u8> = Vec::new();
     for &byte in bytes {
         let mut carry = u32::from(byte);
