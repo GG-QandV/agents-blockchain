@@ -9,7 +9,6 @@ use std::io::{BufRead, BufReader, Write};
 use std::os::unix::net::UnixStream;
 use std::process::{Command, Stdio};
 
-use mu_connect::solana::Balances;
 use mu_connect::solana_rpc::{http_post, SolanaRpc};
 use serde_json::{json, Value};
 

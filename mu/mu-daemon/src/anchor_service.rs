@@ -29,7 +29,7 @@ use std::path::Path;
 use mu_common::Hash32;
 use mu_connect::anchor::AnchorIntent;
 use mu_connect::anchor_rules::{decide, AnchorRules, Denied, Ledger};
-use mu_connect::solana::{base58_public, execute, reconcile, AnchorErr, Balances, Ed25519, RpcNode, Settled, SolanaCfg};
+use mu_connect::solana::{base58_public, execute, reconcile, AnchorErr, Balances, RpcNode, Settled, SolanaCfg};
 use mu_log::{Kind, Log};
 use mu_vault::Vault;
 use serde_json::{json, Value};
