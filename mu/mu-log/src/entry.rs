@@ -24,7 +24,7 @@ pub enum Kind {
     AnchorDenied { intent_hash: Hash32, reason: u8 },
     /// P11e: the outcome of an anchor's send is not known (Unknown ≠ Failed): to be asked about.
     AnchorUnknown { intent_hash: Hash32 },
-    /// P11f: a sub-wallet was refilled from the main wallet: the hash of the capsule and the lamports moved.
+    /// P11f (no longer written since 07.11, variant B: one wallet pays, no refill; kept so that logs written before still read): a sub-wallet was refilled from the main wallet: the hash of the capsule and the lamports moved.
     Refilled { capsule_hash: Hash32, lamports: u64 },
 }
 

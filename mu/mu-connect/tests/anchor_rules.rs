@@ -1,9 +1,9 @@
 //! P11c (Spec S5 §3.1 step 4 and §3.2, T7): the owner's rules for anchors — a
 //! budget per capsule and in all per day, a cap per anchor, a list of the capsules
-//! allowed to pay — and the refill of a capsule's sub-wallet from the main wallet.
+//! allowed to pay (one wallet pays for all; no refill).
 //! Pure decisions: no network, no key.
 
-use mu_connect::anchor_rules::{decide, plan_refill, AnchorRules, Denied, Ledger};
+use mu_connect::anchor_rules::{decide, AnchorRules, Denied, Ledger};
 
 fn rules() -> AnchorRules {
     AnchorRules {
@@ -11,8 +11,6 @@ fn rules() -> AnchorRules {
         daily_budget_per_capsule_lamports: 30_000,
         daily_budget_total_lamports: 50_000,
         allowed_capsules: vec!["1220aa".into(), "1220bb".into()],
-        refill_below_lamports: 20_000,
-        refill_amount_lamports: 40_000,
     }
 }
 
@@ -54,21 +52,3 @@ fn the_daily_budget_per_capsule_and_in_all_runs_out() {
     assert_eq!(decide(&rules(), &l, "1220aa", 10_000, 2), Ok(()));
 }
 
-#[test]
-fn refill_from_main() {
-    let r = rules();
-    // Below the threshold: refill by the set amount, from the main wallet.
-    assert_eq!(plan_refill(&r, &Ledger::default(), 1, 5_000, 1_000_000), Some(40_000));
-    // At or above the threshold: nothing.
-    assert_eq!(plan_refill(&r, &Ledger::default(), 1, 20_000, 1_000_000), None);
-    // The main wallet cannot cover the amount: nothing is moved (never below zero).
-    assert_eq!(plan_refill(&r, &Ledger::default(), 1, 5_000, 39_999), None);
-    // Within the budget in all: a refill is clipped to what the day's budget leaves.
-    let mut l = Ledger::default();
-    l.record_refill(1, 30_000);
-    assert_eq!(plan_refill(&r, &l, 1, 5_000, 1_000_000), Some(20_000), "50 000 − 30 000 already moved");
-    l.record_refill(1, 20_000);
-    assert_eq!(plan_refill(&r, &l, 1, 5_000, 1_000_000), None, "the day's budget is spent");
-    // The next day, the same refill again.
-    assert_eq!(plan_refill(&r, &l, 2, 5_000, 1_000_000), Some(40_000));
-}

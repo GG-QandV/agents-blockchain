@@ -102,7 +102,7 @@ pub trait RpcNode {
 }
 
 /// A node's view of a balance: lamports at an address (base58). Kept apart from [`RpcNode`]: the
-/// anchor needs none, the refill needs it of the main wallet and of the sub-wallets.
+/// anchor needs none; the daemon asks it of the one wallet that pays, before it spends.
 pub trait Balances {
     /// The balance, lamports.
     ///

@@ -119,7 +119,7 @@ fn init(args: &[String]) -> Result<(), String> {
         println!("warning              {w}");
     }
     println!("MAIN WALLET          {}", base58_public(&main.public_key()));
-    println!("  top this address up with the SOL the anchors will cost; each capsule's sub-wallet is filled from it");
+    println!("  top this address up with the SOL the anchors will cost (and keep 0.00089 SOL in it: a wallet cannot be left under the rent minimum); it pays for every capsule the template names");
     println!("  (the development vault: the seeds are in {SEEDS}; do not use it with real money)");
     println!("start it:            mu-daemon serve-ksg --home {}", home.display());
     println!("point a capsule at it: ksg-capsule --home <capsule> anchor-config --mugate {}", socket.display());

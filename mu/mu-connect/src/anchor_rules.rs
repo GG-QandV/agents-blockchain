@@ -1,11 +1,10 @@
-//! P11c (Spec S5 §3.1 step 4, §3.2): the owner's rules for anchors, and the refill
-//! of a capsule's sub-wallet from the main wallet.
+//! P11c (Spec S5 §3.1 step 4): the owner's rules for anchors.
 //!
 //! The rules are the owner's, set once: a cap per anchor, a budget per capsule and
-//! in all per day, the list of the capsules allowed to pay, the threshold under
-//! which a sub-wallet is refilled and by how much. Everything here is a pure
-//! decision over numbers the caller hands in — no network, no key, no clock (the
-//! day is a number the caller names).
+//! in all per day, the list of the capsules allowed to be paid for. One wallet pays
+//! for all of them (decision 07.11, variant B: no sub-wallet per capsule, no refill).
+//! Everything here is a pure decision over numbers the caller hands in — no
+//! network, no key, no clock (the day is a number the caller names).
 //!
 //! A denial is **not** a failure of the page: the page is written all the same and
 //! its anchor waits in the reader's queue of debts (S5 §3.3); the denial says why.
@@ -19,14 +18,10 @@ pub struct AnchorRules {
     pub per_anchor_cap_lamports: u64,
     /// The most one capsule's anchors may cost in a day, lamports.
     pub daily_budget_per_capsule_lamports: u64,
-    /// The most all capsules together may cost in a day (anchors and refills), lamports.
+    /// The most all capsules together may cost in a day (anchors), lamports.
     pub daily_budget_total_lamports: u64,
     /// The capsules (container multihashes) allowed to pay; any other pays nothing.
     pub allowed_capsules: Vec<String>,
-    /// A sub-wallet under this many lamports is refilled.
-    pub refill_below_lamports: u64,
-    /// By this many lamports, from the main wallet.
-    pub refill_amount_lamports: u64,
 }
 
 /// Why an anchor is not paid.
@@ -74,12 +69,10 @@ impl core::fmt::Display for Denied {
 
 impl std::error::Error for Denied {}
 
-/// What was spent, by day: anchors per capsule, and refills (money moved to the
-/// sub-wallets also counts against the budget in all).
+/// What was spent, by day: anchors per capsule.
 #[derive(Clone, Debug, Default)]
 pub struct Ledger {
     anchors: BTreeMap<(u64, String), u64>,
-    refills: BTreeMap<u64, u64>,
 }
 
 impl Ledger {
@@ -89,24 +82,16 @@ impl Ledger {
         *e = e.saturating_add(fee_lamports);
     }
 
-    /// Notes money moved from the main wallet to a sub-wallet on `day`.
-    pub fn record_refill(&mut self, day: u64, lamports: u64) {
-        let e = self.refills.entry(day).or_insert(0);
-        *e = e.saturating_add(lamports);
-    }
-
     fn spent_by(&self, capsule: &str, day: u64) -> u64 {
         self.anchors.get(&(day, capsule.to_owned())).copied().unwrap_or(0)
     }
 
     fn spent_in_all(&self, day: u64) -> u64 {
-        let anchors: u64 = self
-            .anchors
+        self.anchors
             .iter()
             .filter(|((d, _), _)| *d == day)
             .map(|(_, v)| *v)
-            .fold(0u64, u64::saturating_add);
-        anchors.saturating_add(self.refills.get(&day).copied().unwrap_or(0))
+            .fold(0u64, u64::saturating_add)
     }
 }
 
@@ -140,28 +125,4 @@ pub fn decide(
         return Err(Denied::BudgetTotal { spent: in_all, budget: rules.daily_budget_total_lamports });
     }
     Ok(())
-}
-
-/// How much to move from the main wallet to a capsule's sub-wallet, if anything.
-///
-/// A sub-wallet under the threshold is refilled by the set amount — clipped to what
-/// the day's budget in all still leaves, and never more than the main wallet holds
-/// (the main wallet is not taken below zero): then nothing is moved.
-#[must_use]
-pub fn plan_refill(
-    rules: &AnchorRules,
-    ledger: &Ledger,
-    day: u64,
-    sub_wallet_lamports: u64,
-    main_wallet_lamports: u64,
-) -> Option<u64> {
-    if sub_wallet_lamports >= rules.refill_below_lamports {
-        return None;
-    }
-    let left_today = rules.daily_budget_total_lamports.saturating_sub(ledger.spent_in_all(day));
-    let amount = rules.refill_amount_lamports.min(left_today);
-    if amount == 0 || amount > main_wallet_lamports {
-        return None;
-    }
-    Some(amount)
 }

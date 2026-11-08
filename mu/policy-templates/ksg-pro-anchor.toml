@@ -1,13 +1,11 @@
-# keysingate Pro — gas for anchors (Solana). One sub-wallet per capsule, refilled from the main wallet.
+# keysingate Pro — gas for anchors (Solana). One wallet pays for every capsule listed below.
 # Form C of the template (the description); forms A and B are not made yet: see ksg-pro-anchor/README.md.
 # Every value below is checked when the daemon starts: a wrong one, or a key it does not know, is a
 # refusal to start — never a silent default.
 cluster = "localnet"                       # localnet | devnet | testnet | mainnet-beta
 fee_cap_lamports = 20_000                  # per anchor: base fee 5 000 + priority up to 15 000
 daily_budget_lamports_per_capsule = 5_000_000   # ≈1 000 anchors a day
-daily_budget_lamports_total = 50_000_000   # all capsules together: anchors and refills
-refill_below_lamports = 1_000_000          # refill a sub-wallet below this
-refill_amount_lamports = 5_000_000
+daily_budget_lamports_total = 50_000_000   # all capsules together
 memo_kinds = ["ksg:bs:v1", "ksg:st:v1"]    # core v2 only; ksg:cp:v1 (core v1) is refused
 
 [[capsules]]                               # allowed capsules; an empty list = none allowed

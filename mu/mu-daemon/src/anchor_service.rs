@@ -9,15 +9,13 @@
 //! | | `{"denied": {"reason": "budget" \| "cap" \| "not_allowed" \| "rejected"}}` — **not** paid: nothing was sent |
 //! | | `{"unknown": {"signature"?}}` — the outcome is not known: ask the network about it, send nothing again |
 //! | `{"status": {"signature"}}` | `{"landed": {"slot"}}` \| `{"pending": {}}` \| `{"failed": {}}` (both nodes say the blockhash is gone) |
-//! | `{"address": {"capsule"}}` | `{"address": "<base58>"}` — the capsule's sub-wallet, to fund it |
-//! | `{"refill": {"capsule"}}` | `{"refilled": {"lamports", "signature"}}` \| `{"not_needed": {}}` \| `{"denied": {"reason": "budget"}}` \| `{"unknown": {…}}` |
+//! | `{"address": {}}` | `{"address": "<base58>"}` — the one wallet that pays for every capsule, to fund it |
 //!
-//! The refill (S5 §3.2): a sub-wallet under the owner's threshold is topped up from the main wallet, by
-//! the owner's amount, clipped to what the day's budget in all still leaves — and counted against it.
-//! The main wallet is never taken below what it holds: when it cannot pay, the owner is **told** (the
-//! notifier, a log line) and an anchor that needs the money is denied as `budget`. A refill is tried
-//! before every anchor, so a capsule's reader never meets an empty sub-wallet that the owner could have
-//! filled.
+//! One wallet pays for all the capsules (owner's decision 07.11, variant B; the sub-wallet per capsule
+//! and its refill, P11f, are gone): what keeps one capsule from spending what belongs to the others is
+//! the owner's rules — the budget of the day per capsule, the budget in all, the list of capsules that
+//! may be paid for. When the wallet cannot pay what an anchor may cost, the owner is **told** (the
+//! notifier, a log line) and the anchor is denied as `budget`.
 //!
 //! Every decision is a line of the log (a chain of hashes, signed by the vault's μ key, like the
 //! payments'): sent (the **hash** of the signature, not the signature), denied (the reason), unknown.
@@ -30,9 +28,8 @@ use std::path::Path;
 
 use mu_common::Hash32;
 use mu_connect::anchor::AnchorIntent;
-use mu_connect::anchor_rules::{decide, plan_refill, AnchorRules, Denied, Ledger};
+use mu_connect::anchor_rules::{decide, AnchorRules, Denied, Ledger};
 use mu_connect::solana::{base58_public, execute, reconcile, AnchorErr, Balances, Ed25519, RpcNode, Settled, SolanaCfg};
-use mu_connect::solana_transfer::execute_transfer;
 use mu_log::{Kind, Log};
 use mu_vault::Vault;
 use serde_json::{json, Value};
@@ -63,20 +60,6 @@ pub struct AnchorService<'a> {
     balances: Box<dyn Balances + 'a>,
     notify: Box<dyn FnMut(&str) + 'a>,
     cfg: SolanaCfg,
-    /// How long a refill may take to land before the anchor that needs it is given up on for now.
-    refill_wait: std::time::Duration,
-}
-
-/// What a refill came to.
-enum Refill {
-    /// The sub-wallet is at or above the threshold.
-    NotNeeded,
-    /// Lamports moved; the signature.
-    Done { lamports: u64, signature: String },
-    /// The refill is needed and cannot be paid: the main wallet is short, or the day's budget is spent.
-    Short,
-    /// The outcome of the transfer is not known.
-    Unknown { signature: Option<String> },
 }
 
 impl<'a> AnchorService<'a> {
@@ -102,75 +85,6 @@ impl<'a> AnchorService<'a> {
             balances,
             notify,
             cfg,
-            refill_wait: std::time::Duration::from_secs(30),
-        }
-    }
-
-    /// How long a refill may take to land (the anchor waits for it: a wallet that has not got its
-    /// money yet cannot pay).
-    #[cfg(test)]
-    pub fn with_refill_wait(mut self, wait: std::time::Duration) -> Self {
-        self.refill_wait = wait;
-        self
-    }
-
-    /// Tops the capsule's sub-wallet up from the main wallet if it is under the owner's threshold.
-    fn top_up(&mut self, capsule: &str, day: u64, now: u64) -> Refill {
-        let (Ok(sub), Ok(main)) = (self.vault.capsule_signer_ed25519(capsule), self.vault.tx_signer_ed25519()) else {
-            return Refill::NotNeeded;
-        };
-        let (sub_pub, main_pub) = (sub.public(), main.public());
-        let Ok(sub_balance) = self.balances.balance(&base58_public(&sub_pub)) else { return Refill::NotNeeded };
-        if sub_balance >= self.rules.refill_below_lamports {
-            return Refill::NotNeeded;
-        }
-        let Ok(main_balance) = self.balances.balance(&base58_public(&main_pub)) else { return Refill::NotNeeded };
-        let Some(amount) = plan_refill(&self.rules, &self.ledger, day, sub_balance, main_balance) else {
-            // needed and not possible: the owner is told, the log says so
-            (self.notify)(&format!(
-                "the main wallet holds {main_balance} lamports; the sub-wallet of capsule {capsule} holds {sub_balance} \
-                 and is under {}: top the main wallet up",
-                self.rules.refill_below_lamports
-            ));
-            self.note(Kind::Alert { code: 0x0A01 }, now);
-            return Refill::Short;
-        };
-        let capsule_hash = sha(&[b"ksg-refill", capsule.as_bytes()]);
-        match execute_transfer(&*self.a, &*self.b, &main, &sub_pub, amount, self.rules.per_anchor_cap_lamports, &self.cfg) {
-            Ok(sent) => {
-                // the amount counts against the day's budget in all; the fee is the main wallet's own
-                self.ledger.record_refill(day, amount);
-                self.note(Kind::Refilled { capsule_hash, lamports: amount }, now);
-                // The money is not the sub-wallet's until the transfer has landed: an anchor built
-                // before that would be dry-run against an account the nodes do not know yet.
-                let started = std::time::Instant::now();
-                loop {
-                    if matches!(reconcile(&*self.a, &*self.b, &sent.signature), Settled::Landed { .. }) {
-                        break Refill::Done { lamports: amount, signature: sent.signature };
-                    }
-                    if started.elapsed() >= self.refill_wait {
-                        break Refill::Unknown { signature: Some(sent.signature) };
-                    }
-                    std::thread::sleep(std::time::Duration::from_millis(300));
-                }
-            }
-            Err(AnchorErr::Unknown { signature, .. }) => {
-                // it may have landed: it is counted all the same, so that no second refill follows it
-                self.ledger.record_refill(day, amount);
-                self.note(Kind::AnchorUnknown { intent_hash: capsule_hash }, now);
-                Refill::Unknown { signature }
-            }
-            Err(e) => {
-                // what the nodes said (a refusal before anything reached the chain — no secret in it)
-                let why = match &e {
-                    AnchorErr::Rejected(w) => w.as_str(),
-                    AnchorErr::Unknown { reason, .. } => reason.as_str(),
-                    _ => "another refusal",
-                };
-                (self.notify)(&format!("a refill of capsule {capsule} was refused by the nodes ({why}); look at the main wallet"));
-                self.note(Kind::Alert { code: 0x0A02 }, now);
-                Refill::Short
-            }
         }
     }
 
@@ -204,26 +118,10 @@ impl<'a> AnchorService<'a> {
             }
             .to_string();
         }
-        if let Some(req) = v.get("refill") {
-            let Some(capsule) = req.get("capsule").and_then(Value::as_str) else {
-                return json!({"error": "refill needs a capsule"}).to_string();
-            };
-            let (capsule, now_day) = (capsule.to_owned(), now / 86_400);
-            return match self.top_up(&capsule, now_day, now) {
-                Refill::NotNeeded => json!({"not_needed": {}}),
-                Refill::Done { lamports, signature } => json!({"refilled": {"lamports": lamports, "signature": signature}}),
-                Refill::Short => json!({"denied": {"reason": "budget", "detail": "the refill cannot be paid"}}),
-                Refill::Unknown { signature } => json!({"unknown": {"signature": signature}}),
-            }
-            .to_string();
-        }
-        if let Some(req) = v.get("address") {
-            let Some(capsule) = req.get("capsule").and_then(Value::as_str) else {
-                return json!({"error": "address needs a capsule"}).to_string();
-            };
-            return match self.vault.capsule_signer_ed25519(capsule) {
-                Ok(s) => json!({"address": base58_public(&s.public())}),
-                Err(_) => json!({"error": "no sub-wallet for this capsule"}),
+        if v.get("address").is_some() {
+            return match self.vault.tx_signer_ed25519() {
+                Ok(s) => json!({"address": base58_public(&s.public_key())}),
+                Err(_) => json!({"error": "the vault has no wallet"}),
             }
             .to_string();
         }
@@ -248,26 +146,23 @@ impl<'a> AnchorService<'a> {
         if let Err(d) = decide(&self.rules, &self.ledger, &capsule, fee_cap, day) {
             return self.denied(intent_hash, &d, now);
         }
-        // The sub-wallet is filled first, if the owner's rules say so; when it cannot be and the capsule
-        // has not what the anchor may cost, there is nothing to pay with: `budget`, and the owner knows.
-        let topped = self.top_up(&capsule, day, now);
-        if let Refill::Unknown { signature } = &topped {
-            // the refill is on its way and has not landed: nothing can be paid with it yet
-            return json!({"unknown": {"signature": null, "reason": "a refill of the sub-wallet is not final yet", "refill": signature}});
-        }
-        if matches!(topped, Refill::Short) {
-            let sub = self.vault.capsule_signer_ed25519(&capsule).ok().map(|s| base58_public(&s.public()));
-            let held = sub.and_then(|a| self.balances.balance(&a).ok()).unwrap_or(0);
+        let Ok(signer) = self.vault.tx_signer_ed25519() else {
+            self.note(Kind::AnchorDenied { intent_hash, reason: 4 }, now);
+            return json!({"denied": {"reason": "rejected", "detail": "the vault has no wallet"}});
+        };
+        // The wallet that pays must hold what the anchor may cost; a node that does not answer is not a
+        // reason to refuse (the dry run of the anchor decides): Unknown is not Failed.
+        if let Ok(held) = self.balances.balance(&base58_public(&signer.public_key())) {
             if held < fee_cap {
+                (self.notify)(&format!(
+                    "the wallet holds {held} lamports; an anchor of capsule {capsule} may cost {fee_cap}: top the main wallet up"
+                ));
+                self.note(Kind::Alert { code: 0x0A01 }, now);
                 self.note(Kind::AnchorDenied { intent_hash, reason: 1 }, now);
-                return json!({"denied": {"reason": "budget", "detail": "the capsule's sub-wallet is empty and the main wallet cannot fill it"}});
+                return json!({"denied": {"reason": "budget", "detail": "the wallet cannot pay what the anchor may cost"}});
             }
         }
         let intent = AnchorIntent { memo, fee_cap_lamports: fee_cap, cluster, capsule: capsule.clone() };
-        let Ok(signer) = self.vault.capsule_signer_ed25519(&capsule) else {
-            self.note(Kind::AnchorDenied { intent_hash, reason: 4 }, now);
-            return json!({"denied": {"reason": "rejected", "detail": "the vault has no sub-wallet for this capsule"}});
-        };
         match execute(&*self.a, &*self.b, &signer, &intent, &self.cfg) {
             Ok(sent) => {
                 self.ledger.record(&capsule, day, sent.fee_lamports);
@@ -436,27 +331,18 @@ mod tests {
             daily_budget_per_capsule_lamports: 12_000,
             daily_budget_total_lamports: 50_000,
             allowed_capsules: vec![CAPSULE.into()],
-            refill_below_lamports: 1_000_000,
-            refill_amount_lamports: 5_000_000,
         }
     }
 
     fn setup(name: &str) -> (Rc<RefCell<World>>, std::path::PathBuf) {
         let world = Rc::new(RefCell::new(World { fee: 5_000, ..World::default() }));
-        // the wallets of the test vault are funded: no refill unless a test asks for one
+        // the one wallet of the test vault is funded
         let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
-        for c in [CAPSULE, "1220dead", "1220beef"] {
-            world.borrow_mut().wallets.insert(addr(&vault, c), 10_000_000);
-        }
         world.borrow_mut().wallets.insert(main_addr(&vault), 100_000_000);
         let dir = std::env::temp_dir().join(format!("ksg-mu-anchor-{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("a directory");
         (world, dir)
-    }
-
-    fn addr(vault: &SoftVault, capsule: &str) -> String {
-        base58_public(&vault.capsule_signer_ed25519(capsule).expect("a sub-wallet").public())
     }
 
     fn main_addr(vault: &SoftVault) -> String {
@@ -584,108 +470,44 @@ mod tests {
     }
 
     #[test]
-    fn the_sub_wallet_address_is_the_capsules_own() {
+    fn the_address_is_the_one_wallet_that_pays_for_every_capsule() {
         let (world, dir) = setup("address");
         let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
         let mut s = service(&world, &vault, &dir, rules());
-        let ask_addr = |s: &mut AnchorService<'_>, c: &str| -> Value {
-            serde_json::from_str(&s.handle_line(&json!({"address": {"capsule": c}}).to_string(), DAY0)).expect("JSON")
-        };
-        let a = ask_addr(&mut s, CAPSULE)["address"].as_str().expect("an address").to_owned();
-        let b = ask_addr(&mut s, "1220beef")["address"].as_str().expect("an address").to_owned();
-        assert_ne!(a, b, "one sub-wallet per capsule");
-        assert_eq!(
-            a,
-            base58_public(&vault.capsule_signer_ed25519(CAPSULE).expect("signer").public())
+        let a: Value = serde_json::from_str(&s.handle_line(&json!({"address": {}}).to_string(), DAY0)).expect("JSON");
+        assert_eq!(a["address"], main_addr(&vault), "the main wallet, whichever capsule asks");
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn one_wallet_pays_for_two_capsules() {
+        let (world, dir) = setup("two-capsules");
+        let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
+        let mut s = service(
+            &world,
+            &vault,
+            &dir,
+            AnchorRules { allowed_capsules: vec![CAPSULE.into(), "1220beef".into()], ..rules() },
         );
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    /// What the last transaction sent was: (payer, recipient, lamports) if it is a System transfer.
-    fn last_transfer(world: &Rc<RefCell<World>>) -> Option<([u8; 32], [u8; 32], u64)> {
-        let tx = world.borrow().sent.last()?.clone();
-        let m = &tx[65..];
-        (m.len() == 3 + 1 + 96 + 32 + 1 + 1 + 1 + 2 + 1 + 12).then(|| {
-            let key = |i: usize| -> [u8; 32] { m[4 + 32 * i..4 + 32 * (i + 1)].try_into().expect("32 bytes") };
-            (key(0), key(1), u64::from_le_bytes(m[m.len() - 8..].try_into().expect("8 bytes")))
-        })
-    }
-
-    #[test]
-    fn a_sub_wallet_under_the_threshold_is_refilled_from_the_main_wallet_by_the_owners_amount() {
-        let (world, dir) = setup("refill");
-        world.borrow_mut().landed = true;
-        let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
-        world.borrow_mut().wallets.insert(addr(&vault, CAPSULE), 200_000); // under 1 000 000
-        let mut s = service(&world, &vault, &dir, AnchorRules { daily_budget_total_lamports: 100_000_000, ..rules() });
-        let a: Value = serde_json::from_str(
-            &s.handle_line(&json!({"refill": {"capsule": CAPSULE}}).to_string(), DAY0),
-        ).expect("JSON");
-        assert_eq!(a["refilled"]["lamports"], 5_000_000, "{a}");
-        let (from, to, lamports) = last_transfer(&world).expect("a transfer went out");
-        assert_eq!(from, vault.tx_signer_ed25519().expect("main").public_key(), "from the main wallet");
-        assert_eq!(to, vault.capsule_signer_ed25519(CAPSULE).expect("sub").public(), "to the capsule's sub-wallet");
-        assert_eq!(lamports, 5_000_000);
-        assert!(matches!(s.log().entries().last().map(|e| &e.kind), Some(Kind::Refilled { lamports: 5_000_000, .. })));
-        // a funded sub-wallet is left alone
-        world.borrow_mut().wallets.insert(addr(&vault, CAPSULE), 9_000_000);
-        let again: Value = serde_json::from_str(
-            &s.handle_line(&json!({"refill": {"capsule": CAPSULE}}).to_string(), DAY0 + 1),
-        ).expect("JSON");
-        assert_eq!(again["not_needed"], json!({}));
-        assert_eq!(world.borrow().sent.len(), 1, "no second transfer");
+        assert!(ask(&mut s, CAPSULE, 10_000, DAY0)["sent"].is_object());
+        assert!(ask(&mut s, "1220beef", 10_000, DAY0)["sent"].is_object());
+        assert_eq!(world.borrow().sent.len(), 2, "two anchors, no refill between them");
         std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
-    fn an_anchor_refills_first_so_the_reader_never_meets_an_empty_sub_wallet() {
-        let (world, dir) = setup("refill-anchor");
-        world.borrow_mut().landed = true;
-        let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
-        world.borrow_mut().wallets.insert(addr(&vault, CAPSULE), 0);
-        let mut s = service(&world, &vault, &dir, rules());
-        let a = ask(&mut s, CAPSULE, 10_000, DAY0);
-        assert!(a["sent"].is_object(), "{a}");
-        assert_eq!(world.borrow().sent.len(), 2, "the refill, then the anchor");
-        assert_eq!(last_transfer(&world), None, "the last one is the anchor's memo");
-        assert_eq!(kinds(&s), ["Refilled", "AnchorSent"]);
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    #[test]
-    fn a_main_wallet_that_cannot_pay_is_denied_budget_and_the_owner_is_told() {
+    fn a_wallet_that_cannot_pay_is_denied_budget_and_the_owner_is_told() {
         let (world, dir) = setup("main-empty");
         let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
-        world.borrow_mut().wallets.insert(addr(&vault, CAPSULE), 0);
-        world.borrow_mut().wallets.insert(main_addr(&vault), 1_000); // less than a refill of 5 000 000
+        world.borrow_mut().wallets.insert(main_addr(&vault), 1_000); // less than the anchor may cost
         let mut s = service(&world, &vault, &dir, rules());
         let a = ask(&mut s, CAPSULE, 10_000, DAY0);
         assert_eq!(a["denied"]["reason"], "budget", "{a}");
-        assert!(world.borrow().sent.is_empty(), "nothing was sent: the sub-wallet is empty");
+        assert!(world.borrow().sent.is_empty(), "nothing was sent");
         let told = world.borrow().notes.clone();
         assert_eq!(told.len(), 1, "{told:?}");
         assert!(told[0].contains("top the main wallet up"), "{told:?}");
         assert_eq!(kinds(&s), ["Alert", "AnchorDenied"], "the log says both");
-        std::fs::remove_dir_all(&dir).ok();
-    }
-
-    #[test]
-    fn the_refill_counts_against_the_budget_in_all() {
-        let (world, dir) = setup("refill-budget");
-        world.borrow_mut().landed = true;
-        let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
-        world.borrow_mut().wallets.insert(addr(&vault, CAPSULE), 0);
-        // the budget in all is 50 000 000 in the rules; a refill is 5 000 000: ten of them fill the day
-        let mut s = service(&world, &vault, &dir, AnchorRules { daily_budget_total_lamports: 6_000_000, ..rules() });
-        let first: Value = serde_json::from_str(&s.handle_line(&json!({"refill": {"capsule": CAPSULE}}).to_string(), DAY0)).expect("JSON");
-        assert_eq!(first["refilled"]["lamports"], 5_000_000);
-        world.borrow_mut().wallets.insert(addr(&vault, CAPSULE), 0);
-        // 1 000 000 of the day is left: the refill is clipped to it
-        let second: Value = serde_json::from_str(&s.handle_line(&json!({"refill": {"capsule": CAPSULE}}).to_string(), DAY0 + 1)).expect("JSON");
-        assert_eq!(second["refilled"]["lamports"], 1_000_000, "{second}");
-        world.borrow_mut().wallets.insert(addr(&vault, CAPSULE), 0);
-        let third: Value = serde_json::from_str(&s.handle_line(&json!({"refill": {"capsule": CAPSULE}}).to_string(), DAY0 + 2)).expect("JSON");
-        assert_eq!(third["denied"]["reason"], "budget", "the day's budget is spent: {third}");
         std::fs::remove_dir_all(&dir).ok();
     }
 

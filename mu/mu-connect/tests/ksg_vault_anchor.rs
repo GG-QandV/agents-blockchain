@@ -1,5 +1,5 @@
-//! P11c: the connector signs through the vault's sub-wallet of the capsule: the
-//! transaction that goes out is the capsule's own payer's, and it verifies.
+//! P11c: the connector signs through the vault's one wallet: the transaction that goes out is
+//! that wallet's, and it verifies.
 #![cfg(feature = "ksg")]
 
 use ed25519_dalek::{Signature, Verifier, VerifyingKey};
@@ -35,9 +35,9 @@ impl RpcNode for Node {
 }
 
 #[test]
-fn the_capsules_sub_wallet_signs_the_anchor_that_goes_out() {
+fn the_main_wallet_signs_the_anchor_that_goes_out() {
     let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
-    let signer = vault.capsule_signer_ed25519("1220cafe").expect("the capsule's sub-wallet");
+    let signer = vault.tx_signer_ed25519().expect("the main wallet");
     let (a, b) = (Node(RefCell::new(vec![])), Node(RefCell::new(vec![])));
     let intent = AnchorIntent {
         memo: SEAL.into(),
@@ -49,13 +49,10 @@ fn the_capsules_sub_wallet_signs_the_anchor_that_goes_out() {
 
     let tx = a.0.borrow()[0].clone();
     let (sig, message) = (&tx[1..65], &tx[65..]);
-    check_message(message, &intent, &signer.public()).expect("the message names the sub-wallet as payer");
+    check_message(message, &intent, &Ed25519::public(&signer)).expect("the message names the wallet as payer");
     let vk = VerifyingKey::from_bytes(&Ed25519::public(&signer)).expect("a public key");
     assert!(
         vk.verify(message, &Signature::from_bytes(sig.try_into().expect("64 bytes"))).is_ok(),
-        "the signature is the capsule's sub-wallet's"
+        "the signature is the wallet's"
     );
-    // The main wallet is not the payer.
-    let main = vault.tx_signer_ed25519().expect("main");
-    assert_ne!(main.public_key(), signer.public());
 }

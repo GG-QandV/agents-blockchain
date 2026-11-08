@@ -26,7 +26,7 @@ fn ask(sock: &std::path::Path, line: &Value) -> Value {
 
 #[test]
 #[ignore = "needs solana-test-validator (MU_SOLANA_LOCALNET)"]
-fn the_daemon_set_up_by_init_ksg_refills_pays_and_refuses_on_a_real_node() {
+fn the_daemon_set_up_by_init_ksg_pays_from_the_one_wallet_and_refuses_on_a_real_node() {
     let Ok(url) = std::env::var("MU_SOLANA_LOCALNET") else { return };
     let dir = std::env::temp_dir().join(format!("ksg-mu-e2e-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
@@ -40,8 +40,6 @@ fn the_daemon_set_up_by_init_ksg_refills_pays_and_refuses_on_a_real_node() {
 fee_cap_lamports = 20_000
 daily_budget_lamports_per_capsule = 5_000_000
 daily_budget_lamports_total = 50_000_000
-refill_below_lamports = 1_000_000
-refill_amount_lamports = 5_000_000
 memo_kinds = ["ksg:bs:v1", "ksg:st:v1"]
 
 [[capsules]]
@@ -93,9 +91,10 @@ label = "the test capsule"
     let mode = std::os::unix::fs::PermissionsExt::mode(&std::fs::metadata(&sock).expect("socket").permissions()) & 0o777;
     assert_eq!(mode, 0o600, "the socket is the owner's alone");
 
-    // The capsule's sub-wallet is empty: the anchor refills it first, then goes out and lands.
-    let sub = ask(&sock, &json!({"address": {"capsule": capsule}}))["address"].as_str().expect("an address").to_owned();
-    assert_eq!(node.balance(&sub).unwrap_or(0), 0);
+    // One wallet pays for every capsule: the address the daemon gives is the main wallet.
+    let paying = ask(&sock, &json!({"address": {}}))["address"].as_str().expect("an address").to_owned();
+    assert_eq!(paying, main, "the wallet that pays is the one the owner tops up");
+    let funded = node.balance(&main).expect("the main wallet is funded");
     let a = ask(&sock, &json!({"anchor": {"memo": SEAL, "cluster": "localnet", "capsule": capsule, "fee_cap_lamports": 20_000}}));
     let sig = a["sent"]["signature"].as_str().unwrap_or_else(|| panic!("{a}")).to_owned();
     let mut landed = false;
@@ -107,7 +106,7 @@ label = "the test capsule"
         std::thread::sleep(std::time::Duration::from_millis(500));
     }
     assert!(landed, "the memo landed");
-    assert!(node.balance(&sub).expect("balance") >= 5_000_000 - 5_000, "the sub-wallet was refilled and paid one fee");
+    assert_eq!(funded - node.balance(&main).expect("balance"), 5_000, "the main wallet paid the fee of one anchor, nothing moved to a sub-wallet");
 
     // A capsule the owner did not name pays nothing; a memo that is not ours is refused.
     let stranger = ask(&sock, &json!({"anchor": {"memo": SEAL, "cluster": "localnet", "capsule": format!("1220{}", "cd".repeat(32))}}));

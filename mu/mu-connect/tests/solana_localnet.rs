@@ -41,7 +41,7 @@ fn funded(node: &SolanaRpc, address: &str) {
 fn a_memo_goes_out_lands_and_the_balance_moves_and_one_node_down_is_unknown() {
     let Some(url) = url() else { return };
     let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
-    let signer = vault.capsule_signer_ed25519("1220cafe").expect("the capsule's sub-wallet");
+    let signer = vault.tx_signer_ed25519().expect("the main wallet");
     let payer = address_of(&Ed25519::public(&signer));
     let (a, b) = (SolanaRpc::new("a", &url, http_post), SolanaRpc::new("b", &url, http_post));
     funded(&a, &payer);
@@ -68,32 +68,4 @@ fn a_memo_goes_out_lands_and_the_balance_moves_and_one_node_down_is_unknown() {
     assert!(matches!(err, AnchorErr::Unknown { .. }), "{err:?}");
     assert_eq!(a.balance(&payer).expect("a balance"), after, "nothing was sent");
     assert!(matches!(down.latest_blockhash(), Err(NodeErr::Unreachable(_))));
-}
-
-#[test]
-#[ignore = "needs solana-test-validator (MU_SOLANA_LOCALNET)"]
-fn a_refill_moves_lamports_from_the_main_wallet_to_the_sub_wallet_on_a_real_node() {
-    use mu_connect::solana_transfer::execute_transfer;
-    let Some(url) = url() else { return };
-    let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [7u8; 32]);
-    let main = vault.tx_signer_ed25519().expect("the main wallet");
-    let sub = vault.capsule_signer_ed25519("1220feed").expect("the sub-wallet"); // another capsule than the memo test's
-    let (main_addr, sub_addr) = (address_of(&main.public_key()), address_of(&Ed25519::public(&sub)));
-    let (a, b) = (SolanaRpc::new("a", &url, http_post), SolanaRpc::new("b", &url, http_post));
-    funded(&a, &main_addr);
-    let (main_before, sub_before) = (a.balance(&main_addr).expect("balance"), a.balance(&sub_addr).unwrap_or(0));
-
-    let cfg = SolanaCfg { cluster: "localnet".into() };
-    let sent = execute_transfer(&a, &b, &main, &Ed25519::public(&sub), 2_000_000, 20_000, &cfg).expect("sent");
-    let mut landed = false;
-    for _ in 0..60 {
-        if matches!(reconcile(&a, &b, &sent.signature), Settled::Landed { .. }) {
-            landed = true;
-            break;
-        }
-        std::thread::sleep(std::time::Duration::from_millis(500));
-    }
-    assert!(landed, "the transfer landed");
-    assert_eq!(a.balance(&sub_addr).expect("balance") - sub_before, 2_000_000, "the sub-wallet got the amount");
-    assert_eq!(main_before - a.balance(&main_addr).expect("balance"), 2_000_000 + 5_000, "the main wallet paid the amount and the fee");
 }

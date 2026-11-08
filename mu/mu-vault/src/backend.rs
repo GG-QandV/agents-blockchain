@@ -82,13 +82,6 @@ impl Vault for SoftVault {
     fn tx_signer_ed25519(&self) -> Result<crate::signer::TxSignerEd25519, VaultErr> {
         Ok(crate::signer::TxSignerEd25519::from_bytes(*self.wallet_key))
     }
-    #[cfg(feature = "ksg")]
-    fn capsule_signer_ed25519(&self, capsule: &str) -> Result<crate::signer::TxSignerEd25519, VaultErr> {
-        if capsule.is_empty() {
-            return Err(VaultErr::KeyMissing);
-        }
-        Ok(crate::signer::TxSignerEd25519::for_capsule(&self.wallet_key, capsule))
-    }
     fn attest(&self) -> VaultInfo {
         VaultInfo { backend: "softvault", hw_backed: false }
     }

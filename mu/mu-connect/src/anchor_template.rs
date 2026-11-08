@@ -46,8 +46,6 @@ struct Raw {
     fee_cap_lamports: u64,
     daily_budget_lamports_per_capsule: u64,
     daily_budget_lamports_total: u64,
-    refill_below_lamports: u64,
-    refill_amount_lamports: u64,
     memo_kinds: Vec<String>,
     #[serde(default)]
     capsules: Vec<RawCapsule>,
@@ -90,12 +88,6 @@ pub fn parse(input: &str) -> Result<AnchorTemplate, String> {
     if raw.daily_budget_lamports_total < raw.daily_budget_lamports_per_capsule {
         return Err("daily_budget_lamports_total is under the budget of one capsule".into());
     }
-    if raw.refill_below_lamports == 0 || raw.refill_amount_lamports == 0 {
-        return Err("refill_below_lamports and refill_amount_lamports must be above 0".into());
-    }
-    if raw.refill_amount_lamports < raw.refill_below_lamports {
-        return Err("refill_amount_lamports is under refill_below_lamports: a refill would leave the sub-wallet below its own threshold".into());
-    }
     if raw.memo_kinds.is_empty() {
         return Err("memo_kinds is empty: nothing could be anchored".into());
     }
@@ -135,8 +127,6 @@ pub fn parse(input: &str) -> Result<AnchorTemplate, String> {
             daily_budget_per_capsule_lamports: raw.daily_budget_lamports_per_capsule,
             daily_budget_total_lamports: raw.daily_budget_lamports_total,
             allowed_capsules: capsules.iter().map(|c| c.id.clone()).collect(),
-            refill_below_lamports: raw.refill_below_lamports,
-            refill_amount_lamports: raw.refill_amount_lamports,
         },
         memo_kinds: raw.memo_kinds,
         capsules,
@@ -163,8 +153,6 @@ cluster = "localnet"
 fee_cap_lamports = 20_000
 daily_budget_lamports_per_capsule = 5_000_000
 daily_budget_lamports_total = 50_000_000
-refill_below_lamports = 1_000_000
-refill_amount_lamports = 5_000_000
 memo_kinds = ["ksg:bs:v1", "ksg:st:v1"]
 
 [[capsules]]
@@ -205,8 +193,7 @@ label = "the agent's capsule"
             (with("fee_cap_lamports = 20_000", "fee_cap_lamports = 4_999"), "fee of one signature"),
             (with("fee_cap_lamports = 20_000", "fee_cap_lamports = 9_000_000"), "under one anchor's fee cap"),
             (with("daily_budget_lamports_total = 50_000_000", "daily_budget_lamports_total = 4_000_000"), "under the budget of one capsule"),
-            (with("refill_below_lamports = 1_000_000", "refill_below_lamports = 0"), "above 0"),
-            (with("refill_amount_lamports = 5_000_000", "refill_amount_lamports = 900_000"), "below its own threshold"),
+            (with("fee_cap_lamports = 20_000", "fee_cap_lamports = 20_000\nrefill_amount_lamports = 5_000_000"), "refill_amount_lamports"),
             (with("memo_kinds = [\"ksg:bs:v1\", \"ksg:st:v1\"]", "memo_kinds = []"), "memo_kinds is empty"),
             (with("\"ksg:st:v1\"", "\"ksg:cp:v1\""), "core v1"),
             (with("\"ksg:st:v1\"", "\"ksg:zz:v1\""), "none of"),

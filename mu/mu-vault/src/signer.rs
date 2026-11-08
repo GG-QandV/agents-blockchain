@@ -113,25 +113,6 @@ impl TxSignerEd25519 {
         TxSignerEd25519 { key: Zeroizing::new(raw) }
     }
 
-    /// The sub-wallet of one capsule: the seed is
-    /// `SHA-256("mu.ksg.capsule-wallet.v1" ‖ len(capsule) as u32 BE ‖ capsule ‖ main key)`,
-    /// so two capsules never share a seed and an identifier cannot be split to
-    /// collide with another. The derivation is inside the crate: the seed never
-    /// leaves the handle.
-    pub(crate) fn for_capsule(main: &[u8; 32], capsule: &str) -> Self {
-        use sha2::{Digest, Sha256};
-        let mut h = Sha256::new();
-        h.update(b"mu.ksg.capsule-wallet.v1");
-        h.update(u32::try_from(capsule.len()).unwrap_or(u32::MAX).to_be_bytes());
-        h.update(capsule.as_bytes());
-        h.update(main);
-        let mut seed = [0u8; 32];
-        seed.copy_from_slice(&h.finalize());
-        let handle = TxSignerEd25519 { key: Zeroizing::new(seed) };
-        zeroize::Zeroize::zeroize(&mut seed);
-        handle
-    }
-
     /// Public key (the Solana fee-payer address), not a secret.
     pub fn public_key(&self) -> [u8; 32] {
         ed25519_dalek::SigningKey::from_bytes(&self.key).verifying_key().to_bytes()
