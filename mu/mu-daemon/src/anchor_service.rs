@@ -160,8 +160,14 @@ impl<'a> AnchorService<'a> {
                 self.note(Kind::AnchorUnknown { intent_hash: capsule_hash }, now);
                 Refill::Unknown { signature }
             }
-            Err(_) => {
-                (self.notify)(&format!("a refill of capsule {capsule} was refused by the nodes; look at the main wallet"));
+            Err(e) => {
+                // what the nodes said (a refusal before anything reached the chain — no secret in it)
+                let why = match &e {
+                    AnchorErr::Rejected(w) => w.as_str(),
+                    AnchorErr::Unknown { reason, .. } => reason.as_str(),
+                    _ => "another refusal",
+                };
+                (self.notify)(&format!("a refill of capsule {capsule} was refused by the nodes ({why}); look at the main wallet"));
                 self.note(Kind::Alert { code: 0x0A02 }, now);
                 Refill::Short
             }
