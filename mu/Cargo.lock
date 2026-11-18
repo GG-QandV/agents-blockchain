@@ -52,7 +52,7 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "composer-cli"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 dependencies = [
  "composer-core",
  "mu-common",
@@ -61,7 +61,7 @@ dependencies = [
 
 [[package]]
 name = "composer-core"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 dependencies = [
  "mu-common",
  "mu-policy",
@@ -325,7 +325,7 @@ dependencies = [
 
 [[package]]
 name = "ksg-smoke"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 dependencies = [
  "mu-common",
  "mu-connect",
@@ -360,11 +360,11 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "mu-common"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 
 [[package]]
 name = "mu-connect"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 dependencies = [
  "base64",
  "blake2",
@@ -380,7 +380,7 @@ dependencies = [
 
 [[package]]
 name = "mu-core"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 dependencies = [
  "mu-common",
  "mu-log",
@@ -393,7 +393,7 @@ dependencies = [
 
 [[package]]
 name = "mu-daemon"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 dependencies = [
  "mu-common",
  "mu-connect",
@@ -410,7 +410,7 @@ dependencies = [
 
 [[package]]
 name = "mu-fixtures"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 dependencies = [
  "ed25519-dalek",
  "mu-common",
@@ -424,7 +424,7 @@ dependencies = [
 
 [[package]]
 name = "mu-gate"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 dependencies = [
  "ed25519-dalek",
  "mu-common",
@@ -433,7 +433,7 @@ dependencies = [
 
 [[package]]
 name = "mu-human"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 dependencies = [
  "mu-common",
  "mu-log",
@@ -445,7 +445,7 @@ dependencies = [
 
 [[package]]
 name = "mu-license"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 dependencies = [
  "ed25519-dalek",
  "sha2",
@@ -453,7 +453,7 @@ dependencies = [
 
 [[package]]
 name = "mu-log"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 dependencies = [
  "mu-common",
  "mu-connect",
@@ -464,7 +464,7 @@ dependencies = [
 
 [[package]]
 name = "mu-policy"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 dependencies = [
  "mu-common",
  "serde",
@@ -475,7 +475,7 @@ dependencies = [
 
 [[package]]
 name = "mu-runtime"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 dependencies = [
  "base64",
  "hex",
@@ -493,7 +493,7 @@ dependencies = [
 
 [[package]]
 name = "mu-vault"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 dependencies = [
  "k256",
  "mu-common",
@@ -715,7 +715,7 @@ checksum = "13c2bddecc57b384dee18652358fb23172facb8a2c51ccc10d74c157bdea3292"
 
 [[package]]
 name = "sui-smoke"
-version = "0.2.0-ksg"
+version = "0.2.1-ksg"
 dependencies = [
  "mu-common",
  "mu-connect",

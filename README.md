@@ -1,6 +1,6 @@
 # μ Gate — Don't give your AI agent your wallet. Put a rule between them.
 
-[![Version](https://img.shields.io/badge/version-0.2.1-blue)](https://github.com/GG-QandV/agents-blockchain)
+[![Version](https://img.shields.io/badge/version-0.2.1--ksg-blue)](https://github.com/GG-QandV/agents-blockchain)
 [![License](https://img.shields.io/badge/license-BSL%201.1-orange)](./LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange)](https://rust-lang.org)
 

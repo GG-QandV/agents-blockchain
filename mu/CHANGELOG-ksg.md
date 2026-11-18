@@ -1,5 +1,20 @@
 # μ Gate KSG — changelog
 
+## 0.2.1-ksg — 2026-11-18 (audit log: the log alone shows the gate held)
+
+Additive: log tags 1–11 are unchanged; logs from 0.2.0-ksg open and verify, but their verdicts cannot be re-derived.
+
+### Added
+- `Kind::Quoted` (tag 12): recipient, chain, connector, amount, gas estimate, x402 resource and the hash of the Ω/Δ in force, written before any check. No record, no payment.
+- `Kind::DenyReason` (tag 13): rule (`mu_log::deny::*`), total checked, cap met — after every denial, including owner refusal/timeout.
+- `policy_hash(Ω, Δ)` (order-insensitive over connectors).
+- Tests: `mu-log/tests/quoted_log.rs`, `mu-runtime/tests/audit_trail.rs` (denial reasons, paid chain, re-derivation from the log alone).
+
+### Changed
+- `intent_hash` now also covers connector and resource (hashes differ from older logs).
+- An intent whose x402 resource exceeds 65 535 bytes is refused (`Failed`) before anything is logged.
+- Denial and owner-decision records are no longer fire-and-forget: if one cannot be written, the intent returns `Failed` (and an approval that cannot be logged does not pay), instead of reporting a denial with a hole in the log.
+
 ## 0.2.0-ksg — 2026-10-10 (initial production baseline for keysingate)
 
 Branch `keysingate`, tag `v0.2.0-ksg`. Base: μ Gate 0.2.1 (`baseline/evm-x402`) merged with the

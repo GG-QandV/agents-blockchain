@@ -103,6 +103,33 @@ fn ok_conn() -> MockConn {
         exec_calls: Default::default(),
     }
 }
+fn make_runtime_dyn<'a>(
+    vault: &'a dyn mu_vault::Vault,
+    conn: &'a MockConn,
+    presenter: &'a FixedPresenter,
+    clock: &'a FixedClock,
+    setup: &Setup,
+    daily_limit: u128,
+    threshold: u128,
+) -> Runtime<'a> {
+    let log = Log::open(&setup.dir.path().join("log.mulog"), vault).unwrap();
+    Runtime {
+        omega: Omega { connectors: vec![ConnectorId::Crypto], max_ceiling: Amount::from_minor(1_000_000) },
+        delta: Delta {
+            daily_limit: Amount::from_minor(daily_limit),
+            whitelist: vec![recipient()],
+            confirm_threshold: Amount::from_minor(threshold),
+            resource_allowlist: vec![],
+        },
+        log,
+        vault,
+        connector: conn,
+        presenter,
+        clock,
+        owner_pubkey: owner_pubkey(),
+        human_ttl: Duration::from_secs(5),
+    }
+}
 fn kinds(rt: &Runtime) -> Vec<Kind> { rt.log.entries().iter().map(|e| e.kind.clone()).collect() }
 
 /// Rung 2: every denial is Quoted → Denied* → DenyReason, with the rule and the cap it met.
@@ -294,4 +321,51 @@ fn human_denial_leaves_a_reason() {
         rt.log.entries().last().unwrap().kind,
         Kind::DenyReason { code: deny::HUMAN_DENIED, total: 105, limit: 100, .. }
     ));
+}
+
+/// Vault whose log-signing stops working after `budget` calls: every later append fails.
+struct FlakyVault {
+    inner: SoftVault,
+    budget: std::sync::atomic::AtomicI32,
+}
+impl mu_vault::Vault for FlakyVault {
+    fn sign_mu(&self, t: mu_vault::DomainTag, d: &Hash32) -> Result<mu_vault::P256Sig, mu_vault::VaultErr> {
+        if self.budget.fetch_sub(1, std::sync::atomic::Ordering::SeqCst) <= 0 {
+            return Err(mu_vault::VaultErr::Backend("disk full".into()));
+        }
+        self.inner.sign_mu(t, d)
+    }
+    fn owner_sign(&self, t: mu_vault::DomainTag, d: &Hash32) -> Result<mu_vault::P256Sig, mu_vault::VaultErr> {
+        self.inner.owner_sign(t, d)
+    }
+    fn tx_signer(&self) -> Result<mu_vault::TxSigner, mu_vault::VaultErr> { self.inner.tx_signer() }
+    fn attest(&self) -> mu_vault::VaultInfo { self.inner.attest() }
+}
+
+/// A record that cannot be written never gives a clean denial or a payment: the intent is
+/// `Failed`, no money moves. `ok_writes` = how many appends succeed before the log breaks.
+#[test]
+fn unwritable_log_fails_closed_for_denial_and_payment_alike() {
+    let pres_ok = FixedPresenter(PresenterChoice::Approve);
+    let pres_no = FixedPresenter(PresenterChoice::Deny);
+    let clk = FixedClock(10_000);
+    // (ok_writes, ceiling, threshold, presenter): which record fails
+    let cases: [(i32, u128, u128, &FixedPresenter); 5] = [
+        (0, 1_000_000, 10_000_000, &pres_ok), // Quoted
+        (1, 100, 10_000_000, &pres_ok),       // DeniedOmega
+        (2, 100, 10_000_000, &pres_ok),       // DenyReason
+        (1, 1_000_000, 100, &pres_ok),        // HumanDecision{approved:true}
+        (1, 1_000_000, 100, &pres_no),        // HumanDecision{approved:false}
+    ];
+    for (ok_writes, ceiling, threshold, pres) in cases {
+        let v = FlakyVault { inner: SoftVault::for_test([1; 32], [2; 32], [3; 32]), budget: ok_writes.into() };
+        let conn = ok_conn();
+        let setup = Setup { dir: tempfile::tempdir().unwrap() };
+        v.budget.store(1000, std::sync::atomic::Ordering::SeqCst); // let Log::open sign nothing odd
+        let mut rt = make_runtime_dyn(&v, &conn, pres, &clk, &setup, 10_000_000, threshold);
+        v.budget.store(ok_writes, std::sync::atomic::Ordering::SeqCst);
+        rt.omega.max_ceiling = Amount::from_minor(ceiling);
+        assert_eq!(rt.process(&intent(5000)), IntentStatus::Failed, "ok_writes={ok_writes}");
+        assert_eq!(conn.exec_calls.get(), 0, "ok_writes={ok_writes}");
+    }
 }

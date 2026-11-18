@@ -102,10 +102,11 @@ pub struct Runtime<'a> {
 }
 
 impl<'a> Runtime<'a> {
-    /// Denied* followed by its reason (rule, total checked, cap it met).
-    fn log_denial(&mut self, kind: Kind, ih: Hash32, code: u8, total: u128, limit: u128, now: u64) {
-        let _ = self.log.append(kind, now, self.vault);
-        let _ = self.log.append(Kind::DenyReason { intent_hash: ih, code, total, limit }, now, self.vault);
+    /// Denied* followed by its reason. False if either record could not be written:
+    /// the caller then reports `Failed` (audit hole), not a clean denial.
+    fn log_denial(&mut self, kind: Kind, ih: Hash32, code: u8, total: u128, limit: u128, now: u64) -> bool {
+        self.log.append(kind, now, self.vault).is_ok()
+            && self.log.append(Kind::DenyReason { intent_hash: ih, code, total, limit }, now, self.vault).is_ok()
     }
 
     /// Обработка одного intent'а. &mut self = сериализация (RISK-M6-3):
@@ -124,8 +125,8 @@ impl<'a> Runtime<'a> {
         let gas = match self.connector.quote(&conn_intent) {
             Ok(f) => f.gas_estimate,
             Err(_) => {
-                self.log_denial(Kind::DeniedOmega { intent_hash: ih }, ih, deny::QUOTE_FAILED, 0, 0, now);
-                return IntentStatus::DeniedOmega;
+                let logged = self.log_denial(Kind::DeniedOmega { intent_hash: ih }, ih, deny::QUOTE_FAILED, 0, 0, now);
+                return if logged { IntentStatus::DeniedOmega } else { IntentStatus::Failed };
             }
         };
 
@@ -154,8 +155,8 @@ impl<'a> Runtime<'a> {
                     OmegaDeny::CeilingExceeded => (deny::CEILING_EXCEEDED, self.omega.max_ceiling.minor()),
                 };
                 let total = i.amount.checked_add(gas).map(|a| a.minor()).unwrap_or(u128::MAX);
-                self.log_denial(Kind::DeniedOmega { intent_hash: ih }, ih, code, total, limit, now);
-                return IntentStatus::DeniedOmega;
+                let logged = self.log_denial(Kind::DeniedOmega { intent_hash: ih }, ih, code, total, limit, now);
+                return if logged { IntentStatus::DeniedOmega } else { IntentStatus::Failed };
             }
         };
 
@@ -166,8 +167,8 @@ impl<'a> Runtime<'a> {
                 DeltaDeny::WindowExceeded => (deny::WINDOW_EXCEEDED, self.delta.daily_limit.minor()),
                 DeltaDeny::ResourceDenied => (deny::RESOURCE_DENIED, 0),
             };
-            self.log_denial(Kind::DeniedDelta { intent_hash: ih }, ih, code, total.minor(), limit, now);
-            return IntentStatus::DeniedDelta;
+            let logged = self.log_denial(Kind::DeniedDelta { intent_hash: ih }, ih, code, total.minor(), limit, now);
+            return if logged { IntentStatus::DeniedDelta } else { IntentStatus::Failed };
         }
 
         // 3b. Resource-check для x402
@@ -175,8 +176,8 @@ impl<'a> Runtime<'a> {
             let (host, path) = split_resource(resource);
             if resource_check(host, path, total, &self.delta).is_err() {
                 let cap = resource_cap(host, path, &self.delta);
-                self.log_denial(Kind::DeniedDelta { intent_hash: ih }, ih, deny::RESOURCE_DENIED, total.minor(), cap, now);
-                return IntentStatus::DeniedDelta;
+                let logged = self.log_denial(Kind::DeniedDelta { intent_hash: ih }, ih, deny::RESOURCE_DENIED, total.minor(), cap, now);
+                return if logged { IntentStatus::DeniedDelta } else { IntentStatus::Failed };
             }
         }
 
@@ -197,24 +198,28 @@ impl<'a> Runtime<'a> {
                 first_payment_to_recipient: false,
             };
             let deadline = Instant::now() + self.human_ttl;
-            match confirm_payment(&req, self.presenter, self.vault, deadline) {
-                HumanDecision::Denied => {
-                    let _ = self.log.append(Kind::HumanDecision { intent_hash: ih, approved: false }, now, self.vault);
-                    let _ = self.log.append(Kind::DenyReason { intent_hash: ih, code: deny::HUMAN_DENIED, total: total.minor(), limit: self.delta.confirm_threshold.minor() }, now, self.vault);
-                    return IntentStatus::DeniedHuman;
-                }
-                HumanDecision::Timeout => {
-                    let _ = self.log.append(Kind::HumanDecision { intent_hash: ih, approved: false }, now, self.vault);
-                    let _ = self.log.append(Kind::DenyReason { intent_hash: ih, code: deny::HUMAN_TIMEOUT, total: total.minor(), limit: self.delta.confirm_threshold.minor() }, now, self.vault);
-                    return IntentStatus::TimeoutHuman;
+            let decision = confirm_payment(&req, self.presenter, self.vault, deadline);
+            match decision {
+                HumanDecision::Denied | HumanDecision::Timeout => {
+                    let (code, status) = if matches!(decision, HumanDecision::Denied) {
+                        (deny::HUMAN_DENIED, IntentStatus::DeniedHuman)
+                    } else {
+                        (deny::HUMAN_TIMEOUT, IntentStatus::TimeoutHuman)
+                    };
+                    let logged = self.log.append(Kind::HumanDecision { intent_hash: ih, approved: false }, now, self.vault).is_ok()
+                        && self.log.append(Kind::DenyReason { intent_hash: ih, code, total: total.minor(), limit: self.delta.confirm_threshold.minor() }, now, self.vault).is_ok();
+                    return if logged { status } else { IntentStatus::Failed };
                 }
                 HumanDecision::Approved(proof) => {
                     // RISK-M9-2: конвейер верифицирует proof, а не верит M9 на слово
                     if !verify_auth_proof(&proof, &ih, &self.owner_pubkey) {
-                        let _ = self.log.append(Kind::Alert { code: 0x0901 }, now, self.vault);
-                        return IntentStatus::DeniedHuman;
+                        let logged = self.log.append(Kind::Alert { code: 0x0901 }, now, self.vault).is_ok();
+                        return if logged { IntentStatus::DeniedHuman } else { IntentStatus::Failed };
                     }
-                    let _ = self.log.append(Kind::HumanDecision { intent_hash: ih, approved: true }, now, self.vault);
+                    // an approval that is not on record does not pay
+                    if self.log.append(Kind::HumanDecision { intent_hash: ih, approved: true }, now, self.vault).is_err() {
+                        return IntentStatus::Failed;
+                    }
                 }
             }
         }
