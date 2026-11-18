@@ -30,6 +30,11 @@ impl RtIntent {
         h.update(self.recipient.chain_id().to_be_bytes());
         h.update(self.amount.minor().to_be_bytes());
         h.update(self.agent_id.as_bytes());
+        // connector and resource are part of what is asked: same payee/amount on another
+        // connector or x402 resource is another intent (log entries join on this hash)
+        h.update([connector_byte(self.connector)]);
+        h.update((self.resource.as_deref().unwrap_or("").len() as u32).to_be_bytes());
+        h.update(self.resource.as_deref().unwrap_or("").as_bytes());
         let out = h.finalize();
         let mut d = [0u8; 32];
         d.copy_from_slice(&out);
@@ -108,6 +113,11 @@ impl<'a> Runtime<'a> {
     pub fn process(&mut self, i: &RtIntent) -> IntentStatus {
         let now = self.clock.now_unix();
         let ih = i.hash();
+
+        // a resource the log cannot hold whole would make the record lie: refuse before anything
+        if i.resource.as_deref().map_or(false, |r| r.len() > u16::MAX as usize) {
+            return IntentStatus::Failed;
+        }
 
         // 1. quote (для Ω-суммы)
         let conn_intent = ConnIntent { recipient: i.recipient, amount: i.amount, chain_id: i.chain_id };
@@ -190,10 +200,12 @@ impl<'a> Runtime<'a> {
             match confirm_payment(&req, self.presenter, self.vault, deadline) {
                 HumanDecision::Denied => {
                     let _ = self.log.append(Kind::HumanDecision { intent_hash: ih, approved: false }, now, self.vault);
+                    let _ = self.log.append(Kind::DenyReason { intent_hash: ih, code: deny::HUMAN_DENIED, total: total.minor(), limit: self.delta.confirm_threshold.minor() }, now, self.vault);
                     return IntentStatus::DeniedHuman;
                 }
                 HumanDecision::Timeout => {
                     let _ = self.log.append(Kind::HumanDecision { intent_hash: ih, approved: false }, now, self.vault);
+                    let _ = self.log.append(Kind::DenyReason { intent_hash: ih, code: deny::HUMAN_TIMEOUT, total: total.minor(), limit: self.delta.confirm_threshold.minor() }, now, self.vault);
                     return IntentStatus::TimeoutHuman;
                 }
                 HumanDecision::Approved(proof) => {

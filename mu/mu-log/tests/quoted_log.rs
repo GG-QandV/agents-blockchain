@@ -77,3 +77,25 @@ fn a_truncated_quoted_record_is_dropped_as_a_corrupt_tail() {
     assert!(matches!(log.entries().last().unwrap().kind, Kind::TailTruncated { .. }));
     assert!(!log.entries().iter().any(|e| matches!(e.kind, Kind::Quoted { .. })));
 }
+
+#[test]
+fn malformed_deny_reason_and_quoted_are_rejected_as_corrupt() {
+    use std::io::Write;
+    // unknown code, unknown connector, and trailing garbage must not decode as valid records
+    for bad in [
+        Kind::DenyReason { intent_hash: ih(1), code: 0, total: 1, limit: 1 },
+        Kind::DenyReason { intent_hash: ih(1), code: 99, total: 1, limit: 1 },
+        Kind::Quoted { intent_hash: ih(1), recipient: [1; 20], chain_id: 1, connector: 0, amount: 1, gas_est: 1, resource: String::new(), policy_hash: ih(2) },
+    ] {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("log.mulog");
+        let v = vault();
+        {
+            let mut log = Log::open(&p, &v).unwrap();
+            log.append(bad, 1000, &v).unwrap();
+        }
+        let log = Log::open(&p, &v).unwrap();
+        assert!(matches!(log.entries()[0].kind, Kind::TailTruncated { .. }));
+    }
+    let _ = std::io::sink().flush();
+}

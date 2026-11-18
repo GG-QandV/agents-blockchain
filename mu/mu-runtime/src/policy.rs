@@ -115,7 +115,10 @@ pub fn policy_hash(o: &Omega, d: &Delta) -> Hash32 {
     h.update(b"mu.policy.rt.v1");
     h.update(o.max_ceiling.minor().to_be_bytes());
     h.update((o.connectors.len() as u32).to_be_bytes());
-    for c in &o.connectors { h.update([connector_byte(*c)]); }
+    // order-insensitive: omega_check uses `contains`, so a permutation is the same policy
+    let mut cs: Vec<u8> = o.connectors.iter().map(|c| connector_byte(*c)).collect();
+    cs.sort_unstable();
+    for c in cs { h.update([c]); }
     h.update(d.daily_limit.minor().to_be_bytes());
     h.update(d.confirm_threshold.minor().to_be_bytes());
     h.update((d.whitelist.len() as u32).to_be_bytes());

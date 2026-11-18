@@ -250,6 +250,7 @@ fn decode_kind(b: &[u8]) -> Option<Kind> {
             let mut recipient = [0u8; 20]; recipient.copy_from_slice(r.get(32..52)?);
             let chain_id = u64::from_be_bytes(r.get(52..60)?.try_into().ok()?);
             let connector = *r.get(60)?;
+            if !(1..=3).contains(&connector) { return None; }
             let amount = u128::from_be_bytes(r.get(61..77)?.try_into().ok()?);
             let gas_est = u128::from_be_bytes(r.get(77..93)?.try_into().ok()?);
             let n = u16::from_be_bytes(r.get(93..95)?.try_into().ok()?) as usize;
@@ -261,6 +262,7 @@ fn decode_kind(b: &[u8]) -> Option<Kind> {
         13 => {
             let ih = h32(r)?;
             let code = *r.get(32)?;
+            if r.len() != 65 || !(1..=8).contains(&code) { return None; }
             let total = u128::from_be_bytes(r.get(33..49)?.try_into().ok()?);
             let limit = u128::from_be_bytes(r.get(49..65)?.try_into().ok()?);
             Some(Kind::DenyReason { intent_hash: ih, code, total, limit })

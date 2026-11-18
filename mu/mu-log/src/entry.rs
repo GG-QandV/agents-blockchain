@@ -45,6 +45,8 @@ pub mod deny {
     pub const NOT_WHITELISTED: u8 = 4;
     pub const WINDOW_EXCEEDED: u8 = 5;
     pub const RESOURCE_DENIED: u8 = 6;
+    pub const HUMAN_DENIED: u8 = 7;
+    pub const HUMAN_TIMEOUT: u8 = 8;
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

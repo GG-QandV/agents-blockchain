@@ -191,13 +191,13 @@ fn recheck(entries: &[Kind], omega: &Omega, delta: &Delta) -> Result<(), String>
     use mu_runtime::policy::{omega_check, resource_check};
     let mut spent: u128 = 0; // window reconstructed from Settled/open Pending (all inside 24h here)
     for (n, k) in entries.iter().enumerate() {
-        let Kind::Quoted { amount, gas_est, recipient, connector: _, resource, policy_hash: ph, .. } = k else { continue };
+        let Kind::Quoted { amount, gas_est, recipient, chain_id, connector: _, resource, policy_hash: ph, .. } = k else { continue };
         if *ph != policy_hash(omega, delta) { return Err(format!("#{n}: logged under another policy")); }
         let total = amount + gas_est;
         let mut verdict = omega_check(Amount::from_minor(*amount), Amount::from_minor(*gas_est), ConnectorId::Crypto, omega)
             .map(|_| ()).map_err(|_| "omega");
         if verdict.is_ok() {
-            let wl = delta.whitelist.iter().any(|a| a.bytes() == recipient);
+            let wl = delta.whitelist.iter().any(|a| a.bytes() == recipient && a.chain_id() == *chain_id);
             let win = spent + total <= delta.daily_limit.minor();
             let res = resource.is_empty() || {
                 let (h, p) = split_resource(resource);
@@ -245,4 +245,53 @@ fn rung4_log_alone_proves_the_gate_held() {
     let mut other = make_runtime(&v, &conn, &pres, &clk, &Setup { dir: tempfile::tempdir().unwrap() }, 10_000, 1_000_000);
     other.delta.whitelist.push(recipient());
     assert!(recheck(&k, &other.omega, &other.delta).is_err());
+}
+
+/// Review fixes: intent_hash binds connector+resource; policy_hash ignores connector order;
+/// oversized resource is refused; human denial leaves a reason.
+#[test]
+fn intent_hash_binds_resource_and_policy_hash_ignores_connector_order() {
+    let mut a = intent(100);
+    let mut b = intent(100);
+    b.resource = Some("https://issuer.example/bare/issue".into());
+    assert_ne!(a.hash(), b.hash());
+    a.connector = ConnectorId::BankStub;
+    assert_ne!(a.hash(), intent(100).hash());
+
+    let v = SoftVault::for_test([1; 32], [2; 32], [3; 32]);
+    let (conn, pres, clk) = (ok_conn(), FixedPresenter(PresenterChoice::Approve), FixedClock(1));
+    let setup = Setup { dir: tempfile::tempdir().unwrap() };
+    let mut rt = make_runtime(&v, &conn, &pres, &clk, &setup, 1, 1);
+    rt.omega.connectors = vec![ConnectorId::Crypto, ConnectorId::BankStub];
+    let h1 = policy_hash(&rt.omega, &rt.delta);
+    rt.omega.connectors = vec![ConnectorId::BankStub, ConnectorId::Crypto];
+    assert_eq!(h1, policy_hash(&rt.omega, &rt.delta));
+    rt.omega.connectors = vec![ConnectorId::Crypto];
+    assert_ne!(h1, policy_hash(&rt.omega, &rt.delta));
+}
+
+#[test]
+fn oversized_resource_is_refused_before_any_record_or_money() {
+    let v = SoftVault::for_test([1; 32], [2; 32], [3; 32]);
+    let (conn, pres, clk) = (ok_conn(), FixedPresenter(PresenterChoice::Approve), FixedClock(10_000));
+    let setup = Setup { dir: tempfile::tempdir().unwrap() };
+    let mut rt = make_runtime(&v, &conn, &pres, &clk, &setup, 10_000_000, 10_000_000);
+    let mut i = intent(100);
+    i.resource = Some("h/".to_string() + &"a".repeat(70_000));
+    assert_eq!(rt.process(&i), IntentStatus::Failed);
+    assert_eq!(conn.exec_calls.get(), 0);
+    assert!(rt.log.entries().is_empty());
+}
+
+#[test]
+fn human_denial_leaves_a_reason() {
+    let v = SoftVault::for_test([1; 32], [2; 32], [3; 32]);
+    let (conn, pres, clk) = (ok_conn(), FixedPresenter(PresenterChoice::Deny), FixedClock(10_000));
+    let setup = Setup { dir: tempfile::tempdir().unwrap() };
+    let mut rt = make_runtime(&v, &conn, &pres, &clk, &setup, 1_000_000, 100);
+    assert_eq!(rt.process(&intent(95)), IntentStatus::DeniedHuman);
+    assert!(matches!(
+        rt.log.entries().last().unwrap().kind,
+        Kind::DenyReason { code: deny::HUMAN_DENIED, total: 105, limit: 100, .. }
+    ));
 }
