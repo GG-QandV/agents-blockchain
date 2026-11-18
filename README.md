@@ -4,7 +4,7 @@
 [![License](https://img.shields.io/badge/license-BSL%201.1-orange)](./LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange)](https://rust-lang.org)
 
-**μ Gate** is a local daemon that controls AI-agent payments. The agent never sees the wallet key. The owner sets rules (daily budget, whitelist, per-resource price caps). Every decision and payment is logged in an append-only hash chain.
+**μ Gate** is a local daemon that controls AI-agent payments. The agent never sees the wallet key. The owner sets rules (daily budget, whitelist, per-resource price caps). Every decision and payment is logged in an append-only, signed hash chain — together with what was quoted (payee, price, resource, policy hash), so the log alone shows whether the gate held.
 
 **Zero gas fees** for the owner — payments use [x402](https://github.com/coinbase/x402) (EIP-3009 `TransferWithAuthorization`) over USDC on Base.
 
@@ -84,6 +84,25 @@ See `cp1-harness.py` for the 4 test cases (allowed call, wrong address denial, t
 | `mu-license`            | Ed25519-signed license check                              |
 | `composer-core`         | C2 — Delta proposal encode/decode (offline policy change) |
 | `composer-cli`          | C2 — CLI tool for whitelist/daily-limit management        |
+
+---
+
+## Audit log
+
+Checks run **before** the key is loaded: quote → Ω (ceiling) → Δ (whitelist, window, resource price cap) → human threshold → WAL → sign. For x402 the 402 challenge (payee, amount, token, network) is re-checked against the approved intent right before signing.
+
+Each intent leaves a chain of entries joined by `intent_hash`:
+
+| Outcome | Entries |
+| ------- | ------- |
+| Paid    | `Quoted` → `Pending` → `Settled` (or `Failed`) |
+| Denied  | `Quoted` → `DeniedOmega`/`DeniedDelta` → `DenyReason` |
+
+- `Quoted` — recipient, chain, connector (the asset is its per-network USDC constant), amount, gas estimate, x402 resource, and the hash of the Ω/Δ in force.
+- `DenyReason` — which rule fired (`deny::*`), the total checked and the cap it met.
+- No `Quoted` record, no payment: if it cannot be written, the intent fails before any money moves.
+
+A reader with the log and the policy re-derives each verdict (see `mu/mu-runtime/tests/audit_trail.rs`, rung 4). The recipient is stored in clear; if you publish a log, hash it first — at the cost of that recomputation for third parties. Logs written before 0.2.2 have no `Quoted`/`DenyReason` entries and still verify.
 
 ---
 

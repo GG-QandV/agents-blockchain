@@ -11,6 +11,6 @@ pub mod entry;
 pub mod store;
 pub mod reconcile;
 
-pub use entry::{Entry, Kind};
+pub use entry::{deny, Entry, Kind};
 pub use reconcile::{resolve, Resolution};
 pub use store::{Log, LogErr};

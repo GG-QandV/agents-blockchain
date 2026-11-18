@@ -245,6 +245,26 @@ fn decode_kind(b: &[u8]) -> Option<Kind> {
             Some(Kind::NonceSnapshot { agent_id: id, nonce: n })
         }
         11 => Some(Kind::Alert { code: u16::from_be_bytes(r.get(..2)?.try_into().ok()?) }),
+        12 => {
+            let ih = h32(r)?;
+            let mut recipient = [0u8; 20]; recipient.copy_from_slice(r.get(32..52)?);
+            let chain_id = u64::from_be_bytes(r.get(52..60)?.try_into().ok()?);
+            let connector = *r.get(60)?;
+            let amount = u128::from_be_bytes(r.get(61..77)?.try_into().ok()?);
+            let gas_est = u128::from_be_bytes(r.get(77..93)?.try_into().ok()?);
+            let n = u16::from_be_bytes(r.get(93..95)?.try_into().ok()?) as usize;
+            let resource = std::str::from_utf8(r.get(95..95 + n)?).ok()?.to_string();
+            let policy_hash = h32(r.get(95 + n..)?)?;
+            if r.len() != 95 + n + 32 { return None; }
+            Some(Kind::Quoted { intent_hash: ih, recipient, chain_id, connector, amount, gas_est, resource, policy_hash })
+        }
+        13 => {
+            let ih = h32(r)?;
+            let code = *r.get(32)?;
+            let total = u128::from_be_bytes(r.get(33..49)?.try_into().ok()?);
+            let limit = u128::from_be_bytes(r.get(49..65)?.try_into().ok()?);
+            Some(Kind::DenyReason { intent_hash: ih, code, total, limit })
+        }
         _ => None,
     }
 }

@@ -1,9 +1,12 @@
 //! Конвейер: Ω → Δ → [human] → WAL → execute → Settled/Failed/ReconcilePending.
-use crate::policy::{delta_check, needs_human, omega_check, resource_check, Delta, Omega};
+use crate::policy::{
+    connector_byte, delta_check, needs_human, omega_check, policy_hash, resource_cap, resource_check, Delta,
+    DeltaDeny, Omega, OmegaDeny,
+};
 use mu_common::{Amount, CanonAddress, Clock, ConnectorId, Hash32};
 use mu_connect::{ConnErr, Connector, Intent as ConnIntent, TxRef, TxStatus};
 use mu_human::{confirm_payment, verify_auth_proof, HumanDecision, PayConfirm, Presenter};
-use mu_log::{Kind, Log};
+use mu_log::{deny, Kind, Log};
 use mu_vault::Vault;
 use sha2::{Digest, Sha256};
 use std::time::{Duration, Instant};
@@ -94,6 +97,12 @@ pub struct Runtime<'a> {
 }
 
 impl<'a> Runtime<'a> {
+    /// Denied* followed by its reason (rule, total checked, cap it met).
+    fn log_denial(&mut self, kind: Kind, ih: Hash32, code: u8, total: u128, limit: u128, now: u64) {
+        let _ = self.log.append(kind, now, self.vault);
+        let _ = self.log.append(Kind::DenyReason { intent_hash: ih, code, total, limit }, now, self.vault);
+    }
+
     /// Обработка одного intent'а. &mut self = сериализация (RISK-M6-3):
     /// второй process не начнётся, пока не завершён первый.
     pub fn process(&mut self, i: &RtIntent) -> IntentStatus {
@@ -105,23 +114,49 @@ impl<'a> Runtime<'a> {
         let gas = match self.connector.quote(&conn_intent) {
             Ok(f) => f.gas_estimate,
             Err(_) => {
-                let _ = self.log.append(Kind::DeniedOmega { intent_hash: ih }, now, self.vault);
+                self.log_denial(Kind::DeniedOmega { intent_hash: ih }, ih, deny::QUOTE_FAILED, 0, 0, now);
                 return IntentStatus::DeniedOmega;
             }
         };
 
+        // 1b. что спросили и по каким правилам судим — в лог ДО проверок.
+        // Нет записи — нет платежа (fail closed): без Quoted читатель не пересчитает решение.
+        let quoted = Kind::Quoted {
+            intent_hash: ih,
+            recipient: *i.recipient.bytes(),
+            chain_id: i.chain_id,
+            connector: connector_byte(i.connector),
+            amount: i.amount.minor(),
+            gas_est: gas.minor(),
+            resource: i.resource.clone().unwrap_or_default(),
+            policy_hash: policy_hash(&self.omega, &self.delta),
+        };
+        if self.log.append(quoted, now, self.vault).is_err() {
+            return IntentStatus::Failed;
+        }
+
         // 2. Ω-check
         let total = match omega_check(i.amount, gas, i.connector, &self.omega) {
             Ok(t) => t,
-            Err(_) => {
-                let _ = self.log.append(Kind::DeniedOmega { intent_hash: ih }, now, self.vault);
+            Err(e) => {
+                let (code, limit) = match e {
+                    OmegaDeny::ConnectorUnknown => (deny::CONNECTOR_UNKNOWN, 0),
+                    OmegaDeny::CeilingExceeded => (deny::CEILING_EXCEEDED, self.omega.max_ceiling.minor()),
+                };
+                let total = i.amount.checked_add(gas).map(|a| a.minor()).unwrap_or(u128::MAX);
+                self.log_denial(Kind::DeniedOmega { intent_hash: ih }, ih, code, total, limit, now);
                 return IntentStatus::DeniedOmega;
             }
         };
 
         // 3. Δ-check (окно по логу)
-        if delta_check(&i.recipient, total, &self.delta, &self.log, now).is_err() {
-            let _ = self.log.append(Kind::DeniedDelta { intent_hash: ih }, now, self.vault);
+        if let Err(e) = delta_check(&i.recipient, total, &self.delta, &self.log, now) {
+            let (code, limit) = match e {
+                DeltaDeny::NotWhitelisted => (deny::NOT_WHITELISTED, 0),
+                DeltaDeny::WindowExceeded => (deny::WINDOW_EXCEEDED, self.delta.daily_limit.minor()),
+                DeltaDeny::ResourceDenied => (deny::RESOURCE_DENIED, 0),
+            };
+            self.log_denial(Kind::DeniedDelta { intent_hash: ih }, ih, code, total.minor(), limit, now);
             return IntentStatus::DeniedDelta;
         }
 
@@ -129,7 +164,8 @@ impl<'a> Runtime<'a> {
         if let Some(ref resource) = i.resource {
             let (host, path) = split_resource(resource);
             if resource_check(host, path, total, &self.delta).is_err() {
-                let _ = self.log.append(Kind::DeniedDelta { intent_hash: ih }, now, self.vault);
+                let cap = resource_cap(host, path, &self.delta);
+                self.log_denial(Kind::DeniedDelta { intent_hash: ih }, ih, deny::RESOURCE_DENIED, total.minor(), cap, now);
                 return IntentStatus::DeniedDelta;
             }
         }

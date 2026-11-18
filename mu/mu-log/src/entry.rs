@@ -18,6 +18,33 @@ pub enum Kind {
     TailTruncated { lost_from_seq: u64 },
     NonceSnapshot { agent_id: String, nonce: u64 },
     Alert { code: u16 },
+    /// What the gate was asked and what it judged against, written before any check:
+    /// recipient, price (amount + gas estimate), chain/connector (the asset is the
+    /// connector's per-network constant) and the x402 resource, plus the hash of the Ω/Δ
+    /// in force. Together with Pending/Settled/Denied* (same intent_hash) a reader can
+    /// recompute the decision from the log alone.
+    Quoted {
+        intent_hash: Hash32,
+        recipient: [u8; 20],
+        chain_id: u64,
+        connector: u8,
+        amount: u128,
+        gas_est: u128,
+        resource: String,
+        policy_hash: Hash32,
+    },
+    /// Why a Denied* entry was written: which rule, the total checked and the cap it met.
+    DenyReason { intent_hash: Hash32, code: u8, total: u128, limit: u128 },
+}
+
+/// `DenyReason.code` values.
+pub mod deny {
+    pub const QUOTE_FAILED: u8 = 1;
+    pub const CONNECTOR_UNKNOWN: u8 = 2;
+    pub const CEILING_EXCEEDED: u8 = 3;
+    pub const NOT_WHITELISTED: u8 = 4;
+    pub const WINDOW_EXCEEDED: u8 = 5;
+    pub const RESOURCE_DENIED: u8 = 6;
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -61,6 +88,19 @@ impl Kind {
                 b.extend(agent_id.as_bytes()); b.extend(nonce.to_be_bytes());
             }
             Kind::Alert { code } => { b.push(11); b.extend(code.to_be_bytes()); }
+            Kind::Quoted { intent_hash, recipient, chain_id, connector, amount, gas_est, resource, policy_hash } => {
+                b.push(12); b.extend(intent_hash.0); b.extend(recipient);
+                b.extend(chain_id.to_be_bytes()); b.push(*connector);
+                b.extend(amount.to_be_bytes()); b.extend(gas_est.to_be_bytes());
+                let r = resource.as_bytes();
+                let n = r.len().min(u16::MAX as usize);
+                b.extend((n as u16).to_be_bytes()); b.extend(&r[..n]);
+                b.extend(policy_hash.0);
+            }
+            Kind::DenyReason { intent_hash, code, total, limit } => {
+                b.push(13); b.extend(intent_hash.0); b.push(*code);
+                b.extend(total.to_be_bytes()); b.extend(limit.to_be_bytes());
+            }
         }
         b
     }
