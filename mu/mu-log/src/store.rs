@@ -3,7 +3,7 @@
 use crate::entry::{entry_hash, Entry, Kind, WINDOW_SECS};
 use mu_common::{Amount, Hash32};
 use mu_vault::{DomainTag, Vault};
-use std::collections::HashSet;
+use std::collections::{HashSet, VecDeque};
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
@@ -15,6 +15,9 @@ pub enum LogErr {
     SeqNotMonotonic { at_seq: u64 },
     Vault(String),
     Corrupt,
+    /// Outcome records of money that already moved are still waiting to be written;
+    /// nothing new is recorded (so nothing new pays) until they land.
+    Behind { queued: usize },
 }
 impl From<std::io::Error> for LogErr {
     fn from(e: std::io::Error) -> Self { LogErr::Io(e) }
@@ -28,6 +31,10 @@ pub struct Log {
     entries: Vec<Entry>, // MVP: working copy in memory (segmentation — phase 2)
     last_hash: Hash32,
     next_seq: u64,
+    /// Bytes of the file that hold complete records: a failed write is cut back to here.
+    file_len: u64,
+    /// Settled/Failed (and kin) of payments already sent whose write failed, in order.
+    deferred: VecDeque<(Kind, u64)>,
 }
 
 impl Log {
@@ -48,7 +55,10 @@ impl Log {
         let last_hash = entries.last().map(Entry::hash).unwrap_or(GENESIS);
         let next_seq = entries.last().map(|e| e.seq.saturating_add(1)).unwrap_or(0);
 
-        let mut log = Log { file, path: path.to_path_buf(), entries, last_hash, next_seq };
+        let file_len = if truncated { valid_bytes as u64 } else { buf.len() as u64 };
+        let mut log = Log {
+            file, path: path.to_path_buf(), entries, last_hash, next_seq, file_len, deferred: VecDeque::new(),
+        };
         if truncated {
             let lost = log.next_seq; // everything beyond would have been lost
             log.append_inner(Kind::TailTruncated { lost_from_seq: lost }, 0, vault)?;
@@ -57,8 +67,46 @@ impl Log {
     }
 
     /// RISK-M5-1: durable append. Return Ok(hash) only after flush+sync.
+    /// Refused (`Behind`) while deferred outcomes are queued: records stay in order and a
+    /// new intent cannot start while an earlier payment's outcome is missing from the log.
     pub fn append(&mut self, kind: Kind, ts: u64, vault: &dyn Vault) -> Result<Hash32, LogErr> {
+        self.flush_deferred(vault);
+        if !self.deferred.is_empty() {
+            return Err(LogErr::Behind { queued: self.deferred.len() });
+        }
         self.append_inner(kind, ts, vault)
+    }
+
+    /// For the outcome of a payment that has ALREADY been sent (Settled / Failed): it cannot
+    /// be rolled back, so a failed write is retried and then queued, never dropped. The open
+    /// Pending keeps holding the reserve meanwhile; the queue is written before any later
+    /// record (`append`) and is reported by `deferred_len`.
+    pub fn append_outcome(&mut self, kind: Kind, ts: u64, vault: &dyn Vault) -> Result<Hash32, LogErr> {
+        self.flush_deferred(vault);
+        if self.deferred.is_empty() {
+            let mut last = None;
+            for _ in 0..3 {
+                match self.append_inner(kind.clone(), ts, vault) {
+                    Ok(h) => return Ok(h),
+                    Err(e) => last = Some(e),
+                }
+            }
+            self.deferred.push_back((kind, ts));
+            return Err(last.unwrap_or(LogErr::Corrupt));
+        }
+        self.deferred.push_back((kind, ts));
+        Err(LogErr::Behind { queued: self.deferred.len() })
+    }
+
+    /// Outcomes of sent payments still not on disk (0 = log is complete).
+    pub fn deferred_len(&self) -> usize { self.deferred.len() }
+
+    /// Try to write the queue, oldest first; stops at the first failure.
+    pub fn flush_deferred(&mut self, vault: &dyn Vault) {
+        while let Some((kind, ts)) = self.deferred.front().cloned() {
+            if self.append_inner(kind, ts, vault).is_err() { return; }
+            self.deferred.pop_front();
+        }
     }
 
     fn append_inner(&mut self, kind: Kind, ts: u64, vault: &dyn Vault) -> Result<Hash32, LogErr> {
@@ -70,9 +118,15 @@ impl Log {
         let e = Entry { seq, prev_hash: self.last_hash, ts, kind, sig: sig.0 };
 
         let rec = encode_entry(&e);
-        self.file.write_all(&rec)?;
-        self.file.flush()?;
-        self.file.sync_all()?; // fsync before return (RISK-M5-1)
+        let written = self.file.write_all(&rec).and_then(|_| self.file.flush()).and_then(|_| self.file.sync_all());
+        if let Err(err) = written {
+            // never leave half a record in the middle of the file: a reopen would stop at it
+            // and drop everything written after. Cut back to the last complete record.
+            let _ = self.file.set_len(self.file_len);
+            let _ = self.file.sync_all();
+            return Err(err.into()); // fsync before return (RISK-M5-1)
+        }
+        self.file_len += rec.len() as u64;
 
         self.last_hash = h;
         self.next_seq = seq.saturating_add(1);

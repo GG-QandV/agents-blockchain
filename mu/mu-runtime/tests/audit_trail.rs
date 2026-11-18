@@ -369,3 +369,36 @@ fn unwritable_log_fails_closed_for_denial_and_payment_alike() {
         assert_eq!(conn.exec_calls.get(), 0, "ok_writes={ok_writes}");
     }
 }
+
+/// A payment that was sent but whose Settled cannot be written: the answer is still Settled
+/// (money moved), the outcome is queued, the Pending keeps the reserve, no new intent runs
+/// until the log is writable again, and then the outcome lands first, in order.
+#[test]
+fn settled_that_cannot_be_written_is_queued_blocks_new_intents_and_lands_in_order() {
+    let v = FlakyVault { inner: SoftVault::for_test([1; 32], [2; 32], [3; 32]), budget: 1000.into() };
+    let (conn, pres, clk) = (ok_conn(), FixedPresenter(PresenterChoice::Approve), FixedClock(10_000));
+    let setup = Setup { dir: tempfile::tempdir().unwrap() };
+    let mut rt = make_runtime_dyn(&v, &conn, &pres, &clk, &setup, 250, 1_000_000);
+    // Quoted + Pending succeed (2 writes); every later write fails
+    v.budget.store(2, std::sync::atomic::Ordering::SeqCst);
+    assert!(matches!(rt.process(&intent(100)), IntentStatus::Settled { .. }));
+    assert_eq!(conn.exec_calls.get(), 1);
+    assert_eq!(rt.log.deferred_len(), 1);
+    assert_eq!(rt.log.pending().len(), 1); // reserve held: Pending is still open
+
+    // log still broken: the next intent is refused before money, nothing is lost or reordered
+    assert_eq!(rt.process(&intent(100)), IntentStatus::Failed);
+    assert_eq!(conn.exec_calls.get(), 1);
+    assert_eq!(rt.log.deferred_len(), 1);
+
+    // log recovers: the queued Settled is written BEFORE the new intent's records
+    v.budget.store(1000, std::sync::atomic::Ordering::SeqCst);
+    assert!(matches!(rt.process(&intent(100)), IntentStatus::Settled { .. }));
+    assert_eq!(rt.log.deferred_len(), 0);
+    let k = kinds(&rt);
+    let first_settled = k.iter().position(|e| matches!(e, Kind::Settled { .. })).unwrap();
+    let second_quoted = k.iter().rposition(|e| matches!(e, Kind::Quoted { .. })).unwrap();
+    assert!(first_settled < second_quoted);
+    rt.log.verify_chain().unwrap();
+    assert!(rt.log.pending().is_empty());
+}

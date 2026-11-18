@@ -235,13 +235,16 @@ impl<'a> Runtime<'a> {
         };
 
         // 6. исполнение
+        // From here money may have moved: outcomes go through `append_outcome`, which retries and
+        // then queues a failed write inside the log (never drops it, never blocks the answer); while
+        // the queue is non-empty `Log::append` refuses, so no new intent starts (see `Behind`).
         let (ih2, res) = exec_after_wal(wal, self.connector, &conn_intent, signer);
         match res {
             Ok(TxRef::Real { tx_hash, .. }) => {
                 // 7. финальность: Settled только при консенсусе status (RISK-M6-2/M7-3)
                 match self.connector.status(&TxRef::Real { tx_hash, chain_nonce: 0 }) {
                     Ok(TxStatus::Settled { effective_gas, .. }) => {
-                        let _ = self.log.append(
+                        let _ = self.log.append_outcome(
                             Kind::Settled { intent_hash: ih2, tx_hash, effective_gas },
                             self.clock.now_unix(),
                             self.vault,
@@ -249,7 +252,7 @@ impl<'a> Runtime<'a> {
                         IntentStatus::Settled { tx_hash }
                     }
                     Ok(TxStatus::Failed { .. }) => {
-                        let _ = self.log.append(Kind::Failed { intent_hash: ih2 }, self.clock.now_unix(), self.vault);
+                        let _ = self.log.append_outcome(Kind::Failed { intent_hash: ih2 }, self.clock.now_unix(), self.vault);
                         IntentStatus::Failed
                     }
                     // Pending / ошибка опроса → резерв держится (RISK-M6-5)
@@ -258,8 +261,8 @@ impl<'a> Runtime<'a> {
             }
             Ok(TxRef::Simulated { .. }) => {
                 // стаб: помечаем Simulated; окно НЕ трогает (RISK-M7S-1)
-                let _ = self.log.append(Kind::Failed { intent_hash: ih2 }, self.clock.now_unix(), self.vault);
-                let _ = self.log.append(
+                let _ = self.log.append_outcome(Kind::Failed { intent_hash: ih2 }, self.clock.now_unix(), self.vault);
+                let _ = self.log.append_outcome(
                     Kind::Simulated { intent_hash: ih2, connector: "stub" },
                     self.clock.now_unix(),
                     self.vault,
@@ -274,7 +277,7 @@ impl<'a> Runtime<'a> {
             }
             Err(ConnErr::Rejected(_)) => {
                 // достоверный неуход → закрываем Pending (rollback резерва)
-                let _ = self.log.append(Kind::Failed { intent_hash: ih2 }, self.clock.now_unix(), self.vault);
+                let _ = self.log.append_outcome(Kind::Failed { intent_hash: ih2 }, self.clock.now_unix(), self.vault);
                 IntentStatus::Failed
             }
             // RISK-M6-2/M6-5: Unknown НИКОГДА не rollback — Pending остаётся, резерв держится.

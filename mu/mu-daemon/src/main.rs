@@ -196,6 +196,10 @@ fn handle_client(
             };
 
             let status = runtime.process(&intent);
+            if runtime.log.deferred_len() > 0 {
+                // money moved but its outcome is not on disk yet: no new intent runs until it is
+                eprintln!("ALERT: {} payment outcome(s) not yet written to the log", runtime.log.deferred_len());
+            }
             let response = match status {
                 IntentStatus::DeniedOmega => 0x10u8,
                 IntentStatus::DeniedDelta => 0x11,

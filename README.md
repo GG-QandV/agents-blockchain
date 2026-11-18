@@ -103,6 +103,7 @@ Exception: if the connector cannot quote, there is nothing to record — `Denied
 - `Quoted` — recipient, chain, connector (the asset is that connector's per-network USDC constant, not a separate field), amount, gas estimate, x402 resource, and the hash of the Ω/Δ in force.
 - `DenyReason` — which rule fired (`deny::*`), the total checked and the cap it met.
 - No `Quoted` record, no payment: if it cannot be written, the intent fails before any money moves.
+- After money has moved, a `Settled`/`Failed` that cannot be written is retried and queued, not dropped; until it lands, new intents are refused and the open `Pending` keeps holding the reserve.
 
 `policy_hash` pins Ω (ceiling, connector set) and Δ (daily limit, threshold, whitelist, resource rules). It does not cover the 24h window length, the human timeout or the owner key. A reader with the log and the policy re-derives each verdict (see `mu/mu-runtime/tests/audit_trail.rs`, rung 4). The recipient is stored in clear; if you publish a log, hash it first — at the cost of that recomputation for third parties. Logs written before this change have no `Quoted`/`DenyReason` entries: the chain still verifies, but their verdicts cannot be re-derived. `intent_hash` now also covers connector and resource, so hashes differ from older logs for the same payee/amount.
 

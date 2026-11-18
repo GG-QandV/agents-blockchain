@@ -13,6 +13,7 @@ Additive: log tags 1–11 are unchanged; logs from 0.2.0-ksg open and verify, bu
 ### Changed
 - `intent_hash` now also covers connector and resource (hashes differ from older logs).
 - An intent whose x402 resource exceeds 65 535 bytes is refused (`Failed`) before anything is logged.
+- Outcome of a payment already sent (`Settled`/`Failed`): written with `Log::append_outcome` — retried, then queued inside the log, never dropped. While the queue is non-empty `Log::append` returns `Behind`, so no new intent starts; the queue is written first, in order, once the log is writable. The open `Pending` keeps holding the reserve meanwhile; the daemon prints an ALERT. A failed write is cut back to the last complete record (no half records mid-file). The queue is in memory: a crash before it is written leaves a `Pending` without outcome, as before.
 - Denial and owner-decision records are no longer fire-and-forget: if one cannot be written, the intent returns `Failed` (and an approval that cannot be logged does not pay), instead of reporting a denial with a hole in the log.
 
 ## 0.2.0-ksg — 2026-10-10 (initial production baseline for keysingate)
