@@ -1,4 +1,5 @@
-//! mu-fixtures — dev artifact generator for smoke daemon (SoftVault ONLY).
+//! mu-fixtures — TEST artifact generator. Its keys are the public seeds below: anything sent to
+//! that wallet is anyone's. Real keys come from `mu-keygen init` (docs/KEYS.md).
 //! Creates in $MU_HOME: mu.bin, log.mulog (empty valid chain), agent.key (ed25519 seed),
 //! prints agent pubkey for allowlist and mu_pubkey for verify.
 //! Usage: MU_HOME=/tmp/mu ./mu-fixtures [rollback-attack]

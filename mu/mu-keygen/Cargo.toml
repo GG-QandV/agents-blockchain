@@ -1,0 +1,25 @@
+[package]
+name = "mu-keygen"
+version.workspace = true
+edition.workspace = true
+description = "Creates the keys and the first μ object for a μ Gate daemon: init / show / check"
+
+[dependencies]
+mu-common = { path = "../mu-common" }
+mu-core = { path = "../mu-core" }
+mu-log = { path = "../mu-log" }
+mu-policy = { path = "../mu-policy" }
+mu-connect = { path = "../mu-connect" }
+mu-vault = { path = "../mu-vault", features = ["softvault"] }
+ed25519-dalek = "=2.1.1"
+p256 = { version = "=0.13.2", features = ["ecdsa"] }
+k256 = { version = "=0.13.3", features = ["ecdsa"] }
+rand_core = { version = "=0.6.4", features = ["getrandom"] }
+zeroize = "=1.7.0"
+
+[dev-dependencies]
+tempfile = "=3.10.1"
+
+[[bin]]
+name = "mu-keygen"
+path = "src/main.rs"

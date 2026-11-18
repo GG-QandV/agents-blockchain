@@ -15,10 +15,10 @@ mu-human = { path = "../mu-human" }
 mu-policy = { path = "../mu-policy" }
 mu-license = { path = "../mu-license" }
 sha2 = "=0.10.8"
+p256 = { version = "=0.13.2", features = ["ecdsa"] }
+zeroize = "=1.7.0"
 
 [features]
-# softvault — ТОЛЬКО для тестов/CI. В release защёлка даёт compile_error.
+# softvault — the file-backed software vault (keys read from $MU_HOME). Hardware backends: not implemented yet.
 softvault = ["mu-vault/softvault"]
 
-#[cfg(all(not(debug_assertions), feature = "softvault"))]
-#compile_error!("softvault запрещён в release");

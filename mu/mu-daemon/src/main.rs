@@ -9,8 +9,9 @@
 
 #![forbid(unsafe_code)]
 
-#[cfg(all(not(debug_assertions), feature = "softvault"))]
-compile_error!("softvault запрещён в release");
+// The daemon's vault is file-backed: keys are read from $MU_HOME (see docs/KEYS.md, `mu-keygen`),
+// never compiled in. The `softvault` feature selects this software backend; hardware backends
+// (Enclave / StrongBox / TPM) are not implemented yet.
 
 use std::fs;
 use std::io::{Read, Write};
@@ -30,33 +31,41 @@ use mu_log::Kind;
 use mu_log::{Log, LogErr};
 use mu_runtime::{IntentStatus, Runtime};
 use mu_vault::backend::SoftVault;
+use mu_vault::keyfile::read_seed;
+use mu_vault::Vault;
 
 // ── Конфіґ (MVP: хардкод; прод: env/конфіґ) ─────────────────────────────
 
-const MU_PATH: &str = "mu.bin";
-const LOG_PATH: &str = "mu.log";
-const SOCK_PATH: &str = "/tmp/mu-daemon.sock";
-const MU_PUBKEY_HEX: &str = "026ff03b949241ce1dadd43519e6960e0a85b41a69a05c328103aa2bce1594ca16";
+const MU_FILE: &str = "mu.bin";
+const LOG_FILE: &str = "log.mulog";
+const DEFAULT_SOCK: &str = "/tmp/mu-daemon.sock";
 const BUCKET_CAP: u32 = 10;
 const TS_WINDOW_SECS: u64 = 60;
 
 // ── Допоміжні ───────────────────────────────────────────────────────────
 
-fn hex_decode(s: &str) -> Vec<u8> {
+fn hex20(s: &str) -> Option<[u8; 20]> {
     let s = s.strip_prefix("0x").unwrap_or(s);
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16).unwrap())
-        .collect()
-}
-
-fn hex20(s: &str) -> [u8; 20] {
-    let s = s.strip_prefix("0x").unwrap_or(s);
+    if s.len() != 40 {
+        return None;
+    }
     let mut a = [0u8; 20];
     for i in 0..20 {
-        a[i] = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).unwrap_or(0);
+        a[i] = u8::from_str_radix(&s[i * 2..i * 2 + 2], 16).ok()?;
     }
-    a
+    Some(a)
+}
+
+fn pubkey_of(seed: &[u8; 32]) -> Result<Vec<u8>, BootErr> {
+    use p256::ecdsa::SigningKey;
+    let sk = SigningKey::from_bytes(seed.into()).map_err(|_| BootErr::Vault("mu.key is not a valid P-256 key".into()))?;
+    Ok(sk.verifying_key().to_encoded_point(true).as_bytes().to_vec())
+}
+
+fn key_file(home: &Path, name: &str) -> Result<zeroize::Zeroizing<[u8; 32]>, BootErr> {
+    read_seed(&home.join(name)).map_err(|e| {
+        BootErr::Vault(format!("{}: {e} — create the keys with `mu-keygen init <dir>` (docs/KEYS.md)", home.join(name).display()))
+    })
 }
 
 // ── Presenter-заглушка (M9) ─────────────────────────────────────────────
@@ -94,13 +103,11 @@ impl From<std::io::Error> for BootErr {
 }
 
 fn boot(
-    mu_path: &Path,
-    log_path: &Path,
-    mu_pubkey: &[u8],
+    home: &Path,
 ) -> Result<(Mu, Log, Gate, SoftVault, StubConnector, CliPresenter, SysClock), BootErr> {
     // ── Крок 0: License check ──────────────────────────────────────────
-    let license_path = Path::new("license.key");
-    match License::load(license_path) {
+    let license_path = home.join("license.key");
+    match License::load(&license_path) {
         Ok(l) => match l.mode {
             mu_license::LicenseMode::Personal => {
                 println!("License: PERSONAL (full functionality, embed license available at $299)");
@@ -116,12 +123,17 @@ fn boot(
     };
 
     // ── Крок 1: M1 — load + verify + verify_against_log (RISK-M1-2) ──
-    let mu = Mu::load(mu_path)?;
-    mu.verify(mu_pubkey).map_err(BootErr::Mu)?;
+    // Keys: files in $MU_HOME, mode 600. The μ object must verify under THIS mu key.
+    let mu_seed = key_file(home, "mu.key")?;
+    let owner_seed = key_file(home, "owner.key")?;
+    let wallet_seed = key_file(home, "wallet.key")?;
+    let mu_pubkey = pubkey_of(&mu_seed)?;
+    let vault = SoftVault::from_seeds(*mu_seed, *owner_seed, *wallet_seed);
+    let mu = Mu::load(&home.join(MU_FILE))?;
+    mu.verify(&mu_pubkey).map_err(BootErr::Mu)?;
 
     // ── Крок 2: M5 — Log::open + verify_chain (RISK-M5-2) ────────────
-    let vault = SoftVault::for_test([1u8; 32], [2u8; 32], [3u8; 32]);
-    let log = Log::open(log_path, &vault)?;
+    let log = Log::open(&home.join(LOG_FILE), &vault)?;
     log.verify_chain()?;
 
     // verify_against_log: log_head == хвіст лога (RISK-M1-2)
@@ -137,13 +149,10 @@ fn boot(
 
     // ── Крок 4: M8 — restore_nonce з NonceSnapshot логу (RISK-M8-1) ──
     let mut allow = AllowList::new();
-    // SMOKE: додаємо тестового агента (seed [42;32])
-    let agent_pubkey: [u8; 32] = [
-        0x19, 0x7f, 0x6b, 0x23, 0xe1, 0x6c, 0x85, 0x32,
-        0xc6, 0xab, 0xc8, 0x38, 0xfa, 0xcd, 0x5e, 0xa7,
-        0x89, 0xbe, 0x0c, 0x76, 0xb2, 0x92, 0x03, 0x34,
-        0x03, 0x9b, 0xfa, 0x8b, 0x3d, 0x36, 0x8d, 0x61,
-    ];
+    // The agent's PUBLIC key (agent.pub, written by mu-keygen); the agent keeps agent.key.
+    let agent_pub_text = fs::read_to_string(home.join("agent.pub"))?;
+    let agent_pubkey: [u8; 32] = mu_vault::keyfile::parse_hex32(&agent_pub_text)
+        .ok_or_else(|| BootErr::Vault("agent.pub: expected 32 bytes as 64 hex characters".into()))?;
     allow.add("agent-1", agent_pubkey);
     let mut gate = Gate::new(allow, BUCKET_CAP, TS_WINDOW_SECS);
     for e in log.entries() {
@@ -239,13 +248,16 @@ fn serve(
 // ── Main ────────────────────────────────────────────────────────────────
 
 fn main() {
-    let mu_path = Path::new(MU_PATH);
-    let log_path = Path::new(LOG_PATH);
-    let sock_path = Path::new(SOCK_PATH);
-    let mu_pubkey = hex_decode(MU_PUBKEY_HEX);
+    let Ok(home) = std::env::var("MU_HOME") else {
+        eprintln!("FATAL: MU_HOME is not set. Create a home with `mu-keygen init <dir>` and run with MU_HOME=<dir> (docs/KEYS.md)");
+        std::process::exit(2);
+    };
+    let home = std::path::PathBuf::from(home);
+    let sock_var = std::env::var("MU_SOCK").unwrap_or_else(|_| DEFAULT_SOCK.to_string());
+    let sock_path = Path::new(&sock_var);
 
     let (mu, mut log, mut gate, vault, stub, presenter, clock) =
-        match boot(mu_path, log_path, &mu_pubkey) {
+        match boot(&home) {
             Ok(v) => v,
             Err(BootErr::Mu(CoreErr::LogHeadMismatch)) => {
                 eprintln!("FATAL: log_head mismatch — стара копія mu.bin");
@@ -280,16 +292,22 @@ fn main() {
     // Вибір коннектора: MU_CONNECTOR=x402 або за замовчуванням stub
     let connector: &'static dyn Connector = match std::env::var("MU_CONNECTOR").as_deref() {
         Ok("x402") => {
-            let wallet_hex = std::env::var("MU_WALLET_ADDR")
-                .expect("MU_WALLET_ADDR required for x402 connector");
-            let wallet = hex20(&wallet_hex);
+            // The wallet is the one wallet.key controls; MU_WALLET_ADDR, if set, must agree.
+            let wallet = mu_connect::x402::address_of(&vault.tx_signer().expect("wallet key")).expect("wallet address");
+            let wallet_hex = format!("0x{}", mu_vault::keyfile::to_hex(&wallet));
+            if let Ok(set) = std::env::var("MU_WALLET_ADDR") {
+                if hex20(&set) != Some(wallet) {
+                    eprintln!("FATAL: MU_WALLET_ADDR={set} is not the wallet of wallet.key ({wallet_hex}); unset it or fix it");
+                    std::process::exit(2);
+                }
+            }
             // MU_X402_NETWORK: base (default, real money) | base-sepolia (test network).
             let net = match std::env::var("MU_X402_NETWORK").as_deref() {
                 Ok("base-sepolia") => mu_connect::x402::BASE_SEPOLIA,
                 Ok("base") | Err(_) => mu_connect::x402::BASE,
                 Ok(other) => panic!("MU_X402_NETWORK={other}: base | base-sepolia"),
             };
-            eprintln!("Connector: X402 on {} (wallet: {wallet_hex}; the signing key must be this wallet)", net.name);
+            eprintln!("Connector: X402 on {} (wallet: {wallet_hex})", net.name);
             Box::leak(Box::new(X402Connector::on(net, wallet)))
         }
         _ => {
@@ -302,15 +320,13 @@ fn main() {
         connectors: vec![ConnectorId::BankStub, ConnectorId::CardStub],
         max_ceiling: mu_common::Amount::from_minor(10_000_000_000),
     };
+    // Δ comes from the owner-signed μ object, not from code.
+    let d = mu.delta();
     let delta = mu_runtime::policy::Delta {
-        daily_limit: mu_common::Amount::from_minor(5_000_000_000),
-        whitelist: vec![
-            mu_common::CanonAddress::canon(
-                "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed000000000000000000000000", 8453
-            ).unwrap(),
-        ],
-        confirm_threshold: mu_common::Amount::from_minor(1_000_000_000),
-        resource_allowlist: vec![],
+        daily_limit: d.daily_limit,
+        whitelist: d.whitelist.iter().map(|w| w.address).collect(),
+        confirm_threshold: d.confirm_threshold,
+        resource_allowlist: d.resource_allowlist.clone(),
     };
 
     let mut runtime = Runtime {

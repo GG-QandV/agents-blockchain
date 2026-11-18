@@ -10,6 +10,14 @@ Additive: log tags 1–11 are unchanged; logs from 0.2.0-ksg open and verify, bu
 - `policy_hash(Ω, Δ)` (order-insensitive over connectors).
 - Tests: `mu-log/tests/quoted_log.rs`, `mu-runtime/tests/audit_trail.rs` (denial reasons, paid chain, re-derivation from the log alone).
 
+### Keys (security)
+- **The daemon no longer contains any key.** It used the public test seeds `[1]`/`[2]`/`[3]` (anyone could derive the wallet key) and a baked-in μ public key, whitelist and agent key. Now all of it comes from `$MU_HOME` (required): `mu.key`, `owner.key`, `wallet.key` (mode 600, refused otherwise), `agent.pub`, and the policy Δ from the owner-signed `mu.bin`. `MU_WALLET_ADDR` is optional and must match `wallet.key`. `MU_SOCK` sets the socket.
+- New `mu-keygen` (`init` / `show` / `check`): OS-random keys written mode 600 (dir 700), never overwrites, writes the first owner-signed μ object with your policy (`--limit --threshold --ceiling --chain --allow`) and an empty log. Guide: `docs/KEYS.md`.
+- `mu-vault::keyfile` (read/write key files, perms check), `SoftVault::from_seeds`, `mu_policy::to_checksum` (EIP-55 display).
+- `clients/mu-client.py` signs frames with `agent.key`.
+- Removed the tracked `mu/mu.bin` and `mu/mu.log` (issued under the old public keys; they cannot boot the new daemon).
+- Existing homes made with the old fixed keys do not work with the new daemon; create a new home with `mu-keygen init`. `mu-fixtures` keeps its public test seeds and is test-only.
+
 ### Changed
 - `intent_hash` now also covers connector and resource (hashes differ from older logs).
 - An intent whose x402 resource exceeds 65 535 bytes is refused (`Failed`) before anything is logged.

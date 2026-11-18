@@ -9,6 +9,7 @@
 pub mod domain;
 pub mod signer;
 pub mod backend;
+pub mod keyfile;
 
 pub use domain::DomainTag;
 pub use signer::{TxSigner, TxSignerP256};

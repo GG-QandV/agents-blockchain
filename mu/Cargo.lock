@@ -405,7 +405,9 @@ dependencies = [
  "mu-policy",
  "mu-runtime",
  "mu-vault",
+ "p256",
  "sha2",
+ "zeroize",
 ]
 
 [[package]]
@@ -441,6 +443,24 @@ dependencies = [
  "p256",
  "sha2",
  "tempfile",
+]
+
+[[package]]
+name = "mu-keygen"
+version = "0.2.1-ksg"
+dependencies = [
+ "ed25519-dalek",
+ "k256",
+ "mu-common",
+ "mu-connect",
+ "mu-core",
+ "mu-log",
+ "mu-policy",
+ "mu-vault",
+ "p256",
+ "rand_core",
+ "tempfile",
+ "zeroize",
 ]
 
 [[package]]
@@ -500,6 +520,7 @@ dependencies = [
  "p256",
  "rand_core",
  "sha2",
+ "tempfile",
  "zeroize",
 ]
 

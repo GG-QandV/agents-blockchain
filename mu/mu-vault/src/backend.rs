@@ -11,9 +11,8 @@ use p256::ecdsa::{signature::hazmat::PrehashSigner, SigningKey as P256Signing};
 use zeroize::Zeroizing;
 
 // ─────────────────────────────────────────────────────────────────────────
-// SoftVault — keys in process memory. NOT for production.
-// RISK-M4-4: release profile MUST NOT enable feature "softvault".
-// This is checked in the daemon's lib.rs via compile_error! (see comment below).
+// SoftVault — keys in process memory (file-backed via `from_seeds`, fixed seeds via `for_test`).
+// Not hardware-backed: attest().hw_backed is false. Never use `for_test` seeds with real funds.
 // ─────────────────────────────────────────────────────────────────────────
 #[cfg(feature = "softvault")]
 pub struct SoftVault {
@@ -26,6 +25,11 @@ pub struct SoftVault {
 
 #[cfg(feature = "softvault")]
 impl SoftVault {
+    /// Keys read from key files (see `keyfile`): the file-backed vault used by the daemon until
+    /// hardware backends land. Keys live in process memory (zeroized on drop).
+    pub fn from_seeds(mu: [u8; 32], owner: [u8; 32], wallet: [u8; 32]) -> Self {
+        Self::for_test(mu, owner, wallet)
+    }
     pub fn for_test(mu: [u8; 32], owner: [u8; 32], wallet: [u8; 32]) -> Self {
         SoftVault {
             mu_key: Zeroizing::new(mu),

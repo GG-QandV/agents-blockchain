@@ -21,6 +21,18 @@ pub fn canon_address_checked(input: &str, chain_id: u64) -> Result<(CanonAddress
     Ok((canon, needs_warning))
 }
 
+/// EIP-55 mixed-case form of a 20-byte address, `0x`-prefixed.
+pub fn to_checksum(addr: &[u8; 20]) -> String {
+    let lower: String = addr.iter().map(|b| format!("{b:02x}")).collect();
+    let digest = Keccak256::digest(lower.as_bytes());
+    let mut out = String::from("0x");
+    for (i, c) in lower.chars().enumerate() {
+        let nibble = if i % 2 == 0 { digest[i / 2] >> 4 } else { digest[i / 2] & 0x0f };
+        out.push(if nibble >= 8 { c.to_ascii_uppercase() } else { c });
+    }
+    out
+}
+
 fn eip55_valid(s: &str) -> bool {
     let lower = s.to_ascii_lowercase();
     let mut h = Keccak256::new();
@@ -65,5 +77,22 @@ mod tests {
     fn all_lower_ok_with_warning() {
         let (_, warn) = canon_address_checked("0x5aaeb6053f3e94c9b9a09f33669435e7ef1beaed", 1).unwrap();
         assert!(warn); // W-ADR-01
+    }
+}
+
+#[cfg(test)]
+mod checksum_tests {
+    use super::to_checksum;
+    #[test]
+    fn eip55_official_vectors() {
+        for v in [
+            "0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed",
+            "0xfB6916095ca1df60bB79Ce92cE3Ea74c37c5d359",
+            "0xdbF03B407c01E7cD3CBea99509d93f8DDDC8C6FB",
+        ] {
+            let mut a = [0u8; 20];
+            for i in 0..20 { a[i] = u8::from_str_radix(&v[2 + 2 * i..4 + 2 * i], 16).unwrap(); }
+            assert_eq!(to_checksum(&a), v);
+        }
     }
 }

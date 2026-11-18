@@ -12,4 +12,4 @@ pub mod hash;
 pub use types::{Delta, OmegaView, ResourceRule, WlEntry};
 pub use validate::{validate, VErr, VWarn, ValidationReport};
 pub use hash::delta_hash;
-pub use eip55::canon_address_checked;
+pub use eip55::{canon_address_checked, to_checksum};

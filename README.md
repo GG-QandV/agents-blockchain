@@ -12,52 +12,54 @@
 
 ## Quickstart (30 min)
 
+Full key guide — create, use, store, back up: **[docs/KEYS.md](docs/KEYS.md)**.
+
 ### Prerequisites
 
 - **Rust** ≥ 1.75 (`rustup install 1.75`)
 - **Linux** or **macOS** (Unix socket transport; Windows via WSL2)
-- **Python 3** for the CP1 test harness (optional)
+- **Python 3** + `pip install cryptography` for the sample agent client (optional)
 
 ### 1. Build & test
 
 ```bash
 cd mu
 cargo test --workspace --features mu-vault/softvault
-cargo build -p mu-daemon --features softvault
+cargo build --release -p mu-daemon -p mu-keygen --features mu-daemon/softvault
 ```
 
-### 2. Generate fixtures
+### 2. Create your keys (never ship or reuse someone else's)
 
 ```bash
-export MU_HOME=/tmp/mu-gate
-rm -rf $MU_HOME
-cargo run -p mu-fixtures
+./target/release/mu-keygen init ~/.mu-gate --limit 25 --threshold 25 \
+  --allow 0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed=my-api
+./target/release/mu-keygen check ~/.mu-gate
 ```
+
+This writes the wallet, owner, μ and agent keys (random, mode 600), the first owner-signed μ object (your policy) and an empty log. The wallet address it prints is the one to fund. **Back the keys up before funding** — see [docs/KEYS.md](docs/KEYS.md).
 
 ### 3. Run the daemon (stub mode — no real payments)
 
 ```bash
-./target/debug/mu-daemon
+MU_HOME=~/.mu-gate ./target/release/mu-daemon
 ```
 
-In another terminal:
+In another terminal, as the agent (it holds only `agent.key`, never the wallet key):
 
 ```bash
-python3 mu/clients/mu-client.py /tmp/mu-daemon.sock \
-  0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913 1000000 cp1-agent
+python3 clients/mu-client.py /tmp/mu-daemon.sock \
+  0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed 1000000 agent-1 --key ~/.mu-gate/agent.key
 ```
 
-### 4. Run CP1 (real payment proof — needs funded wallet)
+A recipient that is not on your whitelist, or an amount over the daily limit, comes back as a denial (`0x11`). The decision and what was quoted are in `~/.mu-gate/log.mulog`.
 
-```bash
-# Fund wallet with $20 USDC on Base mainnet
-MU_CONNECTOR=x402 MU_WALLET_ADDR=0x<your_address> ./target/debug/mu-daemon
+### Dev fixtures (public test keys — never fund them)
 
-# In another terminal:
-python3 mu/clients/cp1-harness.py
-```
+`cargo run -p mu-fixtures` creates a throwaway home with **publicly known** test seeds, used only by the test suite. Anything sent to its wallet can be taken by anyone.
 
-See `cp1-harness.py` for the 4 test cases (allowed call, wrong address denial, threshold test, log review).
+### Real x402 payments
+
+`MU_CONNECTOR=x402` makes the daemon sign EIP-3009 authorizations with `wallet.key` (the connector checks the 402 challenge against the approved intent). The daemon does not yet hand the signed authorization back to the agent, and the owner-confirmation dialog is a stub that denies; the end-to-end paying flow is `ksg-smoke` (see `mu/CHANGELOG-ksg.md`, live on Base Sepolia with `MU_PAYER_KEY_FILE`).
 
 ---
 
@@ -81,6 +83,7 @@ See `cp1-harness.py` for the 4 test cases (allowed call, wrong address denial, t
 | `mu-human`              | M9 — owner biometric confirmation dialog                  |
 | `mu-core`               | M1 — μ-object format, CBOR-like serialization             |
 | `mu-daemon`             | Binary — boot protocol, socket server, Runtime            |
+| `mu-keygen`             | Binary — creates keys + first μ object (`init`/`show`/`check`) |
 | `mu-license`            | Ed25519-signed license check                              |
 | `composer-core`         | C2 — Delta proposal encode/decode (offline policy change) |
 | `composer-cli`          | C2 — CLI tool for whitelist/daily-limit management        |
@@ -136,12 +139,14 @@ Templates in `mu/policy-templates/`:
 
 ### Environment
 
-| Env var          | Default   | Description                                |
-| ---------------- | --------- | ------------------------------------------ |
-| `MU_CONNECTOR`   | `stub`    | `x402` for real payments                   |
-| `MU_WALLET_ADDR` | —         | Wallet address (hex, with or without `0x`) |
-| `MU_HOME`        | `/tmp/mu` | Fixtures directory                         |
-| `MU_POLICY_SOCK` | —         | Unix socket path for Composer              |
+| Env var          | Default                | Description                                                   |
+| ---------------- | ---------------------- | ------------------------------------------------------------- |
+| `MU_HOME`        | — (required)           | Directory made by `mu-keygen init`: keys, `mu.bin`, `log.mulog` |
+| `MU_SOCK`        | `/tmp/mu-daemon.sock`  | Unix socket the agent connects to                             |
+| `MU_CONNECTOR`   | `stub`                 | `x402` for real authorizations                                |
+| `MU_X402_NETWORK`| `base`                 | `base` (real money) or `base-sepolia`                         |
+| `MU_WALLET_ADDR` | derived from the key   | Optional; if set it must equal the wallet of `wallet.key`     |
+| `MU_POLICY_SOCK` | —                      | Unix socket path for Composer                                 |
 
 ---
 
