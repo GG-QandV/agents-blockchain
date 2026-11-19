@@ -1,7 +1,6 @@
 //! μ Gate KSG smoke (test networks only — SoftVault, which a release build
-//! refuses). The wallet is the fixed test key 0x11…11, or, for a live payment
-//! on Base Sepolia, the key in the file `MU_PAYER_KEY_FILE` (64 hex chars,
-//! mode 600; the key is never printed).
+//! refuses). The wallet is the key in the file `MU_PAYER_KEY_FILE` (64 hex chars,
+//! mode 600; the key is never printed), required: no key is built in.
 //!
 //!   ksg-smoke < 402.json > x-payment.txt
 //!   MU_PAYER_KEY_FILE=~/.secrets/keysingate/base-sepolia/payer.hex ksg-smoke < 402.json
@@ -39,11 +38,13 @@ impl Presenter for AutoApprove {
     }
 }
 
-/// The payer's wallet key: the file named by `MU_PAYER_KEY_FILE`, else the
-/// fixed test key. A file readable by others is refused.
+/// The payer's wallet key: the file named by `MU_PAYER_KEY_FILE` (no fallback: a key that
+/// is written in source is public and gets swept). A file readable by others is refused.
+/// Make one with `mu-keygen init <dir>`; use `<dir>/wallet.key`.
 fn wallet_key() -> [u8; 32] {
     let Ok(path) = std::env::var("MU_PAYER_KEY_FILE") else {
-        return [0x11; 32];
+        eprintln!("MU_PAYER_KEY_FILE is not set: point it at a key file (64 hex, mode 600), e.g. the wallet.key made by `mu-keygen init`");
+        std::process::exit(2)
     };
     let fail = |why: &str| -> ! {
         eprintln!("MU_PAYER_KEY_FILE: {why}");

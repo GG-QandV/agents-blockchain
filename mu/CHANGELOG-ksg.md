@@ -15,6 +15,7 @@ Additive: log tags 1–11 are unchanged; logs from 0.2.0-ksg open and verify, bu
 - New `mu-keygen` (`init` / `show` / `check`): OS-random keys written mode 600 (dir 700), never overwrites, writes the first owner-signed μ object with your policy (`--limit --threshold --ceiling --chain --allow`) and an empty log. Guide: `docs/KEYS.md`.
 - `mu-vault::keyfile` (read/write key files, perms check), `SoftVault::from_seeds`, `mu_policy::to_checksum` (EIP-55 display).
 - `clients/mu-client.py` signs frames with `agent.key`.
+- `ksg-smoke` no longer falls back to the fixed key 0x11…11: `MU_PAYER_KEY_FILE` is required.
 - Removed the tracked `mu/mu.bin` and `mu/mu.log` (issued under the old public keys; they cannot boot the new daemon).
 - Existing homes made with the old fixed keys do not work with the new daemon; create a new home with `mu-keygen init`. `mu-fixtures` keeps its public test seeds and is test-only.
 
